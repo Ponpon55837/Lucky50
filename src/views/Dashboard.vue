@@ -128,30 +128,19 @@
         <!-- 價格走勢圖 -->
         <div class="card">
           <h2 class="text-xl font-semibold text-white mb-4">價格走勢</h2>
-          <div class="h-64 bg-gray-800/50 rounded-lg flex items-center justify-center">
-            <p class="text-gray-400">圖表載入中...</p>
-          </div>
+          <PriceChart :etfData="investmentStore.etfData" :isDark="isDark" />
         </div>
 
         <!-- 五行能量圖 -->
         <div class="card">
           <h2 class="text-xl font-semibold text-white mb-4">五行能量</h2>
-          <div v-if="currentFortune" class="space-y-3">
-            <div
-              v-for="(value, element) in currentFortune.elements"
-              :key="element"
-              class="flex items-center space-x-3"
-            >
-              <span class="w-12 text-gray-300 text-sm">{{ getElementName(element) }}</span>
-              <div class="flex-1 bg-gray-700 rounded-full h-2">
-                <div
-                  class="h-2 rounded-full"
-                  :class="getElementColor(element)"
-                  :style="{ width: `${value}%` }"
-                ></div>
-              </div>
-              <span class="text-white text-sm w-8">{{ Math.round(value) }}</span>
-            </div>
+          <ElementRadarChart
+            v-if="currentFortune && currentFortune.elements"
+            :elements="currentFortune.elements"
+            :isDark="isDark"
+          />
+          <div v-else class="h-64 bg-gray-800/50 rounded-lg flex items-center justify-center">
+            <p class="text-gray-400">請先設定個人資料</p>
           </div>
         </div>
       </div>
@@ -164,11 +153,15 @@ import { ref, computed, onMounted } from 'vue'
 import { RouterLink } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import { useInvestmentStore } from '@/stores/investment'
+import { useTheme } from '@/composables/useTheme'
 import { FortuneService } from '@/services/fortune'
 import { FinMindService } from '@/services/finmind'
+import PriceChart from '@/components/charts/PriceChart.vue'
+import ElementRadarChart from '@/components/charts/ElementRadarChart.vue'
 
 const userStore = useUserStore()
 const investmentStore = useInvestmentStore()
+const { isDark } = useTheme()
 
 const loading = ref(true)
 const currentFortune = ref(null)
@@ -258,6 +251,12 @@ const loadData = async () => {
     // Load user profile
     userStore.loadProfile()
 
+    // Check API status first
+    const apiStatus = await FinMindService.checkAPIStatus()
+    if (!apiStatus) {
+      console.warn('FinMind API 無法連接，將使用備用數據')
+    }
+
     // Calculate fortune if profile exists
     if (userStore.profile) {
       currentFortune.value = FortuneService.calculateDailyFortune(
@@ -266,14 +265,21 @@ const loadData = async () => {
       ) as any
     }
 
-    // Load ETF data
+    // Load ETF data with better error handling
     const endDate = new Date().toISOString().split('T')[0]
     const startDate = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
 
-    const etfData = await FinMindService.getETFData(startDate, endDate)
-    investmentStore.setETFData(etfData)
+    try {
+      const etfData = await FinMindService.getETFData(startDate, endDate)
+      investmentStore.setETFData(etfData)
+      console.log(`成功載入 ${etfData.length} 筆 ETF 資料${!apiStatus ? ' (使用備用數據)' : ''}`)
+    } catch (etfError) {
+      console.error('ETF 數據載入失敗:', etfError)
+      // ETF 載入失敗不影響頁面其他功能
+    }
   } catch (error) {
     console.error('載入資料失敗:', error)
+    // 可以添加 Toast 通知用戶
   } finally {
     loading.value = false
   }
