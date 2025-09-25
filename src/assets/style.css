@@ -1,0 +1,342 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  html {
+    font-family: 'Noto Sans TC', 'Microsoft YaHei', 'PingFang TC', sans-serif;
+    scroll-behavior: smooth;
+    /* 硬體加速滑動 */
+    -webkit-overflow-scrolling: touch;
+    /* 減少重繪 */
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
+  }
+
+  body {
+    @apply bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900;
+    @apply text-white min-h-screen;
+    /* 優化滑動性能 */
+    transform: translateZ(0);
+    -webkit-transform: translateZ(0);
+    /* 減少重繪 */
+    will-change: scroll-position;
+  }
+}
+
+@layer components {
+  .card {
+    @apply bg-white/10 backdrop-blur-md rounded-xl p-6 border border-white/20 shadow-xl;
+    /* 硬體加速 */
+    transform: translateZ(0);
+    -webkit-transform: translateZ(0);
+    /* 優化重繪 */
+    will-change: auto;
+  }
+
+  .fortune-orb {
+    @apply relative rounded-full bg-gradient-to-r from-gold-400 to-yellow-500;
+    @apply shadow-2xl;
+    /* 移除可能造成卡頓的動畫，改用更輕量的版本 */
+    animation: fortune-glow-light 3s ease-in-out infinite alternate;
+    /* 硬體加速 */
+    transform: translateZ(0);
+    -webkit-transform: translateZ(0);
+  }
+
+  .btn-primary {
+    @apply bg-gradient-to-r from-gold-500 to-yellow-600 hover:from-gold-600 hover:to-yellow-700;
+    @apply text-white font-medium py-2 px-4 rounded-lg;
+    /* 優化過渡效果 */
+    transition: all 0.15s ease-out;
+    /* 減少 hover 時的 transform */
+    @apply shadow-lg hover:shadow-xl;
+  }
+
+  .btn-primary:hover {
+    transform: translateY(-1px);
+  }
+
+  .btn-secondary {
+    @apply bg-white/10 hover:bg-white/20 backdrop-blur-md;
+    @apply text-white font-medium py-2 px-4 rounded-lg;
+    transition: all 0.15s ease-out;
+    @apply border border-white/20 hover:border-white/30;
+  }
+
+  /* 優化的日期選擇器樣式 */
+  .date-picker {
+    @apply w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white;
+    @apply focus:outline-none focus:border-gold-500 focus:ring-2 focus:ring-gold-500/20;
+    backdrop-filter: blur(10px);
+    transition: all 0.2s ease-out;
+  }
+
+  .date-picker::-webkit-calendar-picker-indicator {
+    filter: invert(1);
+    opacity: 0.7;
+    transition: opacity 0.2s ease-out;
+  }
+
+  .date-picker:hover::-webkit-calendar-picker-indicator {
+    opacity: 1;
+  }
+
+  /* 自定義時間選擇器 */
+  .time-picker {
+    @apply w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white;
+    @apply focus:outline-none focus:border-gold-500 focus:ring-2 focus:ring-gold-500/20;
+    backdrop-filter: blur(10px);
+    transition: all 0.2s ease-out;
+  }
+
+  .time-picker::-webkit-calendar-picker-indicator {
+    filter: invert(1);
+    opacity: 0.7;
+  }
+
+  /* 優化滾動條 */
+  ::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 3px;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: rgba(245, 158, 11, 0.5);
+    border-radius: 3px;
+    transition: background 0.2s ease-out;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: rgba(245, 158, 11, 0.8);
+  }
+}
+
+@layer utilities {
+  /* 性能優化工具類 */
+  .gpu-accelerated {
+    transform: translateZ(0);
+    -webkit-transform: translateZ(0);
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
+  }
+
+  .smooth-scroll {
+    scroll-behavior: smooth;
+    -webkit-overflow-scrolling: touch;
+  }
+}
+
+/* 優化的動畫關鍵幀 */
+@keyframes fortune-glow-light {
+  0% {
+    box-shadow: 0 0 20px rgba(245, 158, 11, 0.4);
+    filter: brightness(1);
+  }
+  100% {
+    box-shadow: 0 0 30px rgba(245, 158, 11, 0.6);
+    filter: brightness(1.1);
+  }
+}
+
+@keyframes float {
+  0%,
+  100% {
+    transform: translateY(0px) translateZ(0);
+  }
+  50% {
+    transform: translateY(-10px) translateZ(0);
+  }
+}
+
+/* 減少動畫偏好設定 */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* 日期選擇器優化 */
+.date-picker-wrapper {
+  position: relative;
+}
+
+.date-picker-input {
+  width: 100% !important;
+  padding: 0.75rem 1rem !important;
+  background-color: rgba(255, 255, 255, 0.1) !important;
+  border: 1px solid rgba(255, 255, 255, 0.2) !important;
+  border-radius: 0.5rem !important;
+  color: white !important;
+  font-size: 1rem !important;
+  outline: none !important;
+  transition: all 0.2s ease-in-out !important;
+
+  /* 提升性能 */
+  will-change: border-color, box-shadow;
+  transform: translateZ(0);
+}
+
+.date-picker-input:focus {
+  border-color: #f59e0b !important;
+  box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.2) !important;
+}
+
+.date-picker-input::placeholder {
+  color: rgba(255, 255, 255, 0.5) !important;
+}
+
+/* Vue DatePicker 暗色主題自定義 */
+.dp__theme_dark {
+  --dp-background-color: #1f2937;
+  --dp-text-color: #ffffff;
+  --dp-hover-color: #374151;
+  --dp-hover-text-color: #ffffff;
+  --dp-hover-icon-color: #ffffff;
+  --dp-primary-color: #f59e0b;
+  --dp-primary-text-color: #ffffff;
+  --dp-secondary-color: #4b5563;
+  --dp-border-color: rgba(255, 255, 255, 0.2);
+  --dp-menu-border-color: rgba(255, 255, 255, 0.2);
+  --dp-border-color-hover: #f59e0b;
+  --dp-disabled-color: #6b7280;
+  --dp-scroll-bar-background: #374151;
+  --dp-scroll-bar-color: #f59e0b;
+  --dp-success-color: #10b981;
+  --dp-success-color-disabled: #065f46;
+  --dp-icon-color: #9ca3af;
+  --dp-danger-color: #ef4444;
+  --dp-highlight-color: rgba(245, 158, 11, 0.2);
+}
+
+/* 時間選擇器樣式 */
+.time-picker-input {
+  width: 100% !important;
+  padding: 0.75rem 1rem !important;
+  background-color: rgba(255, 255, 255, 0.1) !important;
+  border: 1px solid rgba(255, 255, 255, 0.2) !important;
+  border-radius: 0.5rem !important;
+  color: white !important;
+  font-size: 1rem !important;
+  outline: none !important;
+  transition: all 0.2s ease-in-out !important;
+
+  /* 提升性能 */
+  will-change: border-color, box-shadow;
+  transform: translateZ(0);
+}
+
+.time-picker-input:focus {
+  border-color: #f59e0b !important;
+  box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.2) !important;
+}
+
+.time-picker-input::placeholder {
+  color: rgba(255, 255, 255, 0.5) !important;
+}
+.time-picker {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  background-color: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 0.5rem;
+  color: white;
+  outline: none;
+  transition: all 0.2s ease-in-out;
+
+  /* 優化移動端體驗 */
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+
+  /* 提升性能 */
+  will-change: border-color, box-shadow;
+  transform: translateZ(0);
+}
+
+.time-picker:focus {
+  border-color: #f59e0b;
+  box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.2);
+}
+
+.time-picker::-webkit-datetime-edit-fields-wrapper {
+  color: white;
+}
+
+.time-picker::-webkit-datetime-edit-text {
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.time-picker::-webkit-datetime-edit-hour-field,
+.time-picker::-webkit-datetime-edit-minute-field {
+  background-color: transparent;
+  color: white;
+  padding: 2px;
+  border-radius: 4px;
+}
+
+.time-picker::-webkit-datetime-edit-hour-field:focus,
+.time-picker::-webkit-datetime-edit-minute-field:focus {
+  background-color: rgba(251, 191, 36, 0.2);
+  outline: none;
+}
+
+/* 移動端優化 */
+@media (max-width: 768px) {
+  .time-picker {
+    font-size: 16px; /* 防止 iOS Safari 縮放 */
+    padding: 12px 16px;
+  }
+}
+
+/* 選擇器下拉框優化 */
+select {
+  /* 提升滾動性能 */
+  will-change: transform;
+  transform: translateZ(0);
+
+  /* 改善觸控體驗 */
+  touch-action: manipulation;
+}
+
+select option {
+  background-color: #1f2937;
+  color: white;
+  padding: 8px 12px;
+}
+
+/* 表單輸入優化 */
+input[type='date'],
+input[type='time'],
+select {
+  /* 硬體加速 */
+  transform: translateZ(0);
+  will-change: border-color, box-shadow;
+
+  /* 減少重繪 */
+  backface-visibility: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* 焦點狀態優化 */
+input:focus,
+select:focus {
+  /* 使用 transform 而非改變 border 來避免重排 */
+  transform: translateZ(0) scale(1.01);
+  transition:
+    transform 0.15s ease-out,
+    box-shadow 0.15s ease-out;
+}
