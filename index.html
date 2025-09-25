@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lucky50 - 農民曆智慧投資</title>
+    <meta name="description" content="結合傳統農民曆與現代金融分析的0050 ETF投資建議平台">
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+        <!-- 標題區 -->
+        <header class="header">
+            <h1 class="title">🌙 Lucky50 農民曆智慧投資 🏮</h1>
+            <p class="subtitle">結合傳統智慧與現代金融 · 專業0050 ETF投資建議</p>
+        </header>
+
+        <!-- 主要內容區 -->
+        <main class="main-content">
+            <!-- 個人資料輸入區 -->
+            <section class="input-section">
+                <h2>📋 個人資料</h2>
+                <div class="form-container">
+                    <div class="form-group">
+                        <label for="birthDate">出生日期</label>
+                        <input type="date" id="birthDate" class="input-field" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="birthTime">出生時辰</label>
+                        <select id="birthTime" class="input-field" required>
+                            <option value="">請選擇時辰</option>
+                            <option value="子">子時 (23:00-01:00)</option>
+                            <option value="丑">丑時 (01:00-03:00)</option>
+                            <option value="寅">寅時 (03:00-05:00)</option>
+                            <option value="卯">卯時 (05:00-07:00)</option>
+                            <option value="辰">辰時 (07:00-09:00)</option>
+                            <option value="巳">巳時 (09:00-11:00)</option>
+                            <option value="午">午時 (11:00-13:00)</option>
+                            <option value="未">未時 (13:00-15:00)</option>
+                            <option value="申">申時 (15:00-17:00)</option>
+                            <option value="酉">酉時 (17:00-19:00)</option>
+                            <option value="戌">戌時 (19:00-21:00)</option>
+                            <option value="亥">亥時 (21:00-23:00)</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="zodiac">生肖</label>
+                        <select id="zodiac" class="input-field" required>
+                            <option value="">請選擇生肖</option>
+                            <option value="鼠">鼠</option>
+                            <option value="牛">牛</option>
+                            <option value="虎">虎</option>
+                            <option value="兔">兔</option>
+                            <option value="龍">龍</option>
+                            <option value="蛇">蛇</option>
+                            <option value="馬">馬</option>
+                            <option value="羊">羊</option>
+                            <option value="猴">猴</option>
+                            <option value="雞">雞</option>
+                            <option value="狗">狗</option>
+                            <option value="豬">豬</option>
+                        </select>
+                    </div>
+
+                    <button id="analyzeBtn" class="analyze-btn">🔮 開始分析運勢</button>
+                </div>
+            </section>
+
+            <!-- 結果顯示區 -->
+            <section class="results-section" id="resultsSection" style="display: none;">
+                <!-- 3D 運勢球體 -->
+                <div class="fortune-sphere-container">
+                    <h2>🌟 投資運勢球</h2>
+                    <div id="fortuneSphere" class="fortune-sphere"></div>
+                </div>
+
+                <!-- 今日運勢 -->
+                <div class="fortune-summary">
+                    <h2>📅 今日運勢概況</h2>
+                    <div id="fortuneResult" class="fortune-content">
+                        <!-- 動態生成內容 -->
+                    </div>
+                </div>
+
+                <!-- 0050 投資建議 -->
+                <div class="investment-advice">
+                    <h2>💰 0050 ETF 投資建議</h2>
+                    <div id="investmentResult" class="investment-content">
+                        <!-- 動態生成內容 -->
+                    </div>
+                </div>
+
+                <!-- 數據圖表 -->
+                <div class="chart-container">
+                    <h2>📊 數據視覺化</h2>
+                    <canvas id="investmentChart" width="400" height="200"></canvas>
+                </div>
+            </section>
+        </main>
+
+        <!-- 頁腳 -->
+        <footer class="footer">
+            <p>&copy; 2025 Lucky50 農民曆智慧投資平台 | 僅供參考，投資有風險</p>
+        </footer>
+    </div>
+
+    <!-- 載入外部函式庫 -->
+    <script src="https://unpkg.com/three@0.157.0/build/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <!-- 主要 JavaScript 檔案 -->
+    <script src="js/lunar-calendar.js"></script>
+    <script src="js/fortune-calculator.js"></script>
+    <script src="js/investment-analyzer.js"></script>
+    <script src="js/three-sphere.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>

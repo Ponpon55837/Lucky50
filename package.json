@@ -1,0 +1,27 @@
+{
+  "name": "lucky50",
+  "version": "1.0.0",
+  "description": "農民曆智慧投資 - 0050 ETF 投資建議系統",
+  "main": "index.html",
+  "scripts": {
+    "start": "python -m http.server 8000",
+    "dev": "python -m http.server 8000",
+    "test": "echo \"No tests specified\" && exit 0"
+  },
+  "keywords": [
+    "投資",
+    "0050",
+    "ETF",
+    "農民曆",
+    "八字",
+    "生肖",
+    "fortune",
+    "investment"
+  ],
+  "author": "Lucky50 Team",
+  "license": "MIT",
+  "dependencies": {
+    "three": "^0.157.0",
+    "chart.js": "^4.4.0"
+  }
+}
