@@ -197,12 +197,14 @@
 import { ref, computed, watch, onMounted } from 'vue'
 import { useUserStore } from '@/stores/user'
 import { useRouter } from 'vue-router'
+import { useToast } from '@/composables/useToast'
 import type { UserProfile } from '@/types'
 import VueDatePicker from '@vuepic/vue-datepicker'
 import '@vuepic/vue-datepicker/dist/main.css'
 
 const userStore = useUserStore()
 const router = useRouter()
+const { success, error } = useToast()
 
 const zodiacList = ['鼠', '牛', '虎', '兔', '龍', '蛇', '馬', '羊', '猴', '雞', '狗', '豬']
 
@@ -344,10 +346,12 @@ const saveProfile = () => {
   try {
     userStore.setProfile(form.value)
     // 使用更好的提示方式
-    showSuccessToast('個人設定已保存！')
-    router.push('/dashboard')
+    showSuccessToast('設定成功', '您的個人資料已成功保存，即將跳轉到儀表板')
+    setTimeout(() => {
+      router.push('/dashboard')
+    }, 1500)
   } catch (error) {
-    showErrorToast('保存失敗，請重試')
+    showErrorToast('保存失敗', '無法保存您的設定，請檢查資料後重試')
   }
 }
 
@@ -364,15 +368,13 @@ const clearForm = () => {
   selectedShichen.value = ''
 }
 
-// 簡單的提示系統
-const showSuccessToast = (message: string) => {
-  // TODO: 實作更好的 toast 系統
-  alert(message)
+// Toast 通知系統
+const showSuccessToast = (title: string, message?: string) => {
+  success(title, message)
 }
 
-const showErrorToast = (message: string) => {
-  // TODO: 實作更好的 toast 系統
-  alert(message)
+const showErrorToast = (title: string, message?: string) => {
+  error(title, message)
 }
 
 onMounted(() => {

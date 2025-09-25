@@ -49,8 +49,8 @@
               </button>
             </div>
           </div>
-          <div class="h-96 bg-gray-800/50 rounded-lg flex items-center justify-center">
-            <p class="text-gray-400">價格走勢圖表 ({{ selectedPeriod }})</p>
+          <div class="h-96 rounded-lg overflow-hidden">
+            <PriceChart :etfData="investmentStore.etfData" :isDark="isDark" />
           </div>
         </div>
 
@@ -58,8 +58,8 @@
           <!-- 成交量分析 -->
           <div class="card">
             <h2 class="text-xl font-semibold text-white mb-6">成交量分析</h2>
-            <div class="h-64 bg-gray-800/50 rounded-lg flex items-center justify-center">
-              <p class="text-gray-400">成交量圖表</p>
+            <div class="h-64 rounded-lg overflow-hidden">
+              <VolumeChart :etfData="investmentStore.etfData" :isDark="isDark" />
             </div>
           </div>
 
@@ -197,10 +197,40 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
+import { useInvestmentStore } from '@/stores/investment'
+import { useTheme } from '@/composables/useTheme'
+import { FinMindService } from '@/services/finmind'
+import PriceChart from '@/components/charts/PriceChart.vue'
+import VolumeChart from '@/components/charts/VolumeChart.vue'
+
+const investmentStore = useInvestmentStore()
+const { isDark } = useTheme()
 
 const selectedPeriod = ref('1年')
 const periods = ['1個月', '3個月', '6個月', '1年', '3年', '5年']
+const loading = ref(true)
 
-// TODO: 實際的圖表和數據邏輯將在後續實作
+const loadAnalyticsData = async () => {
+  loading.value = true
+  try {
+    // 如果 store 中沒有數據，則重新載入
+    if (investmentStore.etfData.length === 0) {
+      const endDate = new Date().toISOString().split('T')[0]
+      const startDate = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+
+      const etfData = await FinMindService.getETFData(startDate, endDate)
+      investmentStore.setETFData(etfData)
+      console.log('Analytics - 載入 ETF 數據:', etfData.length, '筆')
+    }
+  } catch (error) {
+    console.error('Analytics 數據載入失敗:', error)
+  } finally {
+    loading.value = false
+  }
+}
+
+onMounted(() => {
+  loadAnalyticsData()
+})
 </script>
