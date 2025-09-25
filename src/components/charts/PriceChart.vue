@@ -1,14 +1,16 @@
 <template>
   <div class="h-64 w-full">
-    <Line
-      v-if="chartData && chartOptions"
-      :data="chartData"
-      :options="chartOptions"
-      class="w-full h-full"
-    />
-    <div v-else class="h-full bg-gray-800/50 rounded-lg flex items-center justify-center">
-      <p class="text-gray-400">載入圖表中...</p>
+    <div
+      v-if="!chartData"
+      class="h-full bg-gray-800/50 rounded-lg flex items-center justify-center"
+    >
+      <p class="text-gray-400">
+        {{ props.etfData?.length === 0 ? '無數據可顯示' : '載入圖表中...' }}
+        <br />
+        <small class="text-xs">數據數量: {{ props.etfData?.length || 0 }}</small>
+      </p>
     </div>
+    <Line v-else :data="chartData" :options="chartOptions" class="w-full h-full" />
   </div>
 </template>
 
@@ -51,7 +53,11 @@ const props = withDefaults(defineProps<Props>(), {
 
 // 計算圖表數據
 const chartData = computed(() => {
+  console.log('PriceChart - etfData:', props.etfData)
+  console.log('PriceChart - etfData length:', props.etfData?.length)
+
   if (!props.etfData || props.etfData.length === 0) {
+    console.log('PriceChart - No data available')
     return null
   }
 
@@ -60,6 +66,8 @@ const chartData = computed(() => {
     .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
     .slice(-30)
 
+  console.log('PriceChart - sortedData:', sortedData)
+
   const labels = sortedData.map(item => {
     const date = new Date(item.date)
     return `${date.getMonth() + 1}/${date.getDate()}`
@@ -67,10 +75,13 @@ const chartData = computed(() => {
 
   const prices = sortedData.map(item => item.close)
 
+  console.log('PriceChart - labels:', labels)
+  console.log('PriceChart - prices:', prices)
+
   // 創建背景色 - 使用簡單的字符串而不是漸變
   const backgroundColor = props.isDark ? 'rgba(251, 191, 36, 0.1)' : 'rgba(59, 130, 246, 0.1)'
 
-  return {
+  const data = {
     labels,
     datasets: [
       {
@@ -89,6 +100,9 @@ const chartData = computed(() => {
       },
     ],
   }
+
+  console.log('PriceChart - final chartData:', data)
+  return data
 })
 
 // 圖表選項

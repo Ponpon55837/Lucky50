@@ -24,6 +24,7 @@ finmindAPI.interceptors.request.use((config) => {
 export class FinMindService {
   // 備用模擬數據
   private static getMockETFData(startDate: string, endDate: string): ETFData[] {
+    console.log('生成模擬數據:', startDate, '到', endDate)
     const mockData: ETFData[] = []
     const start = new Date(startDate)
     const end = new Date(endDate)
@@ -41,7 +42,7 @@ export class FinMindService {
         const low = Math.min(open, close) - Math.random() * 0.8
         const volume = Math.floor(Math.random() * 50000000) + 10000000
         
-        mockData.push({
+        const dataPoint = {
           date: currentDate.toISOString().split('T')[0],
           open: Number(open.toFixed(2)),
           high: Number(high.toFixed(2)),
@@ -50,12 +51,16 @@ export class FinMindService {
           volume: volume,
           change: Number((close - open).toFixed(2)),
           changePercent: Number(((close - open) / open * 100).toFixed(2))
-        })
+        }
         
+        mockData.push(dataPoint)
         basePrice = close // 下次的基準價格
       }
       currentDate.setDate(currentDate.getDate() + 1)
     }
+    
+    console.log('生成的模擬數據:', mockData.length, '筆')
+    console.log('模擬數據樣本:', mockData.slice(0, 3))
     
     return mockData.reverse() // 最新日期在前
   }
@@ -64,6 +69,8 @@ export class FinMindService {
    * 取得 0050 ETF 歷史資料
    */
   static async getETFData(startDate: string, endDate: string): Promise<ETFData[]> {
+    console.log('FinMind - 開始載入數據:', startDate, '到', endDate)
+    
     try {
       const response = await finmindAPI.get('/data', {
         params: {
@@ -74,13 +81,17 @@ export class FinMindService {
         }
       })
 
+      console.log('FinMind - API 回應:', response.data)
+
       // 檢查 API 回應狀態
       if (response.data.status !== 200 || !response.data.data || response.data.data.length === 0) {
         console.warn('FinMind API 無數據，使用備用模擬數據')
-        return this.getMockETFData(startDate, endDate)
+        const mockData = this.getMockETFData(startDate, endDate)
+        console.log('FinMind - 生成備用數據:', mockData.length, '筆')
+        return mockData
       }
 
-      return response.data.data.map((item: any) => ({
+      const formattedData = response.data.data.map((item: any) => ({
         date: item.date,
         open: parseFloat(item.open),
         high: parseFloat(item.max || item.high),
@@ -90,16 +101,18 @@ export class FinMindService {
         change: parseFloat(item.close) - parseFloat(item.open),
         changePercent: ((parseFloat(item.close) - parseFloat(item.open)) / parseFloat(item.open)) * 100
       }))
+      
+      console.log('FinMind - 格式化數據:', formattedData.length, '筆')
+      return formattedData
+      
     } catch (error: any) {
       console.error('FinMind API 請求失敗:', error.message)
       
-      // 如果是網路錯誤或 API 錯誤，使用備用數據
-      if (error.code === 'ECONNABORTED' || error.response?.status >= 400) {
-        console.warn('使用備用模擬數據替代')
-        return this.getMockETFData(startDate, endDate)
-      }
-      
-      throw new Error('無法取得股市資料，請檢查網路連線後重試')
+      // 無論什麼錯誤都使用備用數據
+      console.warn('使用備用模擬數據替代')
+      const mockData = this.getMockETFData(startDate, endDate)
+      console.log('FinMind - 錯誤後生成備用數據:', mockData.length, '筆')
+      return mockData
     }
   }
 
