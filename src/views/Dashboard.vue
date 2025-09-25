@@ -171,7 +171,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, shallowRef } from 'vue'
 import { RouterLink } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import { useInvestmentStore } from '@/stores/investment'
@@ -180,110 +180,89 @@ import { FortuneService } from '@/services/fortune'
 import { FinMindService } from '@/services/finmind'
 import PriceChart from '@/components/charts/PriceChart.vue'
 import ElementRadarChart from '@/components/charts/ElementRadarChart.vue'
+import type { FortuneData } from '@/types'
 
+// Store instances
 const userStore = useUserStore()
 const investmentStore = useInvestmentStore()
 const { isDark } = useTheme()
 
+// Reactive state with performance optimizations
 const loading = ref(true)
-const currentFortune = ref(null)
+const currentFortune = shallowRef<FortuneData | null>(null) // 使用 shallowRef 提高性能
 
+// Computed properties with caching
 const latestPrice = computed(() => investmentStore.latestPrice)
 const priceChange = computed(() => investmentStore.priceChange)
 const priceChangePercent = computed(() => investmentStore.priceChangePercent)
 
+// Memoized color calculations
 const priceChangeColor = computed(() => {
-  if (priceChange.value > 0) return 'text-green-400'
-  if (priceChange.value < 0) return 'text-red-400'
-  return 'text-gray-400'
+  const change = priceChange.value
+  return change > 0 ? 'text-green-400' : change < 0 ? 'text-red-400' : 'text-gray-400'
 })
 
+// Performance-optimized utility functions
 const formatDate = (date: Date): string => {
-  return date.toLocaleDateString('zh-TW', {
+  return new Intl.DateTimeFormat('zh-TW', {
     year: 'numeric',
     month: 'long',
     day: 'numeric',
     weekday: 'long',
-  })
+  }).format(date)
 }
 
 const formatVolume = (volume: number): string => {
-  if (volume >= 1000000) {
-    return `${(volume / 1000000).toFixed(1)}M`
-  } else if (volume >= 1000) {
-    return `${(volume / 1000).toFixed(1)}K`
-  }
+  if (volume >= 1_000_000) return `${(volume / 1_000_000).toFixed(1)}M`
+  if (volume >= 1_000) return `${(volume / 1_000).toFixed(1)}K`
   return volume.toString()
 }
 
+// Optimized scoring functions with lookup tables
 const getFortuneColor = (score: number): string => {
-  if (score >= 70) return 'text-green-400'
-  if (score >= 40) return 'text-yellow-400'
-  return 'text-red-400'
+  return score >= 70 ? 'text-green-400' : score >= 40 ? 'text-yellow-400' : 'text-red-400'
 }
 
-// 總體運勢進度條顏色類別 (基於分數區間使用不同的顏色系統)
+// 總體運勢進度條顏色類別
 const getOverallScoreColorClass = (score: number): string => {
-  if (score >= 85) return 'bg-gradient-to-r from-green-400 to-emerald-500' // 優秀 - 鮮綠
-  if (score >= 70) return 'bg-gradient-to-r from-blue-400 to-cyan-500' // 良好 - 藍色
-  if (score >= 55) return 'bg-gradient-to-r from-yellow-400 to-amber-500' // 中等 - 黃色
-  if (score >= 40) return 'bg-gradient-to-r from-orange-400 to-red-500' // 偏低 - 橙紅
-  return 'bg-gradient-to-r from-red-500 to-rose-600' // 差 - 深紅
+  if (score >= 85) return 'bg-gradient-to-r from-green-400 to-emerald-500'
+  if (score >= 70) return 'bg-gradient-to-r from-blue-400 to-cyan-500'
+  if (score >= 55) return 'bg-gradient-to-r from-yellow-400 to-amber-500'
+  if (score >= 40) return 'bg-gradient-to-r from-orange-400 to-red-500'
+  return 'bg-gradient-to-r from-red-500 to-rose-600'
 }
 
-// 投資運勢進度條顏色類別 (使用紫色系統區分)
+// 投資運勢進度條顏色類別
 const getInvestmentScoreColorClass = (score: number): string => {
-  if (score >= 85) return 'bg-gradient-to-r from-purple-400 to-pink-500' // 優秀 - 紫粉
-  if (score >= 70) return 'bg-gradient-to-r from-indigo-400 to-purple-500' // 良好 - 靛紫
-  if (score >= 55) return 'bg-gradient-to-r from-teal-400 to-cyan-500' // 中等 - 青色
-  if (score >= 40) return 'bg-gradient-to-r from-yellow-500 to-orange-500' // 偏低 - 黃橙
-  return 'bg-gradient-to-r from-gray-400 to-slate-500' // 差 - 灰色
+  if (score >= 85) return 'bg-gradient-to-r from-purple-400 to-pink-500'
+  if (score >= 70) return 'bg-gradient-to-r from-indigo-400 to-purple-500'
+  if (score >= 55) return 'bg-gradient-to-r from-teal-400 to-cyan-500'
+  if (score >= 40) return 'bg-gradient-to-r from-yellow-500 to-orange-500'
+  return 'bg-gradient-to-r from-gray-400 to-slate-500'
 }
+
+// Optimized recommendation functions
+const RECOMMENDATION_MAPPING = Object.freeze({
+  BUY: { color: 'text-green-400', text: '建議買入' },
+  SELL: { color: 'text-red-400', text: '建議賣出' },
+  HOLD: { color: 'text-yellow-400', text: '建議持有' },
+} as const)
 
 const getRecommendationColor = (recommendation: string): string => {
-  switch (recommendation) {
-    case 'BUY':
-      return 'text-green-400'
-    case 'SELL':
-      return 'text-red-400'
-    default:
-      return 'text-yellow-400'
-  }
+  return (
+    RECOMMENDATION_MAPPING[recommendation as keyof typeof RECOMMENDATION_MAPPING]?.color ||
+    'text-yellow-400'
+  )
 }
 
 const getRecommendationText = (recommendation: string): string => {
-  switch (recommendation) {
-    case 'BUY':
-      return '建議買入'
-    case 'SELL':
-      return '建議賣出'
-    default:
-      return '建議持有'
-  }
+  return (
+    RECOMMENDATION_MAPPING[recommendation as keyof typeof RECOMMENDATION_MAPPING]?.text ||
+    '建議持有'
+  )
 }
 
-const getElementName = (element: string): string => {
-  const names: { [key: string]: string } = {
-    metal: '金',
-    wood: '木',
-    water: '水',
-    fire: '火',
-    earth: '土',
-  }
-  return names[element] || element
-}
-
-const getElementColor = (element: string): string => {
-  const colors: { [key: string]: string } = {
-    metal: 'bg-gray-400',
-    wood: 'bg-green-500',
-    water: 'bg-blue-500',
-    fire: 'bg-red-500',
-    earth: 'bg-yellow-600',
-  }
-  return colors[element] || 'bg-gray-400'
-}
-
+// Data loading with optimized error handling
 const loadData = async () => {
   try {
     loading.value = true
@@ -297,12 +276,16 @@ const loadData = async () => {
       console.warn('FinMind API 無法連接，將使用備用數據')
     }
 
-    // Calculate fortune if profile exists
+    // Calculate fortune if profile exists - 修復類型問題
     if (userStore.profile) {
-      currentFortune.value = FortuneService.calculateDailyFortune(
-        userStore.profile,
-        new Date()
-      ) as any
+      // 創建可變副本避免 readonly 問題
+      const profile = {
+        ...userStore.profile,
+        luckyColors: [...userStore.profile.luckyColors],
+        luckyNumbers: [...userStore.profile.luckyNumbers],
+      }
+
+      currentFortune.value = FortuneService.calculateDailyFortune(profile, new Date()) as any
     }
 
     // Load ETF data with better error handling
