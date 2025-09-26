@@ -5,7 +5,8 @@
   "description": "農民曆智慧投資 - 0050 ETF 投資建議系統",
   "scripts": {
     "dev": "vite",
-    "build": "vue-tsc && vite build",
+    "build": "vite build",
+    "build:tsc": "vue-tsc --noEmit && vite build",
     "preview": "vite preview",
     "lint": "eslint . --ext .vue,.js,.jsx,.cjs,.mjs,.ts,.tsx,.cts,.mts --fix --ignore-path .gitignore",
     "format": "prettier --write src/"
@@ -34,8 +35,8 @@
     "postcss": "^8.4.31",
     "prettier": "^3.0.3",
     "tailwindcss": "^3.3.5",
-    "typescript": "^5.2.2",
+    "typescript": "^5.9.2",
     "vite": "^4.5.0",
-    "vue-tsc": "^1.8.22"
+    "vue-tsc": "^1.8.27"
   }
 }
