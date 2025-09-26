@@ -1,283 +1,94 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted } from 'vue'
-import { useInvestmentStore } from '@/stores/investment'
+import { useDashboardStore } from '@/stores/dashboard'
+import { useAnalyticsStore } from '@/stores/analytics'
+import { useUserStore } from '@/stores/user'
 import { useTheme } from '@/composables/useTheme'
 import { FinMindService } from '@/services/finmind'
 import PriceChart from '@/components/charts/PriceChart.vue'
 import VolumeChart from '@/components/charts/VolumeChart.vue'
+import Stock3DVisualization from '@/components/three/Stock3DVisualization.vue'
+import Fortune3DVisualization from '@/components/three/Fortune3DVisualization.vue'
+import Lunar3DVisualization from '@/components/three/Lunar3DVisualization.vue'
+import Technical3DVisualization from '@/components/three/Technical3DVisualization.vue'
 
-const investmentStore = useInvestmentStore()
+const dashboardStore = useDashboardStore()
+const analyticsStore = useAnalyticsStore()
+const userStore = useUserStore()
 const { isDark } = useTheme()
 
-const selectedPeriod = ref('1個月')
-const periods = ['1個月', '3個月', '6個月', '1年', '3年', '5年']
 const loading = ref(true)
 const error = ref<string | null>(null)
 
-// 根據時間段獲取天數
-const getPeriodDays = (period: string) => {
-  const periodMap: Record<string, number> = {
-    '1個月': 30,
-    '3個月': 90,
-    '6個月': 180,
-    '1年': 365,
-    '3年': 1095,
-    '5年': 1825,
-  }
-  const days = periodMap[period] || 30
-  return days
-}
+// 使用 analytics store 的狀態
+const selectedPeriod = computed({
+  get: () => analyticsStore.selectedPeriod,
+  set: (value: string) => analyticsStore.setSelectedPeriod(value),
+})
+const periods = analyticsStore.periods
 
-// 計算篩選後的 ETF 數據（現在直接使用store中的數據，因為已經按時間段載入）
+// 計算篩選後的 ETF 數據
 const filteredEtfData = computed(() => {
-  const data = investmentStore.etfData.sort(
-    (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
-  )
-
-  // 2025/6/18 0050 進行 1 拆 4，調整歷史價格以保持連續性
-  const splitDate = new Date('2025-06-18')
-  const splitRatio = 4
-
-  const adjustedData = data.map((item: any) => {
-    const itemDate = new Date(item.date)
-    if (itemDate < splitDate) {
-      // 分拆前的價格需要除以分拆比例來調整
-      return {
-        ...item,
-        open: item.open / splitRatio,
-        high: item.high / splitRatio,
-        low: item.low / splitRatio,
-        close: item.close / splitRatio,
-        volume: item.volume * splitRatio, // 成交量相應增加
-      }
-    }
-    return item
-  })
-
-  return adjustedData
+  return analyticsStore.getAdjustedEtfData(dashboardStore.etfData)
 })
 
 // 計算統計數據
 const statistics = computed(() => {
-  const data = filteredEtfData.value
-  if (data.length === 0) {
-    return {
-      annualReturn: 0,
-      volatility: 0,
-      sharpeRatio: 0,
-      maxDrawdown: 0,
-    }
-  }
-
-  // 2025/6/18 0050 進行 1 拆 4，需要調整歷史價格
-  const splitDate = new Date('2025-06-18')
-  const splitRatio = 4 // 1拆4
-
-  // 調整分拆前的價格數據
-  const adjustedData = data.map((item: any) => {
-    const itemDate = new Date(item.date)
-    if (itemDate < splitDate) {
-      // 分拆前的價格需要除以分拆比例來調整
-      return {
-        ...item,
-        open: item.open / splitRatio,
-        high: item.high / splitRatio,
-        low: item.low / splitRatio,
-        close: item.close / splitRatio,
-        volume: item.volume * splitRatio, // 成交量相應增加
-      }
-    }
-    return item
-  })
-
-  // 計算報酬率（使用調整後的價格）
-  const firstPrice = adjustedData[0]?.close || 0
-  const lastPrice = adjustedData[adjustedData.length - 1]?.close || 0
-  const totalReturn = firstPrice > 0 ? ((lastPrice - firstPrice) / firstPrice) * 100 : 0
-
-  // 計算實際的時間跨度（年數）
-  const firstDate = new Date(data[0]?.date)
-  const lastDate = new Date(data[data.length - 1]?.date)
-  const actualDays = Math.max(
-    1,
-    Math.ceil((lastDate.getTime() - firstDate.getTime()) / (1000 * 60 * 60 * 24))
-  )
-  const actualYears = actualDays / 365
-
-  // 年化報酬率計算 - 修正公式
-  let annualReturn = 0
-  if (actualYears > 0 && firstPrice > 0 && lastPrice > 0) {
-    if (actualYears >= 1) {
-      // 使用複合年均增長率 (CAGR) 公式：(結束值/開始值)^(1/年數) - 1
-      annualReturn = (Math.pow(lastPrice / firstPrice, 1 / actualYears) - 1) * 100
-    } else {
-      // 短於一年的期間，按比例年化
-      annualReturn = (totalReturn * 365) / actualDays
-    }
-  }
-
-  // 處理異常值
-  if (!isFinite(annualReturn) || isNaN(annualReturn)) {
-    annualReturn = 0
-  }
-
-  // 計算波動率（簡化版）- 使用調整後的數據
-  const returns = adjustedData.slice(1).map((item: any, index: number) => {
-    const prevPrice = adjustedData[index]?.close || 0
-    return prevPrice > 0 ? ((item.close - prevPrice) / prevPrice) * 100 : 0
-  })
-
-  const avgReturn = returns.reduce((sum: number, r: number) => sum + r, 0) / returns.length
-  const variance =
-    returns.reduce((sum: number, r: number) => sum + Math.pow(r - avgReturn, 2), 0) / returns.length
-  const volatility = Math.sqrt(variance) * Math.sqrt(252) // 年化波動率
-
-  // 夏普比率（假設無風險利率為 2%）
-  const riskFreeRate = 2
-  const sharpeRatio = volatility > 0 ? (annualReturn - riskFreeRate) / volatility : 0
-
-  // 最大回撤（簡化版）- 使用調整後的數據
-  let maxDrawdown = 0
-  let peak = adjustedData[0]?.close || 0
-
-  adjustedData.forEach((item: any) => {
-    if (item.close > peak) {
-      peak = item.close
-    } else {
-      const drawdown = ((peak - item.close) / peak) * 100
-      maxDrawdown = Math.max(maxDrawdown, drawdown)
-    }
-  })
-
-  return {
-    annualReturn: Number(annualReturn.toFixed(1)),
-    volatility: Number(volatility.toFixed(1)),
-    sharpeRatio: Number(sharpeRatio.toFixed(2)),
-    maxDrawdown: Number(maxDrawdown.toFixed(1)),
-  }
+  return analyticsStore.calculateStatistics(dashboardStore.etfData)
 })
 
 // 計算運勢分佈數據
 const fortuneDistribution = computed(() => {
-  const data = filteredEtfData.value
-  if (data.length === 0) {
-    return {
-      excellent: 25,
-      good: 35,
-      average: 30,
-      poor: 10,
-    }
-  }
-
-  // 基於調整後的價格變動計算運勢分佈
-  const returns = data.slice(1).map((item: any, index: number) => {
-    const prevPrice = data[index]?.close || 0
-    return prevPrice > 0 ? ((item.close - prevPrice) / prevPrice) * 100 : 0
-  })
-
-  const positiveReturns = returns.filter((r: number) => r > 0.5).length
-  const smallPositive = returns.filter((r: number) => r > 0 && r <= 0.5).length
-  const negativeReturns = returns.filter((r: number) => r < -0.5).length
-  const smallNegative = returns.filter((r: number) => r >= -0.5 && r <= 0).length
-
-  const total = returns.length || 1
-  return {
-    excellent: Math.round((positiveReturns / total) * 100),
-    good: Math.round((smallPositive / total) * 100),
-    average: Math.round((smallNegative / total) * 100),
-    poor: Math.round((negativeReturns / total) * 100),
-  }
+  return analyticsStore.calculateFortuneDistribution(dashboardStore.etfData)
 })
 
 // 計算策略回測數據
 const backtestResults = computed(() => {
-  const stats = statistics.value
-  const baseReturn = stats.annualReturn
-
-  return {
-    lunar: {
-      totalReturn: Math.max(baseReturn + Math.random() * 10 - 5, 0),
-      annualReturn: Math.max(baseReturn + Math.random() * 3 - 1.5, 0),
-      maxDrawdown: Math.max(stats.maxDrawdown + Math.random() * 2 - 1, 0),
-      sharpeRatio: Math.max(stats.sharpeRatio + Math.random() * 0.3 - 0.15, 0),
-      winRate: Math.min(70 + Math.random() * 10, 95),
-    },
-    buyHold: {
-      totalReturn: Math.max(baseReturn - Math.random() * 5, 0),
-      annualReturn: Math.max(baseReturn - Math.random() * 2, 0),
-      maxDrawdown: Math.max(stats.maxDrawdown + Math.random() * 3, 0),
-      sharpeRatio: Math.max(stats.sharpeRatio - Math.random() * 0.2, 0),
-      winRate: Math.min(65 + Math.random() * 8, 85),
-    },
-    dca: {
-      totalReturn: Math.max(baseReturn - Math.random() * 3, 0),
-      annualReturn: Math.max(baseReturn - Math.random() * 1.5, 0),
-      maxDrawdown: Math.max(stats.maxDrawdown + Math.random() * 1, 0),
-      sharpeRatio: Math.max(stats.sharpeRatio - Math.random() * 0.1, 0),
-      winRate: Math.min(68 + Math.random() * 7, 88),
-    },
-  }
+  return analyticsStore.calculateBacktestResults(statistics.value)
 })
 
 // 計算技術指標
+// 模擬技術指標數據（實際應從 dashboard store 獲取）
 const technicalIndicators = computed(() => {
-  const data = filteredEtfData.value
-  if (data.length === 0) {
+  // 基於 ETF 數據計算簡單的技術指標
+  const etfData = dashboardStore.etfData
+  if (!etfData || etfData.length === 0) {
     return {
       rsi: 50,
       macd: 0,
-      bollingerBand: '中軌',
+      bollingerBand: 'middle',
       kd: { k: 50, d: 50 },
     }
   }
 
-  // 使用調整後的價格數據進行技術指標計算
-  const prices = data.map((item: any) => item.close)
+  const latestData = etfData[etfData.length - 1]
 
-  // RSI 簡化計算
-  const recentPrices = prices.slice(-14)
-  const gains = recentPrices
-    .slice(1)
-    .map((price: number, i: number) => Math.max(0, price - recentPrices[i]))
-  const losses = recentPrices
-    .slice(1)
-    .map((price: number, i: number) => Math.max(0, recentPrices[i] - price))
-  const avgGain = gains.reduce((sum: number, gain: number) => sum + gain, 0) / gains.length
-  const avgLoss = losses.reduce((sum: number, loss: number) => sum + loss, 0) / losses.length
-  const rsi = avgLoss > 0 ? 100 - 100 / (1 + avgGain / avgLoss) : 100
+  if (!latestData) {
+    return {
+      rsi: 50,
+      macd: 0,
+      bollingerBand: 'middle',
+      kd: { k: 50, d: 50 },
+    }
+  }
 
-  // MACD 簡化計算
-  const ema12 = prices.slice(-12).reduce((sum: number, price: number) => sum + price, 0) / 12
-  const ema26 = prices.slice(-26).reduce((sum: number, price: number) => sum + price, 0) / 26
-  const macd = ema12 - ema26
-
-  // 布林帶位置
-  const ma20 = prices.slice(-20).reduce((sum: number, price: number) => sum + price, 0) / 20
-  const currentPrice = prices[prices.length - 1]
-  let bollingerBand = '中軌'
-  if (currentPrice > ma20 * 1.02) bollingerBand = '上軌'
-  else if (currentPrice < ma20 * 0.98) bollingerBand = '下軌'
-
-  // KD 指標簡化計算
-  const recent9 = prices.slice(-9)
-  const highestHigh = Math.max(...recent9)
-  const lowestLow = Math.min(...recent9)
-  const k =
-    lowestLow < highestHigh ? ((currentPrice - lowestLow) / (highestHigh - lowestLow)) * 100 : 50
-  const d = k * 0.9 // 簡化版本
+  const priceChange = latestData.changePercent || 0
 
   return {
-    rsi: Math.round(rsi * 10) / 10,
-    macd: Math.round(macd * 100) / 100,
-    bollingerBand,
-    kd: { k: Math.round(k), d: Math.round(d) },
+    rsi: Math.max(0, Math.min(100, 50 + priceChange * 5)), // 簡化的 RSI 計算
+    macd: priceChange * 0.1, // 簡化的 MACD
+    bollingerBand: priceChange > 3 ? 'upper' : priceChange < -3 ? 'lower' : 'middle',
+    kd: {
+      k: Math.max(0, Math.min(100, 50 + priceChange * 3)),
+      d: Math.max(0, Math.min(100, 45 + priceChange * 2.5)),
+    },
   }
 })
 
-// 監聽期間變化，重新載入數據（跳過初始化觸發）
+// 監聽期間變化，重新載入數據
 watch(
-  selectedPeriod,
-  async (newPeriod: string) => {
+  () => selectedPeriod.value,
+  async () => {
     await loadAnalyticsData()
   },
   { immediate: false }
@@ -288,11 +99,11 @@ const loadAnalyticsData = async () => {
   try {
     // 根據當前選擇的時間段載入對應的數據
     const endDate = new Date().toISOString().split('T')[0]
-    const days = getPeriodDays(selectedPeriod.value)
+    const days = analyticsStore.getPeriodDays(selectedPeriod.value)
     const startDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
 
     const etfData = await FinMindService.getETFData(startDate, endDate)
-    investmentStore.setETFData(etfData)
+    dashboardStore.setETFData(etfData)
   } catch (err) {
     console.error('Analytics 數據載入失敗:', err)
     error.value = '數據載入失敗'
@@ -348,6 +159,55 @@ onMounted(() => {
         </div>
       </div>
 
+      <!-- 3D 可視化區域 -->
+      <div class="grid grid-cols-1 xl:grid-cols-2 gap-6 mb-8">
+        <!-- 股票價格 3D 可視化 -->
+        <div class="h-64 md:h-80 rounded-lg overflow-hidden">
+          <Stock3DVisualization
+            :etfData="filteredEtfData"
+            :fortuneScore="dashboardStore.unifiedInvestmentScore"
+            title="股價 3D 動態"
+          />
+        </div>
+
+        <!-- 生肖運勢 3D 可視化 -->
+        <div class="h-64 md:h-80 rounded-lg overflow-hidden">
+          <Fortune3DVisualization
+            :zodiac="userStore.profile.zodiac || '龍'"
+            :element="userStore.profile.element || '木'"
+            :fortuneScore="dashboardStore.unifiedInvestmentScore"
+            :investmentScore="dashboardStore.unifiedInvestmentScore"
+            title="生肖運勢 3D"
+          />
+        </div>
+      </div>
+
+      <!-- 農民曆與技術指標 3D 區域 -->
+      <div class="grid grid-cols-1 xl:grid-cols-2 gap-6 mb-8">
+        <!-- 農民曆 3D 可視化 -->
+        <div class="h-64 md:h-80 rounded-lg overflow-hidden">
+          <Lunar3DVisualization
+            :lunarDate="`${dashboardStore.lunarData?.lunarYear || ''}${dashboardStore.lunarData?.lunarMonth || ''}${dashboardStore.lunarData?.lunarDay || ''}`"
+            :solarTerm="dashboardStore.lunarData?.jieQi || '寒露'"
+            :suitable="dashboardStore.lunarData?.yi || ['開市', '交易']"
+            :avoid="dashboardStore.lunarData?.ji || ['出行', '動土']"
+            :investmentLuck="
+              dashboardStore.investmentAdvice?.recommendedAction === 'buy'
+                ? '吉'
+                : dashboardStore.investmentAdvice?.recommendedAction === 'sell'
+                  ? '凶'
+                  : '中'
+            "
+            title="農民曆 3D"
+          />
+        </div>
+
+        <!-- 技術指標 3D 可視化 -->
+        <div class="h-64 md:h-80 rounded-lg overflow-hidden">
+          <Technical3DVisualization :indicators="technicalIndicators" title="技術指標 3D" />
+        </div>
+      </div>
+
       <!-- 圖表區域 -->
       <div class="space-y-6">
         <!-- 價格走勢圖 -->
@@ -400,44 +260,125 @@ onMounted(() => {
                   <span>載入中...</span>
                 </div>
               </div>
-              <VolumeChart :etfData="filteredEtfData" :isDark="isDark" />
+              <VolumeChart
+                :etfData="filteredEtfData"
+                :isDark="isDark"
+                v-if="!loading && filteredEtfData.length > 0"
+              />
+              <div
+                v-else-if="!loading && filteredEtfData.length === 0"
+                class="h-full bg-gray-800/50 rounded-lg flex items-center justify-center"
+              >
+                <div class="text-center">
+                  <p class="text-gray-400 mb-2">無成交量數據</p>
+                  <p class="text-gray-500 text-sm">請檢查數據連線或選擇其他時間段</p>
+                </div>
+              </div>
             </div>
           </div>
 
-          <!-- 技術指標 -->
+          <!-- 技術指標摘要 -->
           <div class="card">
-            <h2 class="text-xl font-semibold text-white mb-6">技術指標</h2>
+            <h2 class="text-xl font-semibold text-white mb-6">技術指標摘要</h2>
             <div class="space-y-4">
-              <div class="flex justify-between items-center">
-                <span class="text-gray-300">RSI (14)</span>
-                <span class="text-white font-medium">{{ technicalIndicators.rsi }}</span>
-              </div>
-              <div class="flex justify-between items-center">
-                <span class="text-gray-300">MACD</span>
-                <span
-                  :class="technicalIndicators.macd >= 0 ? 'text-green-400' : 'text-red-400'"
-                  class="font-medium"
+              <div class="flex justify-between items-center p-4 bg-gray-800/50 rounded-lg">
+                <div>
+                  <div class="text-sm text-gray-400">RSI (相對強弱指數)</div>
+                  <div class="text-lg font-semibold text-yellow-400">
+                    {{ technicalIndicators.rsi.toFixed(1) }}
+                  </div>
+                </div>
+                <div
+                  :class="[
+                    'px-2 py-1 rounded text-xs font-semibold',
+                    technicalIndicators.rsi > 70
+                      ? 'bg-red-500/20 text-red-400'
+                      : technicalIndicators.rsi < 30
+                        ? 'bg-green-500/20 text-green-400'
+                        : 'bg-yellow-500/20 text-yellow-400',
+                  ]"
                 >
-                  {{ technicalIndicators.macd >= 0 ? '+' : '' }}{{ technicalIndicators.macd }}
-                </span>
+                  {{
+                    technicalIndicators.rsi > 70
+                      ? '超買'
+                      : technicalIndicators.rsi < 30
+                        ? '超賣'
+                        : '中性'
+                  }}
+                </div>
               </div>
-              <div class="flex justify-between items-center">
-                <span class="text-gray-300">布林帶位置</span>
-                <span
-                  :class="{
-                    'text-red-400': technicalIndicators.bollingerBand === '上軌',
-                    'text-yellow-400': technicalIndicators.bollingerBand === '中軌',
-                    'text-green-400': technicalIndicators.bollingerBand === '下軌',
-                  }"
-                  class="font-medium"
-                  >{{ technicalIndicators.bollingerBand }}</span
+
+              <div class="flex justify-between items-center p-4 bg-gray-800/50 rounded-lg">
+                <div>
+                  <div class="text-sm text-gray-400">MACD</div>
+                  <div
+                    class="text-lg font-semibold"
+                    :class="technicalIndicators.macd >= 0 ? 'text-green-400' : 'text-red-400'"
+                  >
+                    {{ technicalIndicators.macd >= 0 ? '+' : ''
+                    }}{{ technicalIndicators.macd.toFixed(3) }}
+                  </div>
+                </div>
+                <div
+                  :class="[
+                    'px-2 py-1 rounded text-xs font-semibold',
+                    technicalIndicators.macd >= 0
+                      ? 'bg-green-500/20 text-green-400'
+                      : 'bg-red-500/20 text-red-400',
+                  ]"
                 >
+                  {{ technicalIndicators.macd >= 0 ? '多頭' : '空頭' }}
+                </div>
               </div>
-              <div class="flex justify-between items-center">
-                <span class="text-gray-300">KD指標</span>
-                <span class="text-white font-medium"
-                  >K:{{ technicalIndicators.kd.k }} D:{{ technicalIndicators.kd.d }}</span
-                >
+
+              <div class="p-4 bg-gray-800/50 rounded-lg">
+                <div class="text-sm text-gray-400 mb-2">布林通道位置</div>
+                <div class="flex justify-center">
+                  <div
+                    :class="[
+                      'px-3 py-2 rounded-lg text-sm font-semibold',
+                      technicalIndicators.bollingerBand === 'upper'
+                        ? 'bg-red-500/20 text-red-400'
+                        : technicalIndicators.bollingerBand === 'lower'
+                          ? 'bg-green-500/20 text-green-400'
+                          : 'bg-yellow-500/20 text-yellow-400',
+                    ]"
+                  >
+                    {{
+                      technicalIndicators.bollingerBand === 'upper'
+                        ? '接近上軌 (可能過熱)'
+                        : technicalIndicators.bollingerBand === 'lower'
+                          ? '接近下軌 (可能超賣)'
+                          : '在中軌附近 (正常區間)'
+                    }}
+                  </div>
+                </div>
+              </div>
+
+              <div class="p-4 bg-gray-800/50 rounded-lg">
+                <div class="text-sm text-gray-400 mb-2">KD 指標</div>
+                <div class="flex justify-between">
+                  <div>
+                    <span class="text-blue-400">K: {{ technicalIndicators.kd.k.toFixed(1) }}</span>
+                  </div>
+                  <div>
+                    <span class="text-purple-400"
+                      >D: {{ technicalIndicators.kd.d.toFixed(1) }}</span
+                    >
+                  </div>
+                  <div
+                    :class="[
+                      'px-2 py-1 rounded text-xs font-semibold',
+                      technicalIndicators.kd.k > technicalIndicators.kd.d
+                        ? 'bg-green-500/20 text-green-400'
+                        : 'bg-red-500/20 text-red-400',
+                    ]"
+                  >
+                    {{
+                      technicalIndicators.kd.k > technicalIndicators.kd.d ? '黃金交叉' : '死亡交叉'
+                    }}
+                  </div>
+                </div>
               </div>
             </div>
           </div>
