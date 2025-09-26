@@ -1,40 +1,3 @@
-<template>
-  <div class="fortune-orb-container">
-    <div class="fortune-orb" :class="{ floating: isFloating }" @click="toggleFloat">
-      <div class="orb-inner">
-        <div class="orb-glow"></div>
-        <div class="orb-surface">
-          <div class="fortune-text">
-            <div class="chinese-character">{{ currentFortune.character }}</div>
-            <div class="fortune-meaning">{{ currentFortune.meaning }}</div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <div class="orb-controls">
-      <button @click="generateFortune" class="fortune-btn" :disabled="isGenerating">
-        {{ isGenerating ? '運算中...' : '求運勢' }}
-      </button>
-    </div>
-
-    <div v-if="currentFortune.description" class="fortune-description">
-      <h3>運勢解析</h3>
-      <p>{{ currentFortune.description }}</p>
-      <div class="fortune-stats">
-        <div class="stat-item">
-          <span class="stat-label">財運指數:</span>
-          <span class="stat-value">{{ currentFortune.wealthIndex }}/10</span>
-        </div>
-        <div class="stat-item">
-          <span class="stat-label">投資建議:</span>
-          <span class="stat-value">{{ currentFortune.investmentAdvice }}</span>
-        </div>
-      </div>
-    </div>
-  </div>
-</template>
-
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 
@@ -375,3 +338,40 @@ onMounted(() => {
   will-change: transform;
 }
 </style>
+
+<template>
+  <div class="fortune-orb-container">
+    <div class="fortune-orb" :class="{ floating: isFloating }" @click="toggleFloat">
+      <div class="orb-inner">
+        <div class="orb-glow"></div>
+        <div class="orb-surface">
+          <div class="fortune-text">
+            <div class="chinese-character">{{ currentFortune.character }}</div>
+            <div class="fortune-meaning">{{ currentFortune.meaning }}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="orb-controls">
+      <button @click="generateFortune" class="fortune-btn" :disabled="isGenerating">
+        {{ isGenerating ? '運算中...' : '求運勢' }}
+      </button>
+    </div>
+
+    <div v-if="currentFortune.description" class="fortune-description">
+      <h3>運勢解析</h3>
+      <p>{{ currentFortune.description }}</p>
+      <div class="fortune-stats">
+        <div class="stat-item">
+          <span class="stat-label">財運指數:</span>
+          <span class="stat-value">{{ currentFortune.wealthIndex }}/10</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-label">投資建議:</span>
+          <span class="stat-value">{{ currentFortune.investmentAdvice }}</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</template>

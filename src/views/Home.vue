@@ -1,3 +1,8 @@
+<script setup lang="ts">
+import { RouterLink } from 'vue-router'
+import FortuneOrb from '@/components/FortuneOrb.vue'
+</script>
+
 <template>
   <div class="min-h-screen">
     <!-- Hero Section -->
@@ -20,8 +25,8 @@
         </div>
 
         <!-- 3D Fortune Orb -->
-        <div class="mt-16 flex justify-center">
-          <div class="w-64 h-64 relative">
+        <div class="mt-12 sm:mt-16 flex justify-center">
+          <div class="w-48 h-48 sm:w-64 sm:h-64 relative">
             <FortuneOrb
               :fortune-score="75"
               :elements="{
@@ -47,12 +52,17 @@
           </p>
         </div>
 
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 sm:gap-8">
           <div class="card text-center">
             <div
-              class="w-16 h-16 mx-auto mb-4 rounded-full bg-gradient-to-r from-gold-500 to-yellow-600 flex items-center justify-center"
+              class="w-12 h-12 sm:w-16 sm:h-16 mx-auto mb-4 rounded-full bg-gradient-to-r from-gold-500 to-yellow-600 flex items-center justify-center"
             >
-              <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg
+                class="w-6 h-6 sm:w-8 sm:h-8 text-white"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
                 <path
                   stroke-linecap="round"
                   stroke-linejoin="round"
@@ -61,15 +71,22 @@
                 />
               </svg>
             </div>
-            <h3 class="text-xl font-semibold text-white mb-2">個人化分析</h3>
-            <p class="text-gray-300">根據出生年月日、時辰與生肖計算個人投資運勢</p>
+            <h3 class="text-lg sm:text-xl font-semibold text-white mb-2">個人化分析</h3>
+            <p class="text-sm sm:text-base text-gray-300">
+              根據出生年月日、時辰與生肖計算個人投資運勢
+            </p>
           </div>
 
           <div class="card text-center">
             <div
-              class="w-16 h-16 mx-auto mb-4 rounded-full bg-gradient-to-r from-jade-500 to-green-600 flex items-center justify-center"
+              class="w-12 h-12 sm:w-16 sm:h-16 mx-auto mb-4 rounded-full bg-gradient-to-r from-jade-500 to-green-600 flex items-center justify-center"
             >
-              <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg
+                class="w-6 h-6 sm:w-8 sm:h-8 text-white"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
                 <path
                   stroke-linecap="round"
                   stroke-linejoin="round"
@@ -78,15 +95,20 @@
                 />
               </svg>
             </div>
-            <h3 class="text-xl font-semibold text-white mb-2">農民曆整合</h3>
-            <p class="text-gray-300">結合傳統農民曆的吉凶宜忌判斷投資時機</p>
+            <h3 class="text-lg sm:text-xl font-semibold text-white mb-2">農民曆整合</h3>
+            <p class="text-sm sm:text-base text-gray-300">結合傳統農民曆的吉凶宜忌判斷投資時機</p>
           </div>
 
           <div class="card text-center">
             <div
-              class="w-16 h-16 mx-auto mb-4 rounded-full bg-gradient-to-r from-purple-500 to-pink-600 flex items-center justify-center"
+              class="w-12 h-12 sm:w-16 sm:h-16 mx-auto mb-4 rounded-full bg-gradient-to-r from-purple-500 to-pink-600 flex items-center justify-center"
             >
-              <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg
+                class="w-6 h-6 sm:w-8 sm:h-8 text-white"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
                 <path
                   stroke-linecap="round"
                   stroke-linejoin="round"
@@ -95,15 +117,22 @@
                 />
               </svg>
             </div>
-            <h3 class="text-xl font-semibold text-white mb-2">3D 視覺化</h3>
-            <p class="text-gray-300">使用 Three.js 打造沉浸式 3D 投資運勢球體</p>
+            <h3 class="text-lg sm:text-xl font-semibold text-white mb-2">3D 視覺化</h3>
+            <p class="text-sm sm:text-base text-gray-300">
+              使用 Three.js 打造沉浸式 3D 投資運勢球體
+            </p>
           </div>
 
           <div class="card text-center">
             <div
-              class="w-16 h-16 mx-auto mb-4 rounded-full bg-gradient-to-r from-blue-500 to-cyan-600 flex items-center justify-center"
+              class="w-12 h-12 sm:w-16 sm:h-16 mx-auto mb-4 rounded-full bg-gradient-to-r from-blue-500 to-cyan-600 flex items-center justify-center"
             >
-              <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg
+                class="w-6 h-6 sm:w-8 sm:h-8 text-white"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
                 <path
                   stroke-linecap="round"
                   stroke-linejoin="round"
@@ -112,8 +141,10 @@
                 />
               </svg>
             </div>
-            <h3 class="text-xl font-semibold text-white mb-2">0050 專注</h3>
-            <p class="text-gray-300">專門針對台灣最具代表性的 ETF 提供精準分析</p>
+            <h3 class="text-lg sm:text-xl font-semibold text-white mb-2">0050 專注</h3>
+            <p class="text-sm sm:text-base text-gray-300">
+              專門針對台灣最具代表性的 ETF 提供精準分析
+            </p>
           </div>
         </div>
       </div>
@@ -133,8 +164,3 @@
     </section>
   </div>
 </template>
-
-<script setup lang="ts">
-import { RouterLink } from 'vue-router'
-import FortuneOrb from '@/components/FortuneOrb.vue'
-</script>

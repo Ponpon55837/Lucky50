@@ -1,3 +1,9 @@
+<script setup lang="ts">
+import { useToast } from '@/composables/useToast'
+
+const { toasts, removeToast } = useToast()
+</script>
+
 <template>
   <Teleport to="body">
     <div
@@ -118,9 +124,3 @@
     </div>
   </Teleport>
 </template>
-
-<script setup lang="ts">
-import { useToast } from '@/composables/useToast'
-
-const { toasts, removeToast } = useToast()
-</script>

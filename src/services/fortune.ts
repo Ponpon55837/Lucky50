@@ -21,18 +21,44 @@ const ZHI_MODIFIERS = Object.freeze({
   '丑': { earth: 10 }, '未': { earth: 10 }
 } as const)
 
-// 交易時段常數
-const TRADING_TIMES = Object.freeze([
-  '開盤時段(09:00-09:30)', '早盤時段(09:30-10:30)', 
-  '上午中段(10:30-11:30)', '午前時段(11:30-12:30)',
-  '收盤前段(12:30-13:00)', '尾盤時段(13:00-13:30)'
+// 台股交易時段 (09:00-13:30) 細分時段
+const TRADING_PERIODS = Object.freeze([
+  { name: '開盤搶進', time: '09:00-09:30', description: '適合搶進強勢股' },
+  { name: '早盤選股', time: '09:30-10:00', description: '適合觀察選股' },
+  { name: '上午中段', time: '10:00-10:30', description: '適合逢低買入' },
+  { name: '盤中整理', time: '10:30-11:00', description: '適合觀察整理' },
+  { name: '午前加碼', time: '11:00-11:30', description: '適合加碼投資' },
+  { name: '盤整觀望', time: '11:30-12:00', description: '適合觀望等待' },
+  { name: '午後佈局', time: '12:00-12:30', description: '適合佈局進場' },
+  { name: '收盤前段', time: '12:30-13:00', description: '適合短線操作' },
+  { name: '尾盤衝刺', time: '13:00-13:30', description: '適合尾盤衝刺' }
 ])
 
-const AVOID_TIMES = Object.freeze([
-  '開盤波動(09:00-09:15)', '午前震盪(11:45-12:15)', 
-  '尾盤急殺(13:15-13:30)', '早盤追高(09:15-09:45)',
-  '中段整理(10:45-11:15)', '收盤恐慌(13:00-13:30)'
+// 需要避開的時段
+const AVOID_PERIODS = Object.freeze([
+  { name: '開盤震盪', time: '09:00-09:15', description: '開盤價格震盪劇烈' },
+  { name: '早盤追高', time: '09:45-10:15', description: '容易追高套牢' },
+  { name: '中場休息', time: '10:45-11:15', description: '交易量萎縮整理' },
+  { name: '午前賣壓', time: '11:45-12:15', description: '獲利了結賣壓' },
+  { name: '尾盤殺跌', time: '13:15-13:30', description: '尾盤容易殺跌' }
 ])
+
+// 生肖對應的吉時地支
+const ZODIAC_TO_LUCKY_ZHI = Object.freeze({
+  '鼠': ['子', '申', '辰'], '牛': ['丑', '巳', '酉'], 
+  '虎': ['寅', '午', '戌'], '兔': ['卯', '亥', '未'],
+  '龍': ['辰', '子', '申'], '蛇': ['巳', '酉', '丑'], 
+  '馬': ['午', '戌', '寅'], '羊': ['未', '卯', '亥'],
+  '猴': ['申', '辰', '子'], '雞': ['酉', '丑', '巳'], 
+  '狗': ['戌', '寅', '午'], '豬': ['亥', '未', '卯']
+})
+
+// 地支對應台股交易時間（9:00-13:30）
+const ZHI_TO_TRADING_TIME = Object.freeze({
+  '巳': { hour: 9, period: '09:00-11:00' },   // 巳時 09:00-11:00
+  '午': { hour: 11, period: '11:00-13:00' },  // 午時 11:00-13:00  
+  '未': { hour: 13, period: '13:00-13:30' }   // 未時 13:00-13:30（部分）
+})
 
 // 生肖投資加成映射表
 const ZODIAC_BONUS_MAP = Object.freeze({
@@ -117,8 +143,8 @@ export class FortuneService {
         investmentScore: Math.round(investmentScore),
         recommendation,
         advice: this.generateAdvice(investmentScore),
-        luckyTime: this.calculateLuckyTime(seed),
-        avoidTime: this.calculateAvoidTime(seed),
+        luckyTime: this.calculateLuckyTime(profile, lunar, seed),
+        avoidTime: this.calculateAvoidTime(profile, lunar, seed),
         elements
       }
 
@@ -245,19 +271,134 @@ export class FortuneService {
   }
 
   /**
-   * 使用預計算時段的幸運時辰計算
+   * 根據農民曆和生肖計算吉利交易時段
    */
-  private static calculateLuckyTime(seed: number): string {
+  private static calculateLuckyTime(profile: UserProfile, lunar: any, seed: number): string {
     const random = this.seededRandom(seed + 2000)
-    return TRADING_TIMES[Math.floor(random() * TRADING_TIMES.length)]
+    
+    // 取得生肖對應的吉利地支
+    const luckyZhi = ZODIAC_TO_LUCKY_ZHI[profile.zodiac as keyof typeof ZODIAC_TO_LUCKY_ZHI] || []
+    
+    // 找出在台股交易時間內的吉利時段
+    const availablePeriods: typeof TRADING_PERIODS[0][] = []
+    
+    luckyZhi.forEach(zhi => {
+      const tradingTime = ZHI_TO_TRADING_TIME[zhi as keyof typeof ZHI_TO_TRADING_TIME]
+      if (tradingTime) {
+        // 根據地支對應的時間找出相關的交易時段
+        TRADING_PERIODS.forEach(period => {
+          const [startHour] = period.time.split('-')[0].split(':').map(Number)
+          const zhiHour = tradingTime.hour
+          
+          // 如果交易時段在吉利時辰範圍內，加入候選
+          if (Math.abs(startHour - zhiHour) <= 1) {
+            availablePeriods.push(period)
+          }
+        })
+      }
+    })
+    
+    // 如果沒有找到對應的吉利時段，從所有交易時段中選擇
+    const targetPeriods = availablePeriods.length > 0 ? availablePeriods : TRADING_PERIODS
+    
+    // 結合農民曆因素
+    const dayGan = lunar.getDayGan()
+    const dayZhi = lunar.getDayZhi()
+    
+    // 根據天干地支調整選擇權重
+    let selectedPeriod
+    if (dayGan === '甲' || dayGan === '乙' || dayZhi === '寅' || dayZhi === '卯') {
+      // 木旺日，選擇上午時段
+      const morningPeriods = targetPeriods.filter(p => {
+        const hour = parseInt(p.time.split(':')[0])
+        return hour >= 9 && hour <= 11
+      })
+      selectedPeriod = morningPeriods[Math.floor(random() * morningPeriods.length)] || targetPeriods[0]
+    } else if (dayGan === '丙' || dayGan === '丁' || dayZhi === '巳' || dayZhi === '午') {
+      // 火旺日，選擇中午時段
+      const noonPeriods = targetPeriods.filter(p => {
+        const hour = parseInt(p.time.split(':')[0])
+        return hour >= 11 && hour <= 13
+      })
+      selectedPeriod = noonPeriods[Math.floor(random() * noonPeriods.length)] || targetPeriods[0]
+    } else {
+      // 其他情況隨機選擇
+      selectedPeriod = targetPeriods[Math.floor(random() * targetPeriods.length)]
+    }
+    
+    return `${selectedPeriod.time} (${selectedPeriod.name})`
   }
 
   /**
-   * 使用預計算時段的避免時辰計算
+   * 根據農民曆和生肖計算需要避開的交易時段
    */
-  private static calculateAvoidTime(seed: number): string {
+  private static calculateAvoidTime(profile: UserProfile, lunar: any, seed: number): string {
     const random = this.seededRandom(seed + 3000)
-    return AVOID_TIMES[Math.floor(random() * AVOID_TIMES.length)]
+    
+    // 取得與生肖相沖的地支
+    const conflictZhi = this.getConflictZhi(profile.zodiac)
+    
+    // 找出在台股交易時間內需要避開的時段
+    const avoidPeriods: typeof AVOID_PERIODS[0][] = []
+    
+    conflictZhi.forEach(zhi => {
+      const tradingTime = ZHI_TO_TRADING_TIME[zhi as keyof typeof ZHI_TO_TRADING_TIME]
+      if (tradingTime) {
+        // 根據地支對應的時間找出相關的避開時段
+        AVOID_PERIODS.forEach(period => {
+          const [startHour] = period.time.split('-')[0].split(':').map(Number)
+          const zhiHour = tradingTime.hour
+          
+          // 如果避開時段在相沖時辰範圍內，加入候選
+          if (Math.abs(startHour - zhiHour) <= 1) {
+            avoidPeriods.push(period)
+          }
+        })
+      }
+    })
+    
+    // 如果沒有找到對應的避開時段，從所有避開時段中選擇
+    const targetPeriods = avoidPeriods.length > 0 ? avoidPeriods : AVOID_PERIODS
+    
+    // 結合農民曆因素
+    const dayGan = lunar.getDayGan()
+    const dayZhi = lunar.getDayZhi()
+    
+    // 根據天干地支調整避開時段
+    let selectedPeriod
+    if (dayGan === '庚' || dayGan === '辛' || dayZhi === '申' || dayZhi === '酉') {
+      // 金旺日，避開下午時段
+      const afternoonPeriods = targetPeriods.filter(p => {
+        const hour = parseInt(p.time.split(':')[0])
+        return hour >= 12
+      })
+      selectedPeriod = afternoonPeriods[Math.floor(random() * afternoonPeriods.length)] || targetPeriods[0]
+    } else if (dayGan === '壬' || dayGan === '癸' || dayZhi === '子' || dayZhi === '亥') {
+      // 水旺日，避開早盤時段
+      const earlyPeriods = targetPeriods.filter(p => {
+        const hour = parseInt(p.time.split(':')[0])
+        return hour <= 10
+      })
+      selectedPeriod = earlyPeriods[Math.floor(random() * earlyPeriods.length)] || targetPeriods[0]
+    } else {
+      // 其他情況隨機選擇
+      selectedPeriod = targetPeriods[Math.floor(random() * targetPeriods.length)]
+    }
+    
+    return `${selectedPeriod.time} (${selectedPeriod.name})`
+  }
+
+  /**
+   * 取得與生肖相沖的地支
+   */
+  private static getConflictZhi(zodiac: string): string[] {
+    const conflictMap: { [key: string]: string[] } = {
+      '鼠': ['午'], '牛': ['未'], '虎': ['申'], '兔': ['酉'],
+      '龍': ['戌'], '蛇': ['亥'], '馬': ['子'], '羊': ['丑'],
+      '猴': ['寅'], '雞': ['卯'], '狗': ['辰'], '豬': ['巳']
+    }
+    
+    return conflictMap[zodiac] || []
   }
 
   /**

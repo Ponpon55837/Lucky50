@@ -1,175 +1,3 @@
-<template>
-  <div class="min-h-screen py-8">
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-      <!-- Header -->
-      <div class="mb-8">
-        <h1 class="text-3xl font-bold text-white mb-2">投資儀表板</h1>
-        <p class="text-gray-300">
-          今日是 {{ formatDate(new Date()) }}，
-          <span v-if="currentFortune" :class="getFortuneColor(currentFortune.investmentScore)">
-            投資運勢: {{ currentFortune.investmentScore }}/100
-          </span>
-        </p>
-      </div>
-
-      <!-- 運勢卡片區域 -->
-      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-        <!-- 今日運勢 -->
-        <div class="card">
-          <h2 class="text-xl font-semibold text-white mb-4">今日投資運勢</h2>
-          <div v-if="currentFortune" class="space-y-6">
-            <!-- 總體運勢進度條 -->
-            <div>
-              <div class="flex items-center justify-between mb-3">
-                <span class="text-gray-300 font-medium">總體運勢</span>
-                <span class="text-white text-sm font-semibold progress-label"
-                  >{{ currentFortune.overallScore }}/100</span
-                >
-              </div>
-              <div
-                class="w-full bg-gray-800 border border-gray-600 rounded-full h-5 relative overflow-hidden"
-              >
-                <div
-                  class="h-5 rounded-full transition-all duration-1000 ease-out shadow-lg relative overflow-hidden"
-                  :class="getOverallScoreColorClass(currentFortune.overallScore)"
-                  :style="{ width: `${Math.max(4, currentFortune.overallScore)}%` }"
-                >
-                  <div
-                    class="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent fortune-progress-glow"
-                  ></div>
-                  <div class="absolute inset-0 bg-gradient-to-b from-white/20 to-transparent"></div>
-                </div>
-              </div>
-            </div>
-
-            <!-- 投資運勢進度條 -->
-            <div>
-              <div class="flex items-center justify-between mb-3">
-                <span class="text-gray-300 font-medium">投資運勢</span>
-                <span class="text-white text-sm font-semibold progress-label"
-                  >{{ currentFortune.investmentScore }}/100</span
-                >
-              </div>
-              <div
-                class="w-full bg-gray-800 border border-gray-600 rounded-full h-5 relative overflow-hidden"
-              >
-                <div
-                  class="h-5 rounded-full transition-all duration-1000 ease-out shadow-lg relative overflow-hidden"
-                  :class="getInvestmentScoreColorClass(currentFortune.investmentScore)"
-                  :style="{ width: `${Math.max(4, currentFortune.investmentScore)}%` }"
-                >
-                  <div
-                    class="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent fortune-progress-glow"
-                  ></div>
-                  <div class="absolute inset-0 bg-gradient-to-b from-white/20 to-transparent"></div>
-                </div>
-              </div>
-            </div>
-
-            <div class="pt-4 border-t border-white/10">
-              <div class="flex items-center justify-between mb-2">
-                <span class="text-gray-300">建議操作</span>
-                <span
-                  :class="getRecommendationColor(currentFortune.recommendation)"
-                  class="font-semibold"
-                >
-                  {{ getRecommendationText(currentFortune.recommendation) }}
-                </span>
-              </div>
-              <p class="text-sm text-gray-300">{{ currentFortune.advice }}</p>
-            </div>
-          </div>
-          <div v-else class="text-center py-8">
-            <p class="text-gray-400">請先設定個人資料以計算運勢</p>
-            <RouterLink to="/profile" class="btn-primary mt-4 inline-block"> 設定資料 </RouterLink>
-          </div>
-        </div>
-
-        <!-- 0050 即時資訊 -->
-        <div class="card">
-          <h2 class="text-xl font-semibold text-white mb-4">元大台灣50 (0050)</h2>
-          <div v-if="latestPrice" class="space-y-4">
-            <div class="flex items-baseline space-x-2">
-              <span class="text-3xl font-bold text-white">${{ latestPrice.close }}</span>
-              <span :class="priceChangeColor" class="text-lg font-medium">
-                {{ priceChange >= 0 ? '+' : '' }}{{ priceChange.toFixed(2) }} ({{
-                  priceChangePercent >= 0 ? '+' : ''
-                }}{{ priceChangePercent.toFixed(2) }}%)
-              </span>
-            </div>
-
-            <div class="grid grid-cols-2 gap-4 pt-4 border-t border-white/10">
-              <div>
-                <span class="text-gray-400 text-sm">開盤</span>
-                <div class="text-white font-medium">${{ latestPrice.open }}</div>
-              </div>
-              <div>
-                <span class="text-gray-400 text-sm">最高</span>
-                <div class="text-white font-medium">${{ latestPrice.high }}</div>
-              </div>
-              <div>
-                <span class="text-gray-400 text-sm">最低</span>
-                <div class="text-white font-medium">${{ latestPrice.low }}</div>
-              </div>
-              <div>
-                <span class="text-gray-400 text-sm">成交量</span>
-                <div class="text-white font-medium">{{ formatVolume(latestPrice.volume) }}</div>
-              </div>
-            </div>
-          </div>
-          <div v-else-if="loading" class="text-center py-8">
-            <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-gold-500 mx-auto"></div>
-            <p class="text-gray-400 mt-2">載入中...</p>
-          </div>
-          <div v-else class="text-center py-8">
-            <p class="text-gray-400">無法載入股價資料</p>
-          </div>
-        </div>
-
-        <!-- 交易時段建議 -->
-        <div class="card">
-          <h2 class="text-xl font-semibold text-white mb-4">交易時段建議</h2>
-          <div v-if="currentFortune" class="space-y-4">
-            <div class="bg-green-500/20 p-3 rounded-lg border border-green-500/30">
-              <h3 class="text-green-400 font-medium mb-1">推薦時段</h3>
-              <p class="text-white">{{ currentFortune.luckyTime }}</p>
-              <p class="text-sm text-gray-300">適合買入或加碼投資</p>
-            </div>
-
-            <div class="bg-red-500/20 p-3 rounded-lg border border-red-500/30">
-              <h3 class="text-red-400 font-medium mb-1">避免時段</h3>
-              <p class="text-white">{{ currentFortune.avoidTime }}</p>
-              <p class="text-sm text-gray-300">不宜進場或減碼操作</p>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- 圖表區域 -->
-      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <!-- 價格走勢圖 -->
-        <div class="card">
-          <h2 class="text-xl font-semibold text-white mb-4">價格走勢</h2>
-          <PriceChart :etfData="investmentStore.etfData" :isDark="isDark" />
-        </div>
-
-        <!-- 五行能量圖 -->
-        <div class="card">
-          <h2 class="text-xl font-semibold text-white mb-4">五行能量</h2>
-          <ElementRadarChart
-            v-if="currentFortune && currentFortune.elements"
-            :elements="currentFortune.elements"
-            :isDark="isDark"
-          />
-          <div v-else class="h-64 bg-gray-800/50 rounded-lg flex items-center justify-center">
-            <p class="text-gray-400">請先設定個人資料</p>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-</template>
-
 <script setup lang="ts">
 import { ref, computed, onMounted, shallowRef } from 'vue'
 import { RouterLink } from 'vue-router'
@@ -294,12 +122,13 @@ const loadData = async () => {
 
     try {
       const etfData = await FinMindService.getETFData(startDate, endDate)
-      console.log('Dashboard - 載入的 ETF 數據:', etfData)
-      console.log('Dashboard - ETF 數據長度:', etfData?.length)
-
+      console.log('Dashboard - 成功載入 ETF 資料:', etfData.length, '筆')
+      if (etfData.length > 0) {
+        console.log('Dashboard - 第一筆資料:', etfData[0])
+        console.log('Dashboard - 最後一筆資料:', etfData[etfData.length - 1])
+      }
       investmentStore.setETFData(etfData)
-      console.log(`成功載入 ${etfData.length} 筆 ETF 資料${!apiStatus ? ' (使用備用數據)' : ''}`)
-      console.log('Dashboard - investmentStore.etfData after set:', investmentStore.etfData)
+      console.log('Dashboard - Store 中的資料數量:', investmentStore.etfData.length)
     } catch (etfError) {
       console.error('ETF 數據載入失敗:', etfError)
       // ETF 載入失敗時，手動生成一些測試數據
@@ -350,3 +179,197 @@ onMounted(() => {
   loadData()
 })
 </script>
+
+<template>
+  <div class="min-h-screen py-8">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <!-- Header -->
+      <div class="mb-8">
+        <h1 class="text-3xl font-bold text-white mb-2">投資儀表板</h1>
+        <p class="text-gray-300">
+          今日是 {{ formatDate(new Date()) }}，
+          <span v-if="currentFortune" :class="getFortuneColor(currentFortune.investmentScore)">
+            投資運勢: {{ currentFortune.investmentScore }}/100
+          </span>
+        </p>
+      </div>
+
+      <!-- 運勢卡片區域 -->
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+        <!-- 今日運勢 -->
+        <div class="lg:col-span-1 card">
+          <h2 class="text-lg sm:text-xl font-semibold text-white mb-4">今日投資運勢</h2>
+          <div v-if="currentFortune" class="space-y-4 sm:space-y-6">
+            <!-- 總體運勢進度條 -->
+            <div>
+              <div class="flex items-center justify-between mb-2 sm:mb-3">
+                <span class="text-gray-300 font-medium text-sm sm:text-base">總體運勢</span>
+                <span class="text-white text-sm font-semibold progress-label"
+                  >{{ currentFortune.overallScore }}/100</span
+                >
+              </div>
+              <div
+                class="w-full bg-gray-800 border border-gray-600 rounded-full h-5 relative overflow-hidden"
+              >
+                <div
+                  class="h-5 rounded-full transition-all duration-1000 ease-out shadow-lg relative overflow-hidden"
+                  :class="getOverallScoreColorClass(currentFortune.overallScore)"
+                  :style="{ width: `${Math.max(4, currentFortune.overallScore)}%` }"
+                >
+                  <div
+                    class="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent fortune-progress-glow"
+                  ></div>
+                  <div class="absolute inset-0 bg-gradient-to-b from-white/20 to-transparent"></div>
+                </div>
+              </div>
+            </div>
+
+            <!-- 投資運勢進度條 -->
+            <div>
+              <div class="flex items-center justify-between mb-3">
+                <span class="text-gray-300 font-medium">投資運勢</span>
+                <span class="text-white text-sm font-semibold progress-label"
+                  >{{ currentFortune.investmentScore }}/100</span
+                >
+              </div>
+              <div
+                class="w-full bg-gray-800 border border-gray-600 rounded-full h-5 relative overflow-hidden"
+              >
+                <div
+                  class="h-5 rounded-full transition-all duration-1000 ease-out shadow-lg relative overflow-hidden"
+                  :class="getInvestmentScoreColorClass(currentFortune.investmentScore)"
+                  :style="{ width: `${Math.max(4, currentFortune.investmentScore)}%` }"
+                >
+                  <div
+                    class="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent fortune-progress-glow"
+                  ></div>
+                  <div class="absolute inset-0 bg-gradient-to-b from-white/20 to-transparent"></div>
+                </div>
+              </div>
+            </div>
+
+            <div class="pt-4 border-t border-white/10">
+              <div class="flex items-center justify-between mb-2">
+                <span class="text-gray-300">建議操作</span>
+                <span
+                  :class="getRecommendationColor(currentFortune.recommendation)"
+                  class="font-semibold"
+                >
+                  {{ getRecommendationText(currentFortune.recommendation) }}
+                </span>
+              </div>
+              <p class="text-sm text-gray-300">{{ currentFortune.advice }}</p>
+            </div>
+          </div>
+          <div v-else class="text-center py-8">
+            <p class="text-gray-400">請先設定個人資料以計算運勢</p>
+            <RouterLink to="/profile" class="btn-primary mt-4 inline-block"> 設定資料 </RouterLink>
+          </div>
+        </div>
+
+        <!-- 0050 即時資訊 -->
+        <div class="card">
+          <h2 class="text-lg sm:text-xl font-semibold text-white mb-4">元大台灣50 (0050)</h2>
+          <div v-if="latestPrice" class="space-y-3 sm:space-y-4">
+            <div
+              class="flex flex-col sm:flex-row sm:items-baseline space-y-1 sm:space-y-0 sm:space-x-2"
+            >
+              <span class="text-2xl sm:text-3xl font-bold text-white"
+                >${{ latestPrice.close }}</span
+              >
+              <span :class="priceChangeColor" class="text-base sm:text-lg font-medium">
+                {{ priceChange >= 0 ? '+' : '' }}{{ priceChange.toFixed(2) }} ({{
+                  priceChangePercent >= 0 ? '+' : ''
+                }}{{ priceChangePercent.toFixed(2) }}%)
+              </span>
+            </div>
+
+            <div class="grid grid-cols-2 gap-3 sm:gap-4 pt-3 sm:pt-4 border-t border-white/10">
+              <div>
+                <span class="text-gray-400 text-xs sm:text-sm">開盤</span>
+                <div class="text-white font-medium text-sm sm:text-base">
+                  ${{ latestPrice.open }}
+                </div>
+              </div>
+              <div>
+                <span class="text-gray-400 text-xs sm:text-sm">最高</span>
+                <div class="text-white font-medium text-sm sm:text-base">
+                  ${{ latestPrice.high }}
+                </div>
+              </div>
+              <div>
+                <span class="text-gray-400 text-xs sm:text-sm">最低</span>
+                <div class="text-white font-medium text-sm sm:text-base">
+                  ${{ latestPrice.low }}
+                </div>
+              </div>
+              <div>
+                <span class="text-gray-400 text-xs sm:text-sm">成交量</span>
+                <div class="text-white font-medium text-sm sm:text-base">
+                  {{ formatVolume(latestPrice.volume) }}
+                </div>
+              </div>
+            </div>
+          </div>
+          <div v-else-if="loading" class="text-center py-8">
+            <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-gold-500 mx-auto"></div>
+            <p class="text-gray-400 mt-2">載入中...</p>
+          </div>
+          <div v-else class="text-center py-8">
+            <p class="text-gray-400">無法載入股價資料</p>
+          </div>
+        </div>
+
+        <!-- 交易時段建議 -->
+        <div class="card">
+          <h2 class="text-xl font-semibold text-white mb-4">交易時段建議</h2>
+          <div v-if="currentFortune" class="space-y-4">
+            <div class="bg-green-500/20 p-3 rounded-lg border border-green-500/30">
+              <h3 class="text-green-400 font-medium mb-1">推薦時段</h3>
+              <p class="text-white">{{ currentFortune.luckyTime }}</p>
+              <p class="text-sm text-gray-300">適合買入或加碼投資</p>
+            </div>
+
+            <div class="bg-red-500/20 p-3 rounded-lg border border-red-500/30">
+              <h3 class="text-red-400 font-medium mb-1">避免時段</h3>
+              <p class="text-white">{{ currentFortune.avoidTime }}</p>
+              <p class="text-sm text-gray-300">不宜進場或減碼操作</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 圖表區域 -->
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <!-- 價格走勢圖 -->
+        <div class="card">
+          <h2 class="text-xl font-semibold text-white mb-4">價格走勢</h2>
+          <div
+            v-if="investmentStore.etfData.length === 0"
+            class="h-64 bg-gray-800/50 rounded-lg flex items-center justify-center"
+          >
+            <p class="text-gray-400">
+              {{ loading ? '載入圖表中...' : '無數據可顯示' }}
+              <br />
+              <small class="text-xs">數據數量: {{ investmentStore.etfData.length }}</small>
+            </p>
+          </div>
+          <PriceChart v-else :etfData="investmentStore.etfData" :isDark="isDark" />
+        </div>
+
+        <!-- 五行能量圖 -->
+        <div class="card">
+          <h2 class="text-xl font-semibold text-white mb-4">五行能量</h2>
+          <ElementRadarChart
+            v-if="currentFortune && currentFortune.elements"
+            :elements="currentFortune.elements"
+            :isDark="isDark"
+          />
+          <div v-else class="h-64 bg-gray-800/50 rounded-lg flex items-center justify-center">
+            <p class="text-gray-400">請先設定個人資料</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</template>
