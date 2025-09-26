@@ -33,7 +33,7 @@
       <div
         class="border-t border-white/10 mt-8 pt-8 flex flex-col sm:flex-row justify-between items-center"
       >
-        <p class="text-gray-400 text-sm">© 2024 農民曆智慧投資系統. All rights reserved.</p>
+        <p class="text-gray-400 text-sm">© 2025 農民曆智慧投資系統. All rights reserved.</p>
         <div class="flex space-x-4 mt-4 sm:mt-0">
           <a href="#" class="text-gray-400 hover:text-gold-400 text-sm transition-colors">
             隱私政策

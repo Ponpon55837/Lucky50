@@ -82,11 +82,17 @@
     background: var(--card-bg);
     backdrop-filter: blur(20px);
     border-radius: 1rem;
-    padding: 1.5rem;
+    padding: 1rem;
     border: 1px solid var(--border-light);
     box-shadow: 0 8px 32px var(--shadow-medium);
     transform: translateZ(0);
     transition: all 0.3s ease;
+  }
+
+  @media (min-width: 640px) {
+    .card {
+      padding: 1.5rem;
+    }
   }
 
   .card:hover {
@@ -989,4 +995,83 @@ select:focus {
   box-shadow:
     0 1px 3px rgba(30, 41, 59, 0.15),
     inset 0 1px 1px rgba(255, 255, 255, 0.8);
+}
+
+/* 手機版響應式優化 */
+@media (max-width: 640px) {
+  /* 容器內距調整 */
+  .max-w-7xl {
+    padding-left: 1rem !important;
+    padding-right: 1rem !important;
+  }
+
+  /* 標題字體大小調整 */
+  h1 {
+    font-size: 1.875rem !important; /* text-3xl -> text-2xl */
+    line-height: 2.25rem !important;
+  }
+
+  h2 {
+    font-size: 1.5rem !important; /* text-2xl -> text-xl */
+    line-height: 2rem !important;
+  }
+
+  h3 {
+    font-size: 1.25rem !important; /* text-xl -> text-lg */
+    line-height: 1.75rem !important;
+  }
+
+  /* 間距調整 */
+  .space-y-6 > * + * {
+    margin-top: 1rem !important; /* 6 -> 4 */
+  }
+
+  .space-y-8 > * + * {
+    margin-top: 1.5rem !important; /* 8 -> 6 */
+  }
+
+  /* 按鈕調整 */
+  .btn-primary,
+  .btn-secondary {
+    padding: 0.625rem 1.25rem !important;
+    font-size: 0.875rem !important;
+  }
+
+  /* 表格字體調整 */
+  table {
+    font-size: 0.75rem !important;
+  }
+
+  /* 卡片內距調整 */
+  .card {
+    padding: 0.875rem !important;
+  }
+
+  /* 網格間距調整 */
+  .gap-6 {
+    gap: 1rem !important;
+  }
+
+  .gap-8 {
+    gap: 1.25rem !important;
+  }
+
+  /* 圖表高度調整 */
+  .h-96 {
+    height: 16rem !important; /* 24rem -> 16rem */
+  }
+
+  /* 觸摸優化 */
+  button,
+  a,
+  input,
+  select,
+  textarea {
+    min-height: 44px; /* Apple 推薦的最小觸摸目標 */
+  }
+
+  /* 滾動優化 */
+  .overflow-x-auto {
+    -webkit-overflow-scrolling: touch;
+  }
 }
