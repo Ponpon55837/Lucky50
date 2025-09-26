@@ -37,9 +37,6 @@ const props = withDefaults(defineProps<Props>(), {
 
 // 計算圖表數據
 const chartData = computed(() => {
-  console.log('PriceChart - 計算圖表數據')
-  console.log('PriceChart - etfData length:', props.etfData?.length)
-
   if (!props.etfData || props.etfData.length === 0) {
     console.log('PriceChart - No data available')
     return null
@@ -50,7 +47,6 @@ const chartData = computed(() => {
     (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
   )
 
-  console.log('PriceChart - sortedData:', sortedData.length, 'items')
   if (sortedData.length > 0) {
     console.log(
       'PriceChart - 日期範圍:',
@@ -66,9 +62,6 @@ const chartData = computed(() => {
   })
 
   const prices = sortedData.map(item => item.close)
-
-  console.log('PriceChart - labels:', labels)
-  console.log('PriceChart - prices:', prices)
 
   // 創建背景色 - 使用簡單的字符串而不是漸變
   const backgroundColor = props.isDark ? 'rgba(251, 191, 36, 0.1)' : 'rgba(59, 130, 246, 0.1)'
@@ -93,7 +86,6 @@ const chartData = computed(() => {
     ],
   }
 
-  console.log('PriceChart - final chartData:', data)
   return data
 })
 

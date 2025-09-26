@@ -1,21 +1,31 @@
 import { defineStore } from 'pinia'
-import { computed, readonly, shallowRef } from 'vue'
+import { computed, readonly, shallowRef, watch } from 'vue'
 import type { UserProfile } from '@/types'
 
-// 本地存儲鍵常量
-const STORAGE_KEY = 'userProfile'
-
 export const useUserStore = defineStore('user', () => {
-  // 使用 shallowRef 因為 profile 是一個扁平對象
-  const profile = shallowRef<UserProfile | null>(null)
+  const profile = shallowRef<UserProfile>({
+    name: '',
+    birthDate: '',
+    birthTime: '',
+    zodiac: '',
+    element: '',
+    luckyNumbers: [],
+    luckyColors: []
+  })
   
-  // 緩存驗證結果
+  watch(() => profile.value, (newValue, oldValue) => {
+    console.log('UserStore - profile 狀態變化:', {
+      old: oldValue,
+      new: newValue,
+      timestamp: new Date().toLocaleTimeString()
+    })
+  }, { immediate: true, deep: true })
+  
   const isProfileComplete = computed(() => {
     const p = profile.value
     return !!(p?.name && p?.birthDate && p?.birthTime)
   })
 
-  // 計算用戶基本信息
   const userBasicInfo = computed(() => {
     if (!profile.value) return null
     
@@ -28,7 +38,6 @@ export const useUserStore = defineStore('user', () => {
     }
   })
 
-  // 批量驗證用戶數據
   const validateProfile = (userProfile: UserProfile): { isValid: boolean; errors: string[] } => {
     const errors: string[] = []
     
@@ -46,7 +55,6 @@ export const useUserStore = defineStore('user', () => {
     }
   }
 
-  // 優化的存儲方法
   const setProfile = (userProfile: UserProfile) => {
     const validation = validateProfile(userProfile)
     if (!validation.isValid) {
@@ -54,60 +62,27 @@ export const useUserStore = defineStore('user', () => {
       throw new Error(`用戶資料驗證失敗: ${validation.errors.join(', ')}`)
     }
 
-    // 使用深拷貝避免外部修改
-    const profileCopy = {
+    profile.value = {
       ...userProfile,
-      luckyColors: Object.freeze([...userProfile.luckyColors]),
-      luckyNumbers: Object.freeze([...userProfile.luckyNumbers])
-    } as const
-
-    profile.value = profileCopy as any
-    
-    // 異步存儲到 localStorage
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(profileCopy))
-    } catch (error) {
-      console.error('Failed to save profile to localStorage:', error)
+      luckyColors: [...userProfile.luckyColors],
+      luckyNumbers: [...userProfile.luckyNumbers]
     }
   }
 
-  // 優化的加載方法
-  const loadProfile = () => {
-    try {
-      const saved = localStorage.getItem(STORAGE_KEY)
-      if (!saved) return false
-
-      const parsedProfile = JSON.parse(saved)
-      const validation = validateProfile(parsedProfile)
-      
-      if (validation.isValid) {
-        profile.value = parsedProfile
-        return true
-      } else {
-        console.warn('Stored profile is invalid:', validation.errors)
-        clearProfile()
-        return false
-      }
-    } catch (error) {
-      console.error('Failed to load profile from localStorage:', error)
-      clearProfile()
-      return false
-    }
-  }
-
-  // 安全的清除方法
   const clearProfile = () => {
-    profile.value = null
-    try {
-      localStorage.removeItem(STORAGE_KEY)
-    } catch (error) {
-      console.error('Failed to remove profile from localStorage:', error)
+    profile.value = {
+      name: '',
+      birthDate: '',
+      birthTime: '',
+      zodiac: '',
+      element: '',
+      luckyNumbers: [],
+      luckyColors: []
     }
   }
 
-  // 更新部分資料
   const updateProfile = (updates: Partial<UserProfile>) => {
-    if (!profile.value) {
+    if (!profile.value.name && !updates.name) {
       throw new Error('無法更新：用戶資料不存在')
     }
 
@@ -115,34 +90,48 @@ export const useUserStore = defineStore('user', () => {
     setProfile(updatedProfile)
   }
 
-  // 獲取存儲統計
-  const getStorageInfo = () => {
+  const initializeFromStorage = () => {
     try {
-      const data = localStorage.getItem(STORAGE_KEY)
-      return {
-        hasData: !!data,
-        dataSize: data ? data.length : 0,
-        lastModified: profile.value ? new Date().toISOString() : null
+      const storedData = localStorage.getItem('userProfile')
+      
+      if (storedData) {
+        const parsed = JSON.parse(storedData)
+        
+        // 檢查是否有profile資料且當前store為空
+        if (parsed && parsed.profile && parsed.profile.name && !profile.value.name) {
+          console.log('UserStore - 手動恢復profile資料:', parsed.profile)
+          profile.value = { ...parsed.profile }
+        }
+        // 也檢查是否直接儲存在根層級（針對pinia-plugin-persistedstate的不同版本）
+        else if (parsed && parsed.name && !profile.value.name) {
+          console.log('UserStore - 從根層級恢復profile資料:', parsed)
+          profile.value = { ...parsed }
+        }
       }
-    } catch {
-      return { hasData: false, dataSize: 0, lastModified: null }
+    } catch (error) {
+      console.error('UserStore - 從localStorage恢復失敗:', error)
     }
   }
 
+  initializeFromStorage()
+
   return {
-    // State (readonly 防止外部直接修改)
     profile: readonly(profile),
-    
-    // Computed
     isProfileComplete,
     userBasicInfo,
-    
-    // Actions
     setProfile,
-    loadProfile,
     clearProfile,
     updateProfile,
     validateProfile,
-    getStorageInfo
+    initializeFromStorage
+  }
+}, {
+  persist: {
+    key: 'userProfile',
+    storage: localStorage,
+    serializer: {
+      serialize: JSON.stringify,
+      deserialize: JSON.parse,
+    }
   }
 })

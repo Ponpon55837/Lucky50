@@ -7,7 +7,18 @@ const { toasts, removeToast } = useToast()
 <template>
   <Teleport to="body">
     <div
-      class="fixed top-4 left-1/2 transform -translate-x-1/2 z-50 space-y-4 flex flex-col items-center"
+      id="toast-viewport"
+      style="
+        position: absolute;
+        top: 0;
+        left: 50%;
+        transform: translateX(-50%);
+        z-index: 999999;
+        padding-top: 1rem;
+        width: 100vw;
+        max-width: 500px;
+        pointer-events: none;
+      "
     >
       <TransitionGroup
         enter-active-class="transform ease-out duration-300 transition"
@@ -18,11 +29,18 @@ const { toasts, removeToast } = useToast()
         leave-to-class="opacity-0 scale-95"
         tag="div"
         class="space-y-3"
+        style="pointer-events: auto"
       >
         <div
           v-for="toast in toasts"
           :key="toast.id"
-          class="max-w-md w-full shadow-lg rounded-lg pointer-events-auto ring-1 ring-opacity-5 overflow-hidden toast-container"
+          class="max-w-md w-full shadow-lg rounded-lg ring-1 ring-opacity-5 overflow-hidden"
+          style="
+            background: rgba(17, 24, 39, 0.95);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            pointer-events: auto;
+          "
           :class="[
             toast.type === 'success' ? 'border-l-4 border-green-400' : '',
             toast.type === 'error' ? 'border-l-4 border-red-400' : '',
@@ -33,7 +51,6 @@ const { toasts, removeToast } = useToast()
           <div class="p-4">
             <div class="flex items-start">
               <div class="flex-shrink-0">
-                <!-- Success Icon -->
                 <svg
                   v-if="toast.type === 'success'"
                   class="h-6 w-6 text-green-400"
@@ -48,7 +65,6 @@ const { toasts, removeToast } = useToast()
                     d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
                   />
                 </svg>
-                <!-- Error Icon -->
                 <svg
                   v-else-if="toast.type === 'error'"
                   class="h-6 w-6 text-red-400"
@@ -63,48 +79,23 @@ const { toasts, removeToast } = useToast()
                     d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
                   />
                 </svg>
-                <!-- Warning Icon -->
-                <svg
-                  v-else-if="toast.type === 'warning'"
-                  class="h-6 w-6 text-yellow-400"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    stroke-width="2"
-                    d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.732-.833-2.464 0L3.34 16.5c-.77.833.192 2.5 1.732 2.5z"
-                  />
-                </svg>
-                <!-- Info Icon -->
-                <svg
-                  v-else-if="toast.type === 'info'"
-                  class="h-6 w-6 text-blue-400"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    stroke-width="2"
-                    d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                  />
-                </svg>
               </div>
               <div class="ml-3 w-0 flex-1 pt-0.5">
-                <p class="text-sm font-medium toast-title">
+                <p class="text-sm font-medium" style="color: white">
                   {{ toast.title }}
                 </p>
-                <p v-if="toast.message" class="mt-1 text-sm toast-message">
+                <p
+                  v-if="toast.message"
+                  class="mt-1 text-sm"
+                  style="color: rgba(255, 255, 255, 0.8)"
+                >
                   {{ toast.message }}
                 </p>
               </div>
               <div class="ml-4 flex-shrink-0 flex">
                 <button
-                  class="toast-close-btn rounded-md inline-flex text-gray-400 hover:text-gray-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gold-500"
+                  class="rounded-md inline-flex focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gold-500"
+                  style="color: rgba(255, 255, 255, 0.6)"
                   @click="removeToast(toast.id)"
                 >
                   <span class="sr-only">關閉</span>

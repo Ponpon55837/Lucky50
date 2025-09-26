@@ -25,7 +25,6 @@ const getPeriodDays = (period: string) => {
     '5年': 1825,
   }
   const days = periodMap[period] || 30
-  console.log(`時間段 "${period}" 對應 ${days} 天`)
   return days
 }
 
@@ -54,20 +53,6 @@ const filteredEtfData = computed(() => {
     }
     return item
   })
-
-  console.log(`當前數據 - 期間: ${selectedPeriod.value}`)
-  console.log(`當前數據 - 數據數量: ${adjustedData.length} 筆`)
-  console.log(
-    `當前數據 - 分拆調整: ${data.filter((item: any) => new Date(item.date) < splitDate).length} 筆歷史數據已調整`
-  )
-  if (adjustedData.length > 0) {
-    console.log(
-      `當前數據 - 日期範圍: ${adjustedData[0].date} 至 ${adjustedData[adjustedData.length - 1].date}`
-    )
-    console.log(
-      `當前數據 - 價格範圍: ${adjustedData[0].close.toFixed(2)} 至 ${adjustedData[adjustedData.length - 1].close.toFixed(2)}`
-    )
-  }
 
   return adjustedData
 })
@@ -105,10 +90,6 @@ const statistics = computed(() => {
     return item
   })
 
-  console.log(
-    `價格調整 - 分拆日期: 2025-06-18, 調整數據點: ${data.filter((item: any) => new Date(item.date) < splitDate).length} 筆`
-  )
-
   // 計算報酬率（使用調整後的價格）
   const firstPrice = adjustedData[0]?.close || 0
   const lastPrice = adjustedData[adjustedData.length - 1]?.close || 0
@@ -134,14 +115,6 @@ const statistics = computed(() => {
       annualReturn = (totalReturn * 365) / actualDays
     }
   }
-
-  console.log(
-    `計算統計 - 期間: ${selectedPeriod.value}, 實際天數: ${actualDays}, 實際年數: ${actualYears.toFixed(2)}`
-  )
-  console.log(`計算統計 - 起始價格: ${firstPrice.toFixed(2)}, 結束價格: ${lastPrice.toFixed(2)}`)
-  console.log(
-    `計算統計 - 總報酬率: ${totalReturn.toFixed(2)}%, 年化報酬率: ${annualReturn.toFixed(2)}%`
-  )
 
   // 處理異常值
   if (!isFinite(annualReturn) || isNaN(annualReturn)) {
@@ -305,7 +278,6 @@ const technicalIndicators = computed(() => {
 watch(
   selectedPeriod,
   async (newPeriod: string) => {
-    console.log('切換時間段至:', newPeriod, '- 準備重新載入數據')
     await loadAnalyticsData()
   },
   { immediate: false }
@@ -319,26 +291,8 @@ const loadAnalyticsData = async () => {
     const days = getPeriodDays(selectedPeriod.value)
     const startDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
 
-    console.log('Analytics - 開始載入歷史數據...')
-    console.log('Analytics - 當前時間段:', selectedPeriod.value)
-    console.log('Analytics - 日期範圍:', startDate, '到', endDate)
-
     const etfData = await FinMindService.getETFData(startDate, endDate)
     investmentStore.setETFData(etfData)
-    console.log(
-      'Analytics - 載入 ETF 數據:',
-      etfData.length,
-      '筆，時間範圍:',
-      startDate,
-      '至',
-      endDate
-    )
-
-    if (etfData.length > 0) {
-      console.log('Analytics - 數據樣本:')
-      console.log('- 第一筆:', etfData[0])
-      console.log('- 最後一筆:', etfData[etfData.length - 1])
-    }
   } catch (err) {
     console.error('Analytics 數據載入失敗:', err)
     error.value = '數據載入失敗'

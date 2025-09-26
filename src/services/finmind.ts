@@ -24,7 +24,6 @@ finmindAPI.interceptors.request.use((config) => {
 export class FinMindService {
   // 備用模擬數據
   private static getMockETFData(startDate: string, endDate: string): ETFData[] {
-    console.log('生成模擬數據:', startDate, '到', endDate)
     const mockData: ETFData[] = []
     const start = new Date(startDate)
     const end = new Date(endDate)
@@ -58,9 +57,6 @@ export class FinMindService {
       }
       currentDate.setDate(currentDate.getDate() + 1)
     }
-    
-    console.log('生成的模擬數據:', mockData.length, '筆')
-    console.log('模擬數據樣本:', mockData.slice(0, 3))
     
     return mockData.reverse() // 最新日期在前
   }

@@ -17,7 +17,7 @@ export const useToast = () => {
     const id = `toast-${++toastIdCounter}`
     const newToast: ToastItem = {
       id,
-      duration: 4000,
+      duration: 3000, // 改為 3 秒自動關閉
       ...toast
     }
     
