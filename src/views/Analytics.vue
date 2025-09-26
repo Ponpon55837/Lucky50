@@ -2,13 +2,19 @@
 import { ref, computed, watch, onMounted } from 'vue'
 import { useDashboardStore } from '@/stores/dashboard'
 import { useAnalyticsStore } from '@/stores/analytics'
+import { useUserStore } from '@/stores/user'
 import { useTheme } from '@/composables/useTheme'
 import { FinMindService } from '@/services/finmind'
 import PriceChart from '@/components/charts/PriceChart.vue'
 import VolumeChart from '@/components/charts/VolumeChart.vue'
+import Stock3DVisualization from '@/components/three/Stock3DVisualization.vue'
+import Fortune3DVisualization from '@/components/three/Fortune3DVisualization.vue'
+import Lunar3DVisualization from '@/components/three/Lunar3DVisualization.vue'
+import Technical3DVisualization from '@/components/three/Technical3DVisualization.vue'
 
 const dashboardStore = useDashboardStore()
 const analyticsStore = useAnalyticsStore()
+const userStore = useUserStore()
 const { isDark } = useTheme()
 
 const loading = ref(true)
@@ -42,8 +48,41 @@ const backtestResults = computed(() => {
 })
 
 // 計算技術指標
+// 模擬技術指標數據（實際應從 dashboard store 獲取）
 const technicalIndicators = computed(() => {
-  return analyticsStore.calculateTechnicalIndicators(dashboardStore.etfData)
+  // 基於 ETF 數據計算簡單的技術指標
+  const etfData = dashboardStore.etfData
+  if (!etfData || etfData.length === 0) {
+    return {
+      rsi: 50,
+      macd: 0,
+      bollingerBand: 'middle',
+      kd: { k: 50, d: 50 },
+    }
+  }
+
+  const latestData = etfData[etfData.length - 1]
+
+  if (!latestData) {
+    return {
+      rsi: 50,
+      macd: 0,
+      bollingerBand: 'middle',
+      kd: { k: 50, d: 50 },
+    }
+  }
+
+  const priceChange = latestData.changePercent || 0
+
+  return {
+    rsi: Math.max(0, Math.min(100, 50 + priceChange * 5)), // 簡化的 RSI 計算
+    macd: priceChange * 0.1, // 簡化的 MACD
+    bollingerBand: priceChange > 3 ? 'upper' : priceChange < -3 ? 'lower' : 'middle',
+    kd: {
+      k: Math.max(0, Math.min(100, 50 + priceChange * 3)),
+      d: Math.max(0, Math.min(100, 45 + priceChange * 2.5)),
+    },
+  }
 })
 
 // 監聽期間變化，重新載入數據
@@ -120,6 +159,55 @@ onMounted(() => {
         </div>
       </div>
 
+      <!-- 3D 可視化區域 -->
+      <div class="grid grid-cols-1 xl:grid-cols-2 gap-6 mb-8">
+        <!-- 股票價格 3D 可視化 -->
+        <div class="h-64 md:h-80 rounded-lg overflow-hidden">
+          <Stock3DVisualization
+            :etfData="filteredEtfData"
+            :fortuneScore="dashboardStore.unifiedInvestmentScore"
+            title="股價 3D 動態"
+          />
+        </div>
+
+        <!-- 生肖運勢 3D 可視化 -->
+        <div class="h-64 md:h-80 rounded-lg overflow-hidden">
+          <Fortune3DVisualization
+            :zodiac="userStore.profile.zodiac || '龍'"
+            :element="userStore.profile.element || '木'"
+            :fortuneScore="dashboardStore.unifiedInvestmentScore"
+            :investmentScore="dashboardStore.unifiedInvestmentScore"
+            title="生肖運勢 3D"
+          />
+        </div>
+      </div>
+
+      <!-- 農民曆與技術指標 3D 區域 -->
+      <div class="grid grid-cols-1 xl:grid-cols-2 gap-6 mb-8">
+        <!-- 農民曆 3D 可視化 -->
+        <div class="h-64 md:h-80 rounded-lg overflow-hidden">
+          <Lunar3DVisualization
+            :lunarDate="`${dashboardStore.lunarData?.lunarYear || ''}${dashboardStore.lunarData?.lunarMonth || ''}${dashboardStore.lunarData?.lunarDay || ''}`"
+            :solarTerm="dashboardStore.lunarData?.jieQi || '寒露'"
+            :suitable="dashboardStore.lunarData?.yi || ['開市', '交易']"
+            :avoid="dashboardStore.lunarData?.ji || ['出行', '動土']"
+            :investmentLuck="
+              dashboardStore.investmentAdvice?.recommendedAction === 'buy'
+                ? '吉'
+                : dashboardStore.investmentAdvice?.recommendedAction === 'sell'
+                  ? '凶'
+                  : '中'
+            "
+            title="農民曆 3D"
+          />
+        </div>
+
+        <!-- 技術指標 3D 可視化 -->
+        <div class="h-64 md:h-80 rounded-lg overflow-hidden">
+          <Technical3DVisualization :indicators="technicalIndicators" title="技術指標 3D" />
+        </div>
+      </div>
+
       <!-- 圖表區域 -->
       <div class="space-y-6">
         <!-- 價格走勢圖 -->
@@ -172,44 +260,125 @@ onMounted(() => {
                   <span>載入中...</span>
                 </div>
               </div>
-              <VolumeChart :etfData="filteredEtfData" :isDark="isDark" />
+              <VolumeChart
+                :etfData="filteredEtfData"
+                :isDark="isDark"
+                v-if="!loading && filteredEtfData.length > 0"
+              />
+              <div
+                v-else-if="!loading && filteredEtfData.length === 0"
+                class="h-full bg-gray-800/50 rounded-lg flex items-center justify-center"
+              >
+                <div class="text-center">
+                  <p class="text-gray-400 mb-2">無成交量數據</p>
+                  <p class="text-gray-500 text-sm">請檢查數據連線或選擇其他時間段</p>
+                </div>
+              </div>
             </div>
           </div>
 
-          <!-- 技術指標 -->
+          <!-- 技術指標摘要 -->
           <div class="card">
-            <h2 class="text-xl font-semibold text-white mb-6">技術指標</h2>
+            <h2 class="text-xl font-semibold text-white mb-6">技術指標摘要</h2>
             <div class="space-y-4">
-              <div class="flex justify-between items-center">
-                <span class="text-gray-300">RSI (14)</span>
-                <span class="text-white font-medium">{{ technicalIndicators.rsi }}</span>
-              </div>
-              <div class="flex justify-between items-center">
-                <span class="text-gray-300">MACD</span>
-                <span
-                  :class="technicalIndicators.macd >= 0 ? 'text-green-400' : 'text-red-400'"
-                  class="font-medium"
+              <div class="flex justify-between items-center p-4 bg-gray-800/50 rounded-lg">
+                <div>
+                  <div class="text-sm text-gray-400">RSI (相對強弱指數)</div>
+                  <div class="text-lg font-semibold text-yellow-400">
+                    {{ technicalIndicators.rsi.toFixed(1) }}
+                  </div>
+                </div>
+                <div
+                  :class="[
+                    'px-2 py-1 rounded text-xs font-semibold',
+                    technicalIndicators.rsi > 70
+                      ? 'bg-red-500/20 text-red-400'
+                      : technicalIndicators.rsi < 30
+                        ? 'bg-green-500/20 text-green-400'
+                        : 'bg-yellow-500/20 text-yellow-400',
+                  ]"
                 >
-                  {{ technicalIndicators.macd >= 0 ? '+' : '' }}{{ technicalIndicators.macd }}
-                </span>
+                  {{
+                    technicalIndicators.rsi > 70
+                      ? '超買'
+                      : technicalIndicators.rsi < 30
+                        ? '超賣'
+                        : '中性'
+                  }}
+                </div>
               </div>
-              <div class="flex justify-between items-center">
-                <span class="text-gray-300">布林帶位置</span>
-                <span
-                  :class="{
-                    'text-red-400': technicalIndicators.bollingerBand === '上軌',
-                    'text-yellow-400': technicalIndicators.bollingerBand === '中軌',
-                    'text-green-400': technicalIndicators.bollingerBand === '下軌',
-                  }"
-                  class="font-medium"
-                  >{{ technicalIndicators.bollingerBand }}</span
+
+              <div class="flex justify-between items-center p-4 bg-gray-800/50 rounded-lg">
+                <div>
+                  <div class="text-sm text-gray-400">MACD</div>
+                  <div
+                    class="text-lg font-semibold"
+                    :class="technicalIndicators.macd >= 0 ? 'text-green-400' : 'text-red-400'"
+                  >
+                    {{ technicalIndicators.macd >= 0 ? '+' : ''
+                    }}{{ technicalIndicators.macd.toFixed(3) }}
+                  </div>
+                </div>
+                <div
+                  :class="[
+                    'px-2 py-1 rounded text-xs font-semibold',
+                    technicalIndicators.macd >= 0
+                      ? 'bg-green-500/20 text-green-400'
+                      : 'bg-red-500/20 text-red-400',
+                  ]"
                 >
+                  {{ technicalIndicators.macd >= 0 ? '多頭' : '空頭' }}
+                </div>
               </div>
-              <div class="flex justify-between items-center">
-                <span class="text-gray-300">KD指標</span>
-                <span class="text-white font-medium"
-                  >K:{{ technicalIndicators.kd.k }} D:{{ technicalIndicators.kd.d }}</span
-                >
+
+              <div class="p-4 bg-gray-800/50 rounded-lg">
+                <div class="text-sm text-gray-400 mb-2">布林通道位置</div>
+                <div class="flex justify-center">
+                  <div
+                    :class="[
+                      'px-3 py-2 rounded-lg text-sm font-semibold',
+                      technicalIndicators.bollingerBand === 'upper'
+                        ? 'bg-red-500/20 text-red-400'
+                        : technicalIndicators.bollingerBand === 'lower'
+                          ? 'bg-green-500/20 text-green-400'
+                          : 'bg-yellow-500/20 text-yellow-400',
+                    ]"
+                  >
+                    {{
+                      technicalIndicators.bollingerBand === 'upper'
+                        ? '接近上軌 (可能過熱)'
+                        : technicalIndicators.bollingerBand === 'lower'
+                          ? '接近下軌 (可能超賣)'
+                          : '在中軌附近 (正常區間)'
+                    }}
+                  </div>
+                </div>
+              </div>
+
+              <div class="p-4 bg-gray-800/50 rounded-lg">
+                <div class="text-sm text-gray-400 mb-2">KD 指標</div>
+                <div class="flex justify-between">
+                  <div>
+                    <span class="text-blue-400">K: {{ technicalIndicators.kd.k.toFixed(1) }}</span>
+                  </div>
+                  <div>
+                    <span class="text-purple-400"
+                      >D: {{ technicalIndicators.kd.d.toFixed(1) }}</span
+                    >
+                  </div>
+                  <div
+                    :class="[
+                      'px-2 py-1 rounded text-xs font-semibold',
+                      technicalIndicators.kd.k > technicalIndicators.kd.d
+                        ? 'bg-green-500/20 text-green-400'
+                        : 'bg-red-500/20 text-red-400',
+                    ]"
+                  >
+                    {{
+                      technicalIndicators.kd.k > technicalIndicators.kd.d ? '黃金交叉' : '死亡交叉'
+                    }}
+                  </div>
+                </div>
               </div>
             </div>
           </div>

@@ -12,6 +12,7 @@
     "format": "prettier --write src/"
   },
   "dependencies": {
+    "@tweenjs/tween.js": "^25.0.0",
     "@vuepic/vue-datepicker": "^11.0.2",
     "axios": "^1.6.0",
     "chart.js": "^4.4.0",
@@ -26,7 +27,7 @@
   },
   "devDependencies": {
     "@types/node": "^20.8.10",
-    "@types/three": "^0.158.0",
+    "@types/three": "^0.158.3",
     "@typescript-eslint/eslint-plugin": "^6.9.0",
     "@typescript-eslint/parser": "^6.9.0",
     "@vitejs/plugin-vue": "^4.4.1",

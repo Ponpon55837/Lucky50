@@ -36,6 +36,8 @@ const chartData = computed(() => {
     (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
   )
 
+  console.log('VolumeChart - Data count:', sortedData.length)
+
   if (sortedData.length > 0) {
     console.log(
       'VolumeChart - 日期範圍:',
@@ -43,6 +45,8 @@ const chartData = computed(() => {
       '至',
       sortedData[sortedData.length - 1].date
     )
+    console.log('VolumeChart - First volume:', sortedData[0].volume)
+    console.log('VolumeChart - Last volume:', sortedData[sortedData.length - 1].volume)
   }
 
   const labels = sortedData.map(item => {
@@ -50,7 +54,12 @@ const chartData = computed(() => {
     return `${date.getMonth() + 1}/${date.getDate()}`
   })
 
-  const volumes = sortedData.map(item => item.volume / 1000000) // 轉換為百萬
+  const volumes = sortedData.map(item => {
+    const volume = item.volume / 1000000 // 轉換為百萬
+    return isNaN(volume) ? 0 : volume
+  })
+
+  console.log('VolumeChart - Volume data:', volumes.slice(0, 5)) // 顯示前5筆數據
 
   return {
     labels,
@@ -131,13 +140,18 @@ const chartOptions = computed(() => {
 <template>
   <div class="h-64 w-full">
     <Bar
-      v-if="chartData && chartOptions"
+      v-if="chartData && chartOptions && props.etfData.length > 0"
       :data="chartData"
       :options="chartOptions"
       class="w-full h-full"
     />
     <div v-else class="h-full bg-gray-800/50 rounded-lg flex items-center justify-center">
-      <p class="text-gray-400">載入圖表中...</p>
+      <div class="text-center">
+        <p class="text-gray-400 mb-2">
+          {{ props.etfData.length === 0 ? '無成交量數據' : '載入圖表中...' }}
+        </p>
+        <p class="text-gray-500 text-sm">數據筆數: {{ props.etfData.length }}</p>
+      </div>
     </div>
   </div>
 </template>
