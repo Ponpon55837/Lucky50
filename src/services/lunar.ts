@@ -51,30 +51,10 @@ class LunarService {
       console.log('LunarService - 使用快取資料:', cacheKey)
       return this.cache.get(cacheKey)!
     }
-    
-    console.log('LunarService - 開始計算農民曆，日期:', {
-      date: targetDate,
-      year: targetDate.getFullYear(),
-      month: targetDate.getMonth() + 1,
-      day: targetDate.getDate()
-    })
-    
+
     try {
       const solar = Solar.fromYmd(targetDate.getFullYear(), targetDate.getMonth() + 1, targetDate.getDate())
       const lunar = solar.getLunar()
-      
-      console.log('LunarService - lunar-javascript 回傳:', {
-        year: lunar.getYear(),
-        month: lunar.getMonth(),
-        day: lunar.getDay(),
-        yearInGanZhi: lunar.getYearInGanZhi(),
-        monthInGanZhi: lunar.getMonthInGanZhi(),
-        dayInGanZhi: lunar.getDayInGanZhi(),
-        yearInChinese: lunar.getYearInChinese(),
-        monthInChinese: lunar.getMonthInChinese(),
-        dayInChinese: lunar.getDayInChinese(),
-        yearShengXiao: lunar.getYearShengXiao(),
-      })
       
       const lunarData: LunarData = {
         lunarYear: lunar.getYearInChinese(),
@@ -94,8 +74,6 @@ class LunarService {
         naYinDay: this.getSafeString(lunar, 'getDayNaYin'),
         jiuXing: this.getSafeString(lunar, 'getDayJiuXing')
       }
-      
-      console.log('LunarService - 最終農民曆資料:', lunarData)
       
       this.cache.set(cacheKey, lunarData)
       return lunarData

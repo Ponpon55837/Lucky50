@@ -26,9 +26,6 @@ const props = withDefaults(defineProps<Props>(), {
 
 // 計算圖表數據
 const chartData = computed(() => {
-  console.log('VolumeChart - 計算圖表數據')
-  console.log('VolumeChart - etfData length:', props.etfData?.length)
-
   if (!props.etfData || props.etfData.length === 0) {
     console.log('VolumeChart - No data available')
     return null
@@ -39,7 +36,6 @@ const chartData = computed(() => {
     (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
   )
 
-  console.log('VolumeChart - sortedData:', sortedData.length, 'items')
   if (sortedData.length > 0) {
     console.log(
       'VolumeChart - 日期範圍:',

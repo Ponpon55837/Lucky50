@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, watch, onMounted } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { useUserStore } from '@/stores/user'
 import { useRouter } from 'vue-router'
 import { useToast } from '@/composables/useToast'
@@ -29,7 +29,8 @@ const shichenList = [
   { name: '亥時', time: '21:00-23:00', hour: '22:00' },
 ]
 
-const form = ref<UserProfile>({
+// 創建空的表單
+const createEmptyForm = (): UserProfile => ({
   name: '',
   birthDate: '',
   birthTime: '',
@@ -38,6 +39,32 @@ const form = ref<UserProfile>({
   luckyColors: [],
   luckyNumbers: [],
 })
+
+// 初始化表單為空
+const form = ref<UserProfile>(createEmptyForm())
+
+// 響應式地監聽userStore.profile的變化，並同步到表單
+watch(
+  () => userStore.profile,
+  newProfile => {
+    if (newProfile) {
+      // 如果有用戶資料，同步到表單
+      form.value = {
+        name: newProfile.name,
+        birthDate: newProfile.birthDate,
+        birthTime: newProfile.birthTime,
+        zodiac: newProfile.zodiac,
+        element: newProfile.element,
+        luckyColors: [...newProfile.luckyColors],
+        luckyNumbers: [...newProfile.luckyNumbers],
+      }
+    } else {
+      console.log('Profile.vue - 無用戶資料，檢查localStorage...')
+      console.log('Profile.vue - 所有localStorage keys:', Object.keys(localStorage))
+    }
+  },
+  { immediate: true, deep: true }
+)
 
 const selectedShichen = ref('')
 
@@ -183,6 +210,7 @@ const startRedirect = () => {
 }
 
 const clearForm = () => {
+  // 清除表單資料
   form.value = {
     name: '',
     birthDate: '',
@@ -193,18 +221,13 @@ const clearForm = () => {
     luckyNumbers: [],
   }
   selectedShichen.value = ''
-}
 
-onMounted(() => {
-  userStore.loadProfile()
-  if (userStore.profile) {
-    form.value = {
-      ...userStore.profile,
-      luckyColors: [...userStore.profile.luckyColors],
-      luckyNumbers: [...userStore.profile.luckyNumbers],
-    }
-  }
-})
+  // 清除全域狀態管理器的資料和localStorage
+  userStore.clearProfile()
+
+  // 顯示清除成功訊息
+  success('設定已清除', '您的個人資料已成功清除', 2000)
+}
 </script>
 
 <template>

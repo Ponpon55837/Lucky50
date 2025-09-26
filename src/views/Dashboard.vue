@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { onMounted } from 'vue'
+import { onMounted, computed, watch } from 'vue'
 import { useUserStore } from '@/stores/user'
 import { useDashboardStore } from '@/stores/dashboard'
 import { useTheme } from '@/composables/useTheme'
+import type { UserProfileCompat } from '@/services/integratedFortune'
 import PriceChart from '@/components/charts/PriceChart.vue'
 import ElementRadarChart from '@/components/charts/ElementRadarChart.vue'
 import LunarCalendarCard from '@/components/LunarCalendarCard.vue'
@@ -13,9 +14,41 @@ const userStore = useUserStore()
 const dashboardStore = useDashboardStore()
 const { isDark } = useTheme()
 
-onMounted(() => {
-  dashboardStore.loadAllData()
+// 將userStore的profile轉換為UserProfileCompat格式
+const userProfileCompat = computed((): UserProfileCompat | null => {
+  if (!userStore.profile) return null
+
+  return {
+    name: userStore.profile.name,
+    birthDate: userStore.profile.birthDate,
+    birthTime: userStore.profile.birthTime || '12:00',
+    zodiac: userStore.profile.zodiac,
+    element: userStore.profile.element,
+    luckyColors: [...userStore.profile.luckyColors],
+    luckyNumbers: [...userStore.profile.luckyNumbers],
+  }
 })
+
+// 重試函數的包裝器
+const retryIntegratedFortune = () => {
+  return dashboardStore.retryIntegratedFortune(userProfileCompat.value)
+}
+
+onMounted(() => {
+  // 使用轉換後的用戶資料載入dashboard數據
+  dashboardStore.loadAllData(userProfileCompat.value)
+})
+
+// 監聽用戶資料變化，自動重新載入dashboard數據
+watch(
+  userProfileCompat,
+  newProfile => {
+    if (newProfile) {
+      dashboardStore.refreshData(newProfile)
+    }
+  },
+  { deep: true }
+)
 </script>
 
 <template>
@@ -74,7 +107,7 @@ onMounted(() => {
           :showTimeAdvice="false"
           :showDirectionAdvice="false"
           :showLuckyInfo="false"
-          @retry="dashboardStore.retryIntegratedFortune"
+          @retry="retryIntegratedFortune"
         />
 
         <!-- 0050 即時資訊 -->
