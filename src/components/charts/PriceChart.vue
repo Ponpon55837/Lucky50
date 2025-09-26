@@ -1,19 +1,3 @@
-<template>
-  <div class="h-64 w-full">
-    <div
-      v-if="!chartData"
-      class="h-full bg-gray-800/50 rounded-lg flex items-center justify-center"
-    >
-      <p class="text-gray-400">
-        {{ props.etfData?.length === 0 ? '無數據可顯示' : '載入圖表中...' }}
-        <br />
-        <small class="text-xs">數據數量: {{ props.etfData?.length || 0 }}</small>
-      </p>
-    </div>
-    <Line v-else :data="chartData" :options="chartOptions" class="w-full h-full" />
-  </div>
-</template>
-
 <script setup lang="ts">
 import { computed } from 'vue'
 import {
@@ -182,3 +166,19 @@ const chartOptions = computed(() => {
   }
 })
 </script>
+
+<template>
+  <div class="h-64 w-full">
+    <div
+      v-if="!chartData"
+      class="h-full bg-gray-800/50 rounded-lg flex items-center justify-center"
+    >
+      <p class="text-gray-400">
+        {{ props.etfData?.length === 0 ? '無數據可顯示' : '載入圖表中...' }}
+        <br />
+        <small class="text-xs">數據數量: {{ props.etfData?.length || 0 }}</small>
+      </p>
+    </div>
+    <Line v-else :data="chartData" :options="chartOptions" class="w-full h-full" />
+  </div>
+</template>

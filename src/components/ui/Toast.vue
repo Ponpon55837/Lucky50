@@ -1,3 +1,59 @@
+<script setup lang="ts">
+import { ref, onMounted } from 'vue'
+
+interface Props {
+  type?: 'success' | 'error' | 'warning' | 'info'
+  title: string
+  message?: string
+  duration?: number
+  visible?: boolean
+}
+
+const props = withDefaults(defineProps<Props>(), {
+  type: 'info',
+  duration: 4000,
+  visible: false,
+})
+
+const emit = defineEmits<{
+  close: []
+}>()
+
+const visible = ref(props.visible)
+let timeoutId: NodeJS.Timeout | null = null
+
+const close = () => {
+  visible.value = false
+  if (timeoutId) {
+    clearTimeout(timeoutId)
+  }
+  setTimeout(() => {
+    emit('close')
+  }, 300) // 等待動畫完成
+}
+
+const show = () => {
+  visible.value = true
+  if (props.duration > 0) {
+    timeoutId = setTimeout(() => {
+      close()
+    }, props.duration)
+  }
+}
+
+onMounted(() => {
+  if (props.visible) {
+    show()
+  }
+})
+
+// 暴露方法給父元件
+defineExpose({
+  show,
+  close,
+})
+</script>
+
 <template>
   <Teleport to="body">
     <Transition
@@ -115,59 +171,3 @@
     </Transition>
   </Teleport>
 </template>
-
-<script setup lang="ts">
-import { ref, onMounted } from 'vue'
-
-interface Props {
-  type?: 'success' | 'error' | 'warning' | 'info'
-  title: string
-  message?: string
-  duration?: number
-  visible?: boolean
-}
-
-const props = withDefaults(defineProps<Props>(), {
-  type: 'info',
-  duration: 4000,
-  visible: false,
-})
-
-const emit = defineEmits<{
-  close: []
-}>()
-
-const visible = ref(props.visible)
-let timeoutId: NodeJS.Timeout | null = null
-
-const close = () => {
-  visible.value = false
-  if (timeoutId) {
-    clearTimeout(timeoutId)
-  }
-  setTimeout(() => {
-    emit('close')
-  }, 300) // 等待動畫完成
-}
-
-const show = () => {
-  visible.value = true
-  if (props.duration > 0) {
-    timeoutId = setTimeout(() => {
-      close()
-    }, props.duration)
-  }
-}
-
-onMounted(() => {
-  if (props.visible) {
-    show()
-  }
-})
-
-// 暴露方法給父元件
-defineExpose({
-  show,
-  close,
-})
-</script>
