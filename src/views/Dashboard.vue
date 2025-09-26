@@ -374,7 +374,7 @@ onMounted(() => {
 
       <!-- 農民曆區域 -->
       <div class="mb-8">
-        <LunarCalendarCard />
+        <LunarCalendarCard :fortuneData="currentFortune" />
       </div>
 
       <!-- 圖表區域 -->
