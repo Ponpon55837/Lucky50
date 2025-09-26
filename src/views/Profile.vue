@@ -9,7 +9,7 @@ import '@vuepic/vue-datepicker/dist/main.css'
 
 const userStore = useUserStore()
 const router = useRouter()
-const { success, error } = useToast()
+const { success, error: showError } = useToast()
 
 const zodiacList = ['鼠', '牛', '虎', '兔', '龍', '蛇', '馬', '羊', '猴', '雞', '狗', '豬']
 
@@ -147,17 +147,39 @@ const onShichenChange = () => {
   }
 }
 
-const saveProfile = () => {
+const saving = ref(false)
+const redirecting = ref(false)
+
+const saveProfile = async () => {
+  if (saving.value) return
+
   try {
+    saving.value = true
     userStore.setProfile(form.value)
-    // 使用更好的提示方式
-    showSuccessToast('設定成功', '您的個人資料已成功保存，即將跳轉到儀表板')
+
+    // 顯示保存成功訊息 (3秒後自動關閉)
+    success('設定保存成功！', '您的個人資料已成功保存', 3000)
+
+    // 等待一下讓用戶看到成功訊息
     setTimeout(() => {
-      router.push('/dashboard')
-    }, 1500)
+      startRedirect()
+    }, 1000)
   } catch (error) {
-    showErrorToast('保存失敗', '無法保存您的設定，請檢查資料後重試')
+    saving.value = false
+    showError('保存失敗', '無法保存您的設定，請檢查資料後重試')
   }
+}
+
+const startRedirect = () => {
+  redirecting.value = true
+
+  // 顯示跳轉提示 (3秒後自動關閉)
+  success('即將跳轉', '正在為您載入投資儀表板...', 3000)
+
+  // 2秒後跳轉
+  setTimeout(() => {
+    router.push('/dashboard')
+  }, 2000)
 }
 
 const clearForm = () => {
@@ -171,15 +193,6 @@ const clearForm = () => {
     luckyNumbers: [],
   }
   selectedShichen.value = ''
-}
-
-// Toast 通知系統
-const showSuccessToast = (title: string, message?: string) => {
-  success(title, message)
-}
-
-const showErrorToast = (title: string, message?: string) => {
-  error(title, message)
 }
 
 onMounted(() => {
@@ -375,26 +388,28 @@ onMounted(() => {
           </div>
 
           <!-- 提交按鈕 -->
-          <div
-            class="flex flex-col sm:flex-row justify-center sm:justify-end space-y-3 sm:space-y-1 sm:space-x-4 pt-6"
-          >
-            <button
-              type="button"
-              @click="clearForm"
-              class="btn-secondary order-2 sm:order-1 sm:mt-3"
-            >
-              清除
-            </button>
-            <button
-              type="submit"
-              :disabled="!isFormValid"
-              :class="[
-                'btn-primary order-1 sm:order-2',
-                !isFormValid && 'opacity-50 cursor-not-allowed',
-              ]"
-            >
-              保存設定
-            </button>
+          <div class="pt-6">
+            <div class="flex flex-col sm:flex-row justify-center sm:justify-end gap-4">
+              <button
+                type="button"
+                @click="clearForm"
+                class="btn-secondary order-2 sm:order-1 w-full sm:w-auto"
+              >
+                清除設定
+              </button>
+              <button
+                type="submit"
+                :disabled="!isFormValid || saving || redirecting"
+                :class="[
+                  'btn-primary order-1 sm:order-2 w-full sm:w-auto',
+                  (!isFormValid || saving || redirecting) && 'opacity-50 cursor-not-allowed',
+                ]"
+              >
+                <span v-if="saving">保存中...</span>
+                <span v-else-if="redirecting">跳轉中...</span>
+                <span v-else>保存設定</span>
+              </button>
+            </div>
           </div>
         </form>
       </div>

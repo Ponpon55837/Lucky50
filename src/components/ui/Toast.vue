@@ -11,7 +11,7 @@ interface Props {
 
 const props = withDefaults(defineProps<Props>(), {
   type: 'info',
-  duration: 4000,
+  duration: 3000, // 改為 3 秒，與 useToast 保持一致
   visible: false,
 })
 
