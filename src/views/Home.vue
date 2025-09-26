@@ -1,3 +1,8 @@
+<script setup lang="ts">
+import { RouterLink } from 'vue-router'
+import FortuneOrb from '@/components/FortuneOrb.vue'
+</script>
+
 <template>
   <div class="min-h-screen">
     <!-- Hero Section -->
@@ -133,8 +138,3 @@
     </section>
   </div>
 </template>
-
-<script setup lang="ts">
-import { RouterLink } from 'vue-router'
-import FortuneOrb from '@/components/FortuneOrb.vue'
-</script>

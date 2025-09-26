@@ -53,7 +53,7 @@ const props = withDefaults(defineProps<Props>(), {
 
 // 計算圖表數據
 const chartData = computed(() => {
-  console.log('PriceChart - etfData:', props.etfData)
+  console.log('PriceChart - 計算圖表數據')
   console.log('PriceChart - etfData length:', props.etfData?.length)
 
   if (!props.etfData || props.etfData.length === 0) {
@@ -61,12 +61,20 @@ const chartData = computed(() => {
     return null
   }
 
-  // 取最近30天的數據並按日期排序
-  const sortedData = [...props.etfData]
-    .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
-    .slice(-30)
+  // 使用所有傳入的數據，不再限制為30天
+  const sortedData = [...props.etfData].sort(
+    (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
+  )
 
-  console.log('PriceChart - sortedData:', sortedData)
+  console.log('PriceChart - sortedData:', sortedData.length, 'items')
+  if (sortedData.length > 0) {
+    console.log(
+      'PriceChart - 日期範圍:',
+      sortedData[0].date,
+      '至',
+      sortedData[sortedData.length - 1].date
+    )
+  }
 
   const labels = sortedData.map(item => {
     const date = new Date(item.date)

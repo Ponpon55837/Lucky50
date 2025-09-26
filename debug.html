@@ -1,0 +1,20 @@
+<!doctype html>
+<html>
+  <head>
+    <title>Debug Analytics</title>
+  </head>
+  <body>
+    <h1>Debug Info</h1>
+    <div id="debug"></div>
+
+    <script>
+      // 測試本地存儲和數據
+      console.log('Opening debug page...')
+
+      // 重定向到主應用的Analytics頁面
+      setTimeout(() => {
+        window.location.href = 'http://localhost:3000/analytics'
+      }, 1000)
+    </script>
+  </body>
+</html>
