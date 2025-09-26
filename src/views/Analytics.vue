@@ -35,13 +35,41 @@ const filteredEtfData = computed(() => {
     (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
   )
 
+  // 2025/6/18 0050 進行 1 拆 4，調整歷史價格以保持連續性
+  const splitDate = new Date('2025-06-18')
+  const splitRatio = 4
+
+  const adjustedData = data.map((item: any) => {
+    const itemDate = new Date(item.date)
+    if (itemDate < splitDate) {
+      // 分拆前的價格需要除以分拆比例來調整
+      return {
+        ...item,
+        open: item.open / splitRatio,
+        high: item.high / splitRatio,
+        low: item.low / splitRatio,
+        close: item.close / splitRatio,
+        volume: item.volume * splitRatio, // 成交量相應增加
+      }
+    }
+    return item
+  })
+
   console.log(`當前數據 - 期間: ${selectedPeriod.value}`)
-  console.log(`當前數據 - 數據數量: ${data.length} 筆`)
-  if (data.length > 0) {
-    console.log(`當前數據 - 日期範圍: ${data[0].date} 至 ${data[data.length - 1].date}`)
+  console.log(`當前數據 - 數據數量: ${adjustedData.length} 筆`)
+  console.log(
+    `當前數據 - 分拆調整: ${data.filter((item: any) => new Date(item.date) < splitDate).length} 筆歷史數據已調整`
+  )
+  if (adjustedData.length > 0) {
+    console.log(
+      `當前數據 - 日期範圍: ${adjustedData[0].date} 至 ${adjustedData[adjustedData.length - 1].date}`
+    )
+    console.log(
+      `當前數據 - 價格範圍: ${adjustedData[0].close.toFixed(2)} 至 ${adjustedData[adjustedData.length - 1].close.toFixed(2)}`
+    )
   }
 
-  return data
+  return adjustedData
 })
 
 // 計算統計數據
@@ -56,18 +84,73 @@ const statistics = computed(() => {
     }
   }
 
-  // 計算報酬率
-  const firstPrice = data[0]?.close || 0
-  const lastPrice = data[data.length - 1]?.close || 0
+  // 2025/6/18 0050 進行 1 拆 4，需要調整歷史價格
+  const splitDate = new Date('2025-06-18')
+  const splitRatio = 4 // 1拆4
+
+  // 調整分拆前的價格數據
+  const adjustedData = data.map((item: any) => {
+    const itemDate = new Date(item.date)
+    if (itemDate < splitDate) {
+      // 分拆前的價格需要除以分拆比例來調整
+      return {
+        ...item,
+        open: item.open / splitRatio,
+        high: item.high / splitRatio,
+        low: item.low / splitRatio,
+        close: item.close / splitRatio,
+        volume: item.volume * splitRatio, // 成交量相應增加
+      }
+    }
+    return item
+  })
+
+  console.log(
+    `價格調整 - 分拆日期: 2025-06-18, 調整數據點: ${data.filter((item: any) => new Date(item.date) < splitDate).length} 筆`
+  )
+
+  // 計算報酬率（使用調整後的價格）
+  const firstPrice = adjustedData[0]?.close || 0
+  const lastPrice = adjustedData[adjustedData.length - 1]?.close || 0
   const totalReturn = firstPrice > 0 ? ((lastPrice - firstPrice) / firstPrice) * 100 : 0
 
-  // 年化報酬率
-  const days = data.length
-  const annualReturn = days > 0 ? (Math.pow(1 + totalReturn / 100, 365 / days) - 1) * 100 : 0
+  // 計算實際的時間跨度（年數）
+  const firstDate = new Date(data[0]?.date)
+  const lastDate = new Date(data[data.length - 1]?.date)
+  const actualDays = Math.max(
+    1,
+    Math.ceil((lastDate.getTime() - firstDate.getTime()) / (1000 * 60 * 60 * 24))
+  )
+  const actualYears = actualDays / 365
 
-  // 計算波動率（簡化版）
-  const returns = data.slice(1).map((item: any, index: number) => {
-    const prevPrice = data[index]?.close || 0
+  // 年化報酬率計算 - 修正公式
+  let annualReturn = 0
+  if (actualYears > 0 && firstPrice > 0 && lastPrice > 0) {
+    if (actualYears >= 1) {
+      // 使用複合年均增長率 (CAGR) 公式：(結束值/開始值)^(1/年數) - 1
+      annualReturn = (Math.pow(lastPrice / firstPrice, 1 / actualYears) - 1) * 100
+    } else {
+      // 短於一年的期間，按比例年化
+      annualReturn = (totalReturn * 365) / actualDays
+    }
+  }
+
+  console.log(
+    `計算統計 - 期間: ${selectedPeriod.value}, 實際天數: ${actualDays}, 實際年數: ${actualYears.toFixed(2)}`
+  )
+  console.log(`計算統計 - 起始價格: ${firstPrice.toFixed(2)}, 結束價格: ${lastPrice.toFixed(2)}`)
+  console.log(
+    `計算統計 - 總報酬率: ${totalReturn.toFixed(2)}%, 年化報酬率: ${annualReturn.toFixed(2)}%`
+  )
+
+  // 處理異常值
+  if (!isFinite(annualReturn) || isNaN(annualReturn)) {
+    annualReturn = 0
+  }
+
+  // 計算波動率（簡化版）- 使用調整後的數據
+  const returns = adjustedData.slice(1).map((item: any, index: number) => {
+    const prevPrice = adjustedData[index]?.close || 0
     return prevPrice > 0 ? ((item.close - prevPrice) / prevPrice) * 100 : 0
   })
 
@@ -80,11 +163,11 @@ const statistics = computed(() => {
   const riskFreeRate = 2
   const sharpeRatio = volatility > 0 ? (annualReturn - riskFreeRate) / volatility : 0
 
-  // 最大回撤（簡化版）
+  // 最大回撤（簡化版）- 使用調整後的數據
   let maxDrawdown = 0
-  let peak = data[0]?.close || 0
+  let peak = adjustedData[0]?.close || 0
 
-  data.forEach((item: any) => {
+  adjustedData.forEach((item: any) => {
     if (item.close > peak) {
       peak = item.close
     } else {
@@ -113,7 +196,7 @@ const fortuneDistribution = computed(() => {
     }
   }
 
-  // 基於實際價格變動計算運勢分佈
+  // 基於調整後的價格變動計算運勢分佈
   const returns = data.slice(1).map((item: any, index: number) => {
     const prevPrice = data[index]?.close || 0
     return prevPrice > 0 ? ((item.close - prevPrice) / prevPrice) * 100 : 0
@@ -175,7 +258,7 @@ const technicalIndicators = computed(() => {
     }
   }
 
-  // 簡化的技術指標計算
+  // 使用調整後的價格數據進行技術指標計算
   const prices = data.map((item: any) => item.close)
 
   // RSI 簡化計算
@@ -281,7 +364,14 @@ onMounted(() => {
       <!-- 統計卡片 -->
       <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
         <div class="card text-center">
-          <div class="text-2xl font-bold text-green-400 mb-2">+{{ statistics.annualReturn }}%</div>
+          <div
+            :class="[
+              'text-2xl font-bold mb-2',
+              statistics.annualReturn >= 0 ? 'text-green-400' : 'text-red-400',
+            ]"
+          >
+            {{ statistics.annualReturn >= 0 ? '+' : '' }}{{ statistics.annualReturn }}%
+          </div>
           <div class="text-gray-300 text-sm">年化報酬率</div>
         </div>
         <div class="card text-center">
@@ -420,21 +510,23 @@ onMounted(() => {
               <div class="space-y-2">
                 <div class="flex justify-between">
                   <span class="text-gray-300">高運勢日</span>
-                  <span class="text-green-400"
-                    >+{{ (statistics.annualReturn * 0.8).toFixed(1) }}%</span
-                  >
+                  <span :class="statistics.annualReturn >= 0 ? 'text-green-400' : 'text-red-400'">
+                    {{ statistics.annualReturn >= 0 ? '+' : ''
+                    }}{{ Math.abs(statistics.annualReturn * 0.8).toFixed(1) }}%
+                  </span>
                 </div>
                 <div class="flex justify-between">
                   <span class="text-gray-300">中運勢日</span>
-                  <span class="text-yellow-400"
-                    >+{{ (statistics.annualReturn * 0.3).toFixed(1) }}%</span
-                  >
+                  <span class="text-yellow-400">
+                    {{ statistics.annualReturn >= 0 ? '+' : ''
+                    }}{{ Math.abs(statistics.annualReturn * 0.3).toFixed(1) }}%
+                  </span>
                 </div>
                 <div class="flex justify-between">
                   <span class="text-gray-300">低運勢日</span>
-                  <span class="text-red-400"
-                    >{{ (statistics.annualReturn * -0.2).toFixed(1) }}%</span
-                  >
+                  <span class="text-red-400">
+                    {{ (statistics.annualReturn * -0.2).toFixed(1) }}%
+                  </span>
                 </div>
               </div>
             </div>
