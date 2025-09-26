@@ -1,14 +1,16 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, shallowRef } from 'vue'
-import { RouterLink } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import { useInvestmentStore } from '@/stores/investment'
 import { useTheme } from '@/composables/useTheme'
-import { FortuneService } from '@/services/fortune'
+import { IntegratedFortuneService } from '@/services/integratedFortune'
+import { lunarService } from '@/services/lunar'
 import { FinMindService } from '@/services/finmind'
 import PriceChart from '@/components/charts/PriceChart.vue'
 import ElementRadarChart from '@/components/charts/ElementRadarChart.vue'
-import type { FortuneData } from '@/types'
+import LunarCalendarCard from '@/components/LunarCalendarCard.vue'
+import FortuneCard from '@/components/FortuneCard.vue'
+import type { IntegratedFortuneData, UserProfileCompat } from '@/services/integratedFortune'
 
 // Store instances
 const userStore = useUserStore()
@@ -17,7 +19,9 @@ const { isDark } = useTheme()
 
 // Reactive state with performance optimizations
 const loading = ref(true)
-const currentFortune = shallowRef<FortuneData | null>(null) // 使用 shallowRef 提高性能
+const fortuneLoading = ref(false)
+const currentFortune = shallowRef<IntegratedFortuneData | null>(null) // 使用整合運勢資料
+const fortuneError = ref<string>('')
 
 // Computed properties with caching
 const latestPrice = computed(() => investmentStore.latestPrice)
@@ -46,48 +50,38 @@ const formatVolume = (volume: number): string => {
   return volume.toString()
 }
 
-// Optimized scoring functions with lookup tables
-const getFortuneColor = (score: number): string => {
-  return score >= 70 ? 'text-green-400' : score >= 40 ? 'text-yellow-400' : 'text-red-400'
-}
+// 載入整合運勢資料
+const loadIntegratedFortune = async () => {
+  if (!userStore.profile) {
+    fortuneError.value = '請先設定個人資料'
+    return
+  }
 
-// 總體運勢進度條顏色類別
-const getOverallScoreColorClass = (score: number): string => {
-  if (score >= 85) return 'bg-gradient-to-r from-green-400 to-emerald-500'
-  if (score >= 70) return 'bg-gradient-to-r from-blue-400 to-cyan-500'
-  if (score >= 55) return 'bg-gradient-to-r from-yellow-400 to-amber-500'
-  if (score >= 40) return 'bg-gradient-to-r from-orange-400 to-red-500'
-  return 'bg-gradient-to-r from-red-500 to-rose-600'
-}
+  try {
+    fortuneLoading.value = true
+    fortuneError.value = ''
 
-// 投資運勢進度條顏色類別
-const getInvestmentScoreColorClass = (score: number): string => {
-  if (score >= 85) return 'bg-gradient-to-r from-purple-400 to-pink-500'
-  if (score >= 70) return 'bg-gradient-to-r from-indigo-400 to-purple-500'
-  if (score >= 55) return 'bg-gradient-to-r from-teal-400 to-cyan-500'
-  if (score >= 40) return 'bg-gradient-to-r from-yellow-500 to-orange-500'
-  return 'bg-gradient-to-r from-gray-400 to-slate-500'
-}
+    // 轉換用戶資料格式以符合新介面
+    const profileCompat: UserProfileCompat = {
+      name: userStore.profile.name,
+      birthDate: userStore.profile.birthDate,
+      birthTime: userStore.profile.birthTime || '12:00',
+      zodiac: userStore.profile.zodiac,
+      element: userStore.profile.element,
+      luckyColors: [...userStore.profile.luckyColors],
+      luckyNumbers: [...userStore.profile.luckyNumbers],
+    }
 
-// Optimized recommendation functions
-const RECOMMENDATION_MAPPING = Object.freeze({
-  BUY: { color: 'text-green-400', text: '建議買入' },
-  SELL: { color: 'text-red-400', text: '建議賣出' },
-  HOLD: { color: 'text-yellow-400', text: '建議持有' },
-} as const)
-
-const getRecommendationColor = (recommendation: string): string => {
-  return (
-    RECOMMENDATION_MAPPING[recommendation as keyof typeof RECOMMENDATION_MAPPING]?.color ||
-    'text-yellow-400'
-  )
-}
-
-const getRecommendationText = (recommendation: string): string => {
-  return (
-    RECOMMENDATION_MAPPING[recommendation as keyof typeof RECOMMENDATION_MAPPING]?.text ||
-    '建議持有'
-  )
+    currentFortune.value = await IntegratedFortuneService.calculateIntegratedFortune(
+      profileCompat,
+      new Date()
+    )
+  } catch (error) {
+    console.error('載入整合運勢失敗:', error)
+    fortuneError.value = '載入運勢資料失敗'
+  } finally {
+    fortuneLoading.value = false
+  }
 }
 
 // Data loading with optimized error handling
@@ -95,25 +89,20 @@ const loadData = async () => {
   try {
     loading.value = true
 
+    // 清除農民曆快取，確保使用最新資料
+    lunarService.clearCache()
+    IntegratedFortuneService.clearCache()
+
     // Load user profile
     userStore.loadProfile()
+
+    // Load integrated fortune
+    await loadIntegratedFortune()
 
     // Check API status first
     const apiStatus = await FinMindService.checkAPIStatus()
     if (!apiStatus) {
       console.warn('FinMind API 無法連接，將使用備用數據')
-    }
-
-    // Calculate fortune if profile exists - 修復類型問題
-    if (userStore.profile) {
-      // 創建可變副本避免 readonly 問題
-      const profile = {
-        ...userStore.profile,
-        luckyColors: [...userStore.profile.luckyColors],
-        luckyNumbers: [...userStore.profile.luckyNumbers],
-      }
-
-      currentFortune.value = FortuneService.calculateDailyFortune(profile, new Date()) as any
     }
 
     // Load ETF data with better error handling
@@ -175,6 +164,11 @@ const loadData = async () => {
   }
 }
 
+// 重試載入運勢
+const retryFortune = () => {
+  loadIntegratedFortune()
+}
+
 onMounted(() => {
   loadData()
 })
@@ -188,84 +182,44 @@ onMounted(() => {
         <h1 class="text-3xl font-bold text-white mb-2">投資儀表板</h1>
         <p class="text-gray-300">
           今日是 {{ formatDate(new Date()) }}，
-          <span v-if="currentFortune" :class="getFortuneColor(currentFortune.investmentScore)">
+          <span
+            v-if="currentFortune"
+            :class="
+              currentFortune.investmentScore >= 70
+                ? 'text-green-400'
+                : currentFortune.investmentScore >= 40
+                  ? 'text-yellow-400'
+                  : 'text-red-400'
+            "
+          >
             投資運勢: {{ currentFortune.investmentScore }}/100
           </span>
+          <span v-if="currentFortune && currentFortune.lunarData" class="text-gray-400 ml-2">
+            • {{ currentFortune.lunarData.ganZhi }}年 農曆{{
+              currentFortune.lunarData.lunarMonth
+            }}月{{ currentFortune.lunarData.lunarDay }}日 ({{ currentFortune.lunarData.zodiac }}年)
+          </span>
         </p>
+        <div v-if="currentFortune && currentFortune.lunarData.jieQi" class="mt-2">
+          <span class="text-gold-400 text-sm"> 🌿 {{ currentFortune.lunarData.jieQi }} </span>
+        </div>
       </div>
 
       <!-- 運勢卡片區域 -->
       <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
         <!-- 今日運勢 -->
-        <div class="lg:col-span-1 card">
-          <h2 class="text-lg sm:text-xl font-semibold text-white mb-4">今日投資運勢</h2>
-          <div v-if="currentFortune" class="space-y-4 sm:space-y-6">
-            <!-- 總體運勢進度條 -->
-            <div>
-              <div class="flex items-center justify-between mb-2 sm:mb-3">
-                <span class="text-gray-300 font-medium text-sm sm:text-base">總體運勢</span>
-                <span class="text-white text-sm font-semibold progress-label"
-                  >{{ currentFortune.overallScore }}/100</span
-                >
-              </div>
-              <div
-                class="w-full bg-gray-800 border border-gray-600 rounded-full h-5 relative overflow-hidden"
-              >
-                <div
-                  class="h-5 rounded-full transition-all duration-1000 ease-out shadow-lg relative overflow-hidden"
-                  :class="getOverallScoreColorClass(currentFortune.overallScore)"
-                  :style="{ width: `${Math.max(4, currentFortune.overallScore)}%` }"
-                >
-                  <div
-                    class="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent fortune-progress-glow"
-                  ></div>
-                  <div class="absolute inset-0 bg-gradient-to-b from-white/20 to-transparent"></div>
-                </div>
-              </div>
-            </div>
-
-            <!-- 投資運勢進度條 -->
-            <div>
-              <div class="flex items-center justify-between mb-3">
-                <span class="text-gray-300 font-medium">投資運勢</span>
-                <span class="text-white text-sm font-semibold progress-label"
-                  >{{ currentFortune.investmentScore }}/100</span
-                >
-              </div>
-              <div
-                class="w-full bg-gray-800 border border-gray-600 rounded-full h-5 relative overflow-hidden"
-              >
-                <div
-                  class="h-5 rounded-full transition-all duration-1000 ease-out shadow-lg relative overflow-hidden"
-                  :class="getInvestmentScoreColorClass(currentFortune.investmentScore)"
-                  :style="{ width: `${Math.max(4, currentFortune.investmentScore)}%` }"
-                >
-                  <div
-                    class="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent fortune-progress-glow"
-                  ></div>
-                  <div class="absolute inset-0 bg-gradient-to-b from-white/20 to-transparent"></div>
-                </div>
-              </div>
-            </div>
-
-            <div class="pt-4 border-t border-white/10">
-              <div class="flex items-center justify-between mb-2">
-                <span class="text-gray-300">建議操作</span>
-                <span
-                  :class="getRecommendationColor(currentFortune.recommendation)"
-                  class="font-semibold"
-                >
-                  {{ getRecommendationText(currentFortune.recommendation) }}
-                </span>
-              </div>
-              <p class="text-sm text-gray-300">{{ currentFortune.advice }}</p>
-            </div>
-          </div>
-          <div v-else class="text-center py-8">
-            <p class="text-gray-400">請先設定個人資料以計算運勢</p>
-            <RouterLink to="/profile" class="btn-primary mt-4 inline-block"> 設定資料 </RouterLink>
-          </div>
-        </div>
+        <FortuneCard
+          :fortuneData="currentFortune"
+          :loading="fortuneLoading"
+          :errorMessage="fortuneError"
+          title="今日投資運勢"
+          icon="🔮"
+          :showWealthScore="true"
+          :showTimeAdvice="false"
+          :showDirectionAdvice="false"
+          :showLuckyInfo="false"
+          @retry="retryFortune"
+        />
 
         <!-- 0050 即時資訊 -->
         <div class="card">
@@ -324,19 +278,103 @@ onMounted(() => {
         <div class="card">
           <h2 class="text-xl font-semibold text-white mb-4">交易時段建議</h2>
           <div v-if="currentFortune" class="space-y-4">
-            <div class="bg-green-500/20 p-3 rounded-lg border border-green-500/30">
-              <h3 class="text-green-400 font-medium mb-1">推薦時段</h3>
-              <p class="text-white">{{ currentFortune.luckyTime }}</p>
-              <p class="text-sm text-gray-300">適合買入或加碼投資</p>
+            <!-- 交易狀態 -->
+            <!-- <div
+              class="mb-4 p-3 rounded-lg border"
+              :class="
+                currentFortune.stockTradingStatus.isOpen
+                  ? 'bg-green-500/20 border-green-500/30'
+                  : 'bg-gray-500/20 border-gray-500/30'
+              "
+            >
+              <div class="flex items-center justify-between">
+                <span class="text-white font-medium">台股狀態</span>
+                <span
+                  :class="
+                    currentFortune.stockTradingStatus.isOpen ? 'text-green-400' : 'text-gray-400'
+                  "
+                  class="text-sm"
+                >
+                  {{ currentFortune.stockTradingStatus.isOpen ? '🟢 交易中' : '🔴 休市' }}
+                </span>
+              </div>
+              <p class="text-sm text-gray-300 mt-1">
+                {{ currentFortune.stockTradingStatus.message }}
+              </p>
+            </div> -->
+
+            <!-- 推薦交易時段 -->
+            <div
+              v-if="currentFortune.bestTradingHours.length > 0"
+              class="bg-green-500/20 p-3 rounded-lg border border-green-500/30"
+            >
+              <h3 class="text-green-400 font-medium mb-2">推薦交易時段 (今日)</h3>
+              <div class="space-y-1">
+                <div
+                  v-for="period in currentFortune.bestTradingHours"
+                  :key="period.time"
+                  class="flex justify-between items-center text-sm"
+                >
+                  <span class="text-white">{{ period.time }}</span>
+                  <span class="text-green-300">{{ period.reason }}</span>
+                </div>
+              </div>
+              <p class="text-sm text-gray-300 mt-2">今日適合買入或加碼的時段</p>
             </div>
 
-            <div class="bg-red-500/20 p-3 rounded-lg border border-red-500/30">
-              <h3 class="text-red-400 font-medium mb-1">避免時段</h3>
-              <p class="text-white">{{ currentFortune.avoidTime }}</p>
-              <p class="text-sm text-gray-300">不宜進場或減碼操作</p>
+            <!-- 避免交易時段 -->
+            <div
+              v-if="currentFortune.avoidTradingHours.length > 0"
+              class="bg-red-500/20 p-3 rounded-lg border border-red-500/30"
+            >
+              <h3 class="text-red-400 font-medium mb-2">避免交易時段 (今日)</h3>
+              <div class="space-y-1">
+                <div
+                  v-for="period in currentFortune.avoidTradingHours"
+                  :key="period.time"
+                  class="flex justify-between items-center text-sm"
+                >
+                  <span class="text-white">{{ period.time }}</span>
+                  <span class="text-red-300">{{ period.reason }}</span>
+                </div>
+              </div>
+              <p class="text-sm text-gray-300 mt-2">今日不宜進場操作的時段</p>
+            </div>
+
+            <!-- 如果當天沒有特別推薦時段，顯示傳統吉時參考 -->
+            <div
+              v-if="
+                currentFortune.bestTradingHours.length === 0 &&
+                currentFortune.stockTradingStatus.isOpen
+              "
+              class="bg-blue-500/20 p-3 rounded-lg border border-blue-500/30"
+            >
+              <h3 class="text-blue-400 font-medium mb-1">傳統吉時參考</h3>
+              <p class="text-white">{{ currentFortune.luckyTime }}</p>
+              <p class="text-sm text-gray-300">可參考的吉時，但需注意個人運勢狀況</p>
+            </div>
+
+            <!-- 交易日提醒 (只在非交易日或假日顯示) -->
+            <div
+              v-if="!currentFortune.tradingDayInfo.isToday"
+              class="bg-yellow-500/20 p-3 rounded-lg border border-yellow-500/30"
+            >
+              <h3 class="text-yellow-400 font-medium mb-1">📅 下個交易日</h3>
+              <p class="text-white text-sm">
+                {{ formatDate(currentFortune.tradingDayInfo.tradingDay) }}
+              </p>
+              <p class="text-sm text-gray-300">今日為假日或國定假日，股市休市</p>
             </div>
           </div>
+          <div v-else class="text-center py-8">
+            <p class="text-gray-400">請先設定個人資料</p>
+          </div>
         </div>
+      </div>
+
+      <!-- 農民曆區域 -->
+      <div class="mb-8">
+        <LunarCalendarCard />
       </div>
 
       <!-- 圖表區域 -->
@@ -359,14 +397,29 @@ onMounted(() => {
 
         <!-- 五行能量圖 -->
         <div class="card">
-          <h2 class="text-xl font-semibold text-white mb-4">五行能量</h2>
+          <h2 class="text-xl font-semibold text-white mb-4">五行能量分析</h2>
           <ElementRadarChart
             v-if="currentFortune && currentFortune.elements"
             :elements="currentFortune.elements"
+            :userElement="userStore.profile?.element"
             :isDark="isDark"
           />
           <div v-else class="h-64 bg-gray-800/50 rounded-lg flex items-center justify-center">
             <p class="text-gray-400">請先設定個人資料</p>
+          </div>
+
+          <!-- 個人五行屬性說明 -->
+          <div
+            v-if="userStore.profile?.element"
+            class="mt-4 p-3 bg-gold-500/10 rounded-lg border border-gold-500/20"
+          >
+            <div class="flex items-center gap-2">
+              <span class="text-gold-400 text-sm font-medium">★ 您的本命五行</span>
+              <span class="text-white font-bold">{{ userStore.profile.element }}</span>
+            </div>
+            <p class="text-gray-300 text-sm mt-1">
+              圖中標有 ★ 的是您的本命五行，能量值會根據個人八字和當日運勢動態調整
+            </p>
           </div>
         </div>
       </div>

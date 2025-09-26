@@ -16,6 +16,7 @@ ChartJS.register(RadialLinearScale, PointElement, LineElement, Filler, Tooltip, 
 
 interface Props {
   elements: Record<string, number>
+  userElement?: string // 個人的主要五行屬性
   isDark?: boolean
 }
 
@@ -35,25 +36,29 @@ const getElementName = (element: string): string => {
   return elementNames[element] || element
 }
 
+// 將中文五行轉換為英文
+const mapElementToEnglish = (chineseElement: string): string => {
+  const elementMap: Record<string, string> = {
+    金: 'metal',
+    木: 'wood',
+    水: 'water',
+    火: 'fire',
+    土: 'earth',
+  }
+  return elementMap[chineseElement] || chineseElement
+}
+
 // 五行對應的顏色
 const getElementColors = () => {
-  if (props.isDark) {
-    return {
-      wood: '#10b981', // 綠色
-      fire: '#ef4444', // 紅色
-      earth: '#f59e0b', // 黃色
-      metal: '#6b7280', // 灰色
-      water: '#3b82f6', // 藍色
-    }
-  } else {
-    return {
-      wood: '#059669',
-      fire: '#dc2626',
-      earth: '#d97706',
-      metal: '#4b5563',
-      water: '#2563eb',
-    }
+  const baseColors = {
+    wood: props.isDark ? '#10b981' : '#059669', // 綠色
+    fire: props.isDark ? '#ef4444' : '#dc2626', // 紅色
+    earth: props.isDark ? '#f59e0b' : '#d97706', // 黃色
+    metal: props.isDark ? '#6b7280' : '#4b5563', // 灰色
+    water: props.isDark ? '#3b82f6' : '#2563eb', // 藍色
   }
+
+  return baseColors
 }
 
 // 計算圖表數據
@@ -65,12 +70,19 @@ const chartData = computed(() => {
   const elementColors = getElementColors()
   const elementOrder = ['wood', 'fire', 'earth', 'metal', 'water']
 
-  const labels = elementOrder.map(element => getElementName(element))
+  // 獲取個人主要五行的英文名稱
+  const userMainElement = props.userElement ? mapElementToEnglish(props.userElement) : null
+
+  const labels = elementOrder.map(element => {
+    const name = getElementName(element)
+    // 如果是個人主要五行，添加星號標記
+    return element === userMainElement ? `★ ${name}` : name
+  })
+
   const data = elementOrder.map(element => props.elements[element] || 0)
   const borderColors = elementOrder.map(
     element => elementColors[element as keyof typeof elementColors]
   )
-  const backgroundColors = borderColors.map(color => color + '40') // 添加透明度
 
   return {
     labels,
@@ -84,8 +96,10 @@ const chartData = computed(() => {
         pointBackgroundColor: borderColors,
         pointBorderColor: props.isDark ? '#ffffff' : '#1f2937',
         pointBorderWidth: 2,
-        pointRadius: 4,
-        pointHoverRadius: 6,
+        pointRadius: elementOrder.map(
+          element => (element === userMainElement ? 6 : 4) // 個人主要五行的點更大
+        ),
+        pointHoverRadius: elementOrder.map(element => (element === userMainElement ? 8 : 6)),
       },
     ],
   }
@@ -113,7 +127,12 @@ const chartOptions = computed(() => {
         padding: 12,
         callbacks: {
           label: function (context: any) {
-            return `${context.label}: ${context.parsed.r.toFixed(1)}`
+            const elementName = getElementName(context.label.toLowerCase())
+            const isUserElement =
+              props.userElement &&
+              mapElementToEnglish(props.userElement) === context.label.toLowerCase()
+            const marker = isUserElement ? '★ ' : ''
+            return `${marker}${elementName}: ${context.parsed.r.toFixed(1)}`
           },
         },
       },
@@ -135,12 +154,12 @@ const chartOptions = computed(() => {
           color: textColor,
           font: {
             size: 14,
-            weight: 'bold',
+            weight: 'bold' as const,
           },
         },
       },
     },
-  }
+  } as const
 })
 </script>
 
