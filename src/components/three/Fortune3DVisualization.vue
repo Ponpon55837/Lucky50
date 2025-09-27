@@ -1,70 +1,53 @@
-<template>
-  <div
-    class="relative w-full h-full bg-gradient-to-br from-surface-bg/50 via-card-bg to-surface-bg rounded-lg overflow-hidden border border-border-light"
-  >
-    <div ref="threeContainer" class="w-full h-full"></div>
-    <div class="absolute top-4 left-4 text-primary-text">
-      <h3 class="text-lg font-semibold mb-2 text-primary-text">{{ title }}</h3>
-      <div class="text-sm space-y-1">
-        <div>
-          生肖: <span class="text-accent-text">{{ zodiac }}</span>
-        </div>
-        <div>
-          五行: <span class="text-info-text">{{ element }}</span>
-        </div>
-        <div>
-          運勢分數: <span :class="fortuneScoreColor">{{ fortuneScore }}</span>
-        </div>
-        <div>
-          投資建議: <span :class="investmentAdviceColor">{{ investmentAdvice }}</span>
-        </div>
-      </div>
-    </div>
-    <div class="absolute bottom-4 right-4 text-secondary-text text-xs">
-      <div>農民曆: {{ lunarDate }}</div>
-    </div>
-  </div>
-</template>
+<style scoped>
+.relative {
+  position: relative;
+}
+</style>
 
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, watch, computed, nextTick } from 'vue'
 import * as THREE from 'three'
 import { ThreeJSScene, createThemeGlowMaterial, getThemeColor } from '@/utils/three-scene'
 import { useTheme } from '@/composables/useTheme'
+import { useDashboardStore } from '@/stores/dashboard'
+import { useUserStore } from '@/stores/user'
 
 interface Props {
-  zodiac?: string
-  element?: string
-  fortuneScore?: number
-  investmentScore?: number
-  lunarDate?: string
   title?: string
 }
 
-const props = withDefaults(defineProps<Props>(), {
-  zodiac: '龍',
-  element: '木',
-  fortuneScore: 75,
-  investmentScore: 68,
-  lunarDate: '乙巳年八月',
-  title: '生肖運勢 3D 展示',
-})
+const { title = '生肖運勢 3D 展示' } = defineProps<Props>()
 
 const { isDark } = useTheme()
+const dashboardStore = useDashboardStore()
+const userStore = useUserStore()
 const threeContainer = ref<HTMLElement>()
 let scene: ThreeJSScene | null = null
 let fortuneGroup: THREE.Group | null = null
 
+// 從 store 獲取數據
+const zodiac = computed(() => userStore.profile?.zodiac || '龍')
+const element = computed(() => userStore.profile?.element || '木')
+const fortuneScore = computed(() => dashboardStore.unifiedInvestmentScore)
+const investmentScore = computed(() => dashboardStore.unifiedInvestmentScore)
+const lunarDate = computed(() => {
+  if (!dashboardStore.lunarData) return '乙巳年八月'
+  return (
+    `${dashboardStore.lunarData.lunarYear || ''}${dashboardStore.lunarData.lunarMonth || ''}${dashboardStore.lunarData.lunarDay || ''}` ||
+    '乙巳年八月'
+  )
+})
+
 // 計算屬性
 const fortuneScoreColor = computed(() => {
-  const score = props.fortuneScore
+  const score = fortuneScore.value
   if (score >= 80) return 'text-success-text'
   if (score >= 60) return 'text-warning-text'
   return 'text-error-text'
 })
 
 const investmentAdvice = computed(() => {
-  const score = props.investmentScore
+  const score = investmentScore.value
   if (score >= 75) return '積極投資'
   if (score >= 50) return '謹慎投資'
   return '保守觀望'
@@ -98,13 +81,19 @@ const createFortuneVisualization = () => {
   // 清空現有內容
   fortuneGroup.clear()
 
-  const { element, fortuneScore, investmentScore } = props
+  const currentElement = element.value
+  const currentFortuneScore = fortuneScore.value
+  const currentInvestmentScore = investmentScore.value
 
   // 創建中央生肖能量球 - 增強效果
-  const zodiacRadius = Math.max(0.6, Math.min(1.8, (fortuneScore / 100) * 2.5))
+  const zodiacRadius = Math.max(0.6, Math.min(1.8, (currentFortuneScore / 100) * 2.5))
   const zodiacGeometry = new THREE.IcosahedronGeometry(zodiacRadius, 2)
   const zodiacColor = getThemeColor('accent', isDark.value)
-  const zodiacMaterial = createThemeGlowMaterial(zodiacColor, fortuneScore / 100, isDark.value)
+  const zodiacMaterial = createThemeGlowMaterial(
+    zodiacColor,
+    currentFortuneScore / 100,
+    isDark.value
+  )
   const zodiacSphere = new THREE.Mesh(zodiacGeometry, zodiacMaterial)
   zodiacSphere.position.set(0, 1, 0)
 
@@ -131,7 +120,7 @@ const createFortuneVisualization = () => {
   for (let i = 0; i < ringCount; i++) {
     const radius = elementRadius + i * 0.4
     const elementGeometry = new THREE.TorusGeometry(radius, 0.12 + i * 0.02, 16, 100)
-    const elementColor = getElementColor(element)
+    const elementColor = getElementColor(currentElement)
     const opacity = 0.9 - i * 0.2
     const elementMaterial = createThemeGlowMaterial(elementColor, opacity, isDark.value)
     const elementRing = new THREE.Mesh(elementGeometry, elementMaterial)
@@ -155,15 +144,15 @@ const createFortuneVisualization = () => {
   // 創建投資指示柱群組
   const investmentGroup = new THREE.Group()
   const barCount = 5
-  const investmentHeight = Math.max(0.8, (investmentScore / 100) * 4)
+  const investmentHeight = Math.max(0.8, (currentInvestmentScore / 100) * 4)
 
   for (let i = 0; i < barCount; i++) {
     const height = investmentHeight * (0.6 + Math.random() * 0.8)
     const investmentGeometry = new THREE.CylinderGeometry(0.15, 0.2, height, 8)
     const investmentColor =
-      investmentScore >= 70
+      currentInvestmentScore >= 70
         ? getThemeColor('success', isDark.value)
-        : investmentScore >= 50
+        : currentInvestmentScore >= 50
           ? getThemeColor('warning', isDark.value)
           : getThemeColor('danger', isDark.value)
     const investmentMaterial = createThemeGlowMaterial(investmentColor, 1.0, isDark.value)
@@ -214,7 +203,7 @@ const createElementalParticles = () => {
   const colors = new Float32Array(particleCount * 3)
   const sizes = new Float32Array(particleCount)
 
-  const elementColor = new THREE.Color(getElementColor(props.element))
+  const elementColor = new THREE.Color(getElementColor(element.value))
   const accentColor = new THREE.Color(getThemeColor('accent', isDark.value))
 
   for (let i = 0; i < particleCount; i++) {
@@ -325,11 +314,43 @@ watch(isDark, newTheme => {
 })
 
 // 監聽屬性變化
-watch(() => props, createFortuneVisualization, { deep: true })
+watch(
+  [
+    () => zodiac.value,
+    () => element.value,
+    () => fortuneScore.value,
+    () => investmentScore.value,
+    () => lunarDate.value,
+  ],
+  createFortuneVisualization,
+  { deep: true }
+)
 </script>
 
-<style scoped>
-.relative {
-  position: relative;
-}
-</style>
+<template>
+  <div
+    class="relative w-full h-full bg-gradient-to-br from-surface-bg/50 via-card-bg to-surface-bg rounded-lg overflow-hidden border border-border-light"
+  >
+    <div ref="threeContainer" class="w-full h-full"></div>
+    <div class="absolute top-4 left-4 text-primary-text">
+      <h3 class="text-lg font-semibold mb-2 text-primary-text">{{ title }}</h3>
+      <div class="text-sm space-y-1">
+        <div>
+          生肖: <span class="text-accent-text">{{ zodiac }}</span>
+        </div>
+        <div>
+          五行: <span class="text-info-text">{{ element }}</span>
+        </div>
+        <div>
+          運勢分數: <span :class="fortuneScoreColor">{{ fortuneScore }}</span>
+        </div>
+        <div>
+          投資建議: <span :class="investmentAdviceColor">{{ investmentAdvice }}</span>
+        </div>
+      </div>
+    </div>
+    <div class="absolute bottom-4 right-4 text-secondary-text text-xs">
+      <div>農民曆: {{ lunarDate }}</div>
+    </div>
+  </div>
+</template>

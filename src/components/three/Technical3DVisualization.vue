@@ -1,95 +1,61 @@
-<template>
-  <div
-    class="relative w-full h-full bg-gradient-to-br from-surface-bg/50 via-card-bg to-surface-bg rounded-lg overflow-hidden border border-border-light"
-  >
-    <div ref="threeContainer" class="w-full h-full"></div>
-    <div class="absolute top-4 left-4 text-primary-text">
-      <h3 class="text-lg font-semibold mb-2 text-primary-text">{{ title }}</h3>
-      <div class="text-sm space-y-1">
-        <div class="grid grid-cols-2 gap-4">
-          <div>
-            <div class="text-xs text-secondary-text">RSI</div>
-            <div :class="rsiColor" class="font-mono">{{ indicators.rsi.toFixed(1) }}</div>
-          </div>
-          <div>
-            <div class="text-xs text-secondary-text">MACD</div>
-            <div :class="macdColor" class="font-mono">{{ indicators.macd.toFixed(2) }}</div>
-          </div>
-          <div>
-            <div class="text-xs text-secondary-text">布林帶</div>
-            <div :class="bollColor" class="font-mono">{{ indicators.bollingerBand }}</div>
-          </div>
-          <div>
-            <div class="text-xs text-secondary-text">KD</div>
-            <div class="text-accent-text font-mono">
-              {{ indicators.kd.k.toFixed(1) }}/{{ indicators.kd.d.toFixed(1) }}
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-    <div class="absolute bottom-4 right-4 text-primary-text text-xs">
-      <div class="text-center">
-        <div class="text-lg font-bold" :class="overallSignalColor">{{ overallSignal }}</div>
-        <div class="text-sm text-secondary-text">技術信號</div>
-      </div>
-    </div>
-  </div>
-</template>
+<style scoped>
+.relative {
+  position: relative;
+}
+</style>
 
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, watch, computed, nextTick } from 'vue'
 import * as THREE from 'three'
 import { ThreeJSScene, createThemeGlowMaterial, getThemeColor } from '@/utils/three-scene'
 import { useTheme } from '@/composables/useTheme'
-
-interface TechnicalIndicators {
-  rsi: number
-  macd: number
-  bollingerBand: string
-  kd: { k: number; d: number }
-}
+import { useDashboardStore } from '@/stores/dashboard'
+import { useAnalyticsStore } from '@/stores/analytics'
 
 interface Props {
-  indicators: TechnicalIndicators
   title?: string
 }
 
-const props = withDefaults(defineProps<Props>(), {
-  title: '技術指標 3D',
-})
+const { title = '技術指標 3D' } = defineProps<Props>()
 
 const { isDark } = useTheme()
+const dashboardStore = useDashboardStore()
+const analyticsStore = useAnalyticsStore()
+
+// 從 store 獲取技術指標數據
+const indicators = computed(() => {
+  return analyticsStore.calculateTechnicalIndicators(dashboardStore.etfData)
+})
 const threeContainer = ref<HTMLElement>()
 let scene: ThreeJSScene | null = null
 let indicatorGroup: THREE.Group | null = null
 
 // 計算指標顏色
 const rsiColor = computed(() => {
-  const rsi = props.indicators.rsi
+  const rsi = indicators.value.rsi
   if (rsi > 70) return 'text-error-text'
   if (rsi < 30) return 'text-success-text'
   return 'text-accent-text'
 })
 
 const macdColor = computed(() => {
-  const macd = props.indicators.macd
+  const macd = indicators.value.macd
   return macd > 0 ? 'text-success-text' : 'text-error-text'
 })
 
 const bollColor = computed(() => {
-  return props.indicators.bollingerBand === 'upper'
+  return indicators.value.bollingerBand === 'upper'
     ? 'text-error-text'
-    : props.indicators.bollingerBand === 'lower'
+    : indicators.value.bollingerBand === 'lower'
       ? 'text-success-text'
       : 'text-accent-text'
 })
 
 const overallSignal = computed(() => {
-  const rsi = props.indicators.rsi
-  const macd = props.indicators.macd
-  const k = props.indicators.kd.k
-  const d = props.indicators.kd.d
+  const rsi = indicators.value.rsi
+  const macd = indicators.value.macd
+  const k = indicators.value.kd.k
+  const d = indicators.value.kd.d
 
   let signals = 0
   if (rsi < 30) signals++
@@ -118,7 +84,7 @@ const createIndicators = () => {
   // 清空現有內容
   indicatorGroup.clear()
 
-  const { rsi, macd, bollingerBand, kd } = props.indicators
+  const { rsi, macd, bollingerBand, kd } = indicators.value
 
   // 創建 RSI 球體 - 增強動效
   const rsiRadius = Math.max(0.4, Math.min(1.2, (rsi / 100) * 1.5))
@@ -332,11 +298,44 @@ watch(isDark, newTheme => {
 })
 
 // 監聽指標變化
-watch(() => props.indicators, createIndicators, { deep: true })
+watch(() => indicators.value, createIndicators, { deep: true })
 </script>
 
-<style scoped>
-.relative {
-  position: relative;
-}
-</style>
+<template>
+  <div
+    class="relative w-full h-full bg-gradient-to-br from-surface-bgconst bollingerColor = computed(() => { return indicators.value.bollingerBand === 'upper' ? 'text-error-text' : indicators.value.bollingerBand === 'lower' ? 'text-success-text' : 'text-accent-text' })-card-bg to-surface-// 創建技術指標可視化 const createIndicators = () => { if (!scene || !indicatorGroup) return // 清空現有內容 indicatorGroup.clear() const { rsi, macd, bollingerBand, kd } = indicators.valueed-lg overflow-hidden border border-border-light"
+  >
+    <div ref="threeContainer" class="w-full h-full"></div>
+    <div class="absolute top-4 left-4 text-primary-text">
+      <h3 class="text-lg font-semibold mb-2 text-primary-text">{{ title }}</h3>
+      <div class="text-sm space-y-1">
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <div class="text-xs text-secondary-text">RSI</div>
+            <div :class="rsiColor" class="font-mono">{{ indicators.rsi.toFixed(1) }}</div>
+          </div>
+          <div>
+            <div class="text-xs text-secondary-text">MACD</div>
+            <div :class="macdColor" class="font-mono">{{ indicators.macd.toFixed(2) }}</div>
+          </div>
+          <div>
+            <div class="text-xs text-secondary-text">布林帶</div>
+            <div :class="bollColor" class="font-mono">{{ indicators.bollingerBand }}</div>
+          </div>
+          <div>
+            <div class="text-xs text-secondary-text">KD</div>
+            <div class="text-accent-text font-mono">
+              {{ indicators.kd.k.toFixed(1) }}/{{ indicators.kd.d.toFixed(1) }}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="absolute bottom-4 right-4 text-primary-text text-xs">
+      <div class="text-center">
+        <div class="text-lg font-bold" :class="overallSignalColor">{{ overallSignal }}</div>
+        <div class="text-sm text-secondary-text">技術信號</div>
+      </div>
+    </div>
+  </div>
+</template>

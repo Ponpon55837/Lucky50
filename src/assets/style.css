@@ -334,6 +334,28 @@
 }
 
 @layer utilities {
+  /* 主題適應文字顏色類別 */
+  .text-primary {
+    color: var(--primary-text);
+  }
+
+  .text-secondary {
+    color: var(--secondary-text);
+  }
+
+  .text-accent {
+    color: var(--accent-text);
+  }
+
+  /* 背景色類別 */
+  .bg-surface {
+    background: var(--surface-bg);
+  }
+
+  .bg-card {
+    background: var(--card-bg);
+  }
+
   /* 性能優化工具類 */
   .gpu-accelerated {
     transform: translateZ(0);
