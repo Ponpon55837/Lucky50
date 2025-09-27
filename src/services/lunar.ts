@@ -43,6 +43,76 @@ export interface InvestmentAdvice {
 class LunarService {
   private cache = new Map<string, LunarData>()
   
+  // 簡繁轉換映射表
+  private simplifiedToTraditional: { [key: string]: string } = {
+    // 常用宜忌詞彙
+    '开市': '開市',
+    '纳财': '納財',
+    '求财': '求財',
+    '开光': '開光',
+    '塑绘': '塑繪',
+    '斋醮': '齋醮',
+    '剃头': '剃頭',
+    '纳采': '納采',
+    '问名': '問名',
+    '纳吉': '納吉',
+    '纳征': '納徵',
+    '请期': '請期',
+    '亲迎': '親迎',
+    '合帐': '合帳',
+    '动土': '動土',
+    '竖柱': '豎柱',
+    '开池': '開池',
+    '补垣': '補垣',
+    '坏垣': '壞垣',
+    '栽种': '栽種',
+    '牧养': '牧養',
+    '纳畜': '納畜',
+    '渔猎': '漁獵',
+    '教牛马': '教牛馬',
+    '启攒': '啟攢',
+    '谢土': '謝土',
+    '订盟': '訂盟',
+    '会亲友': '會親友',
+    '进人口': '進人口',
+    '安门': '安門',
+    '安床': '安床', 
+    '余事勿取': '餘事勿取',
+    '诸事不宜': '諸事不宜',
+    '行丧': '行喪',
+    // 節氣相關
+    '惊蛰': '驚蟄',
+    '谷雨': '穀雨',
+    '小满': '小滿',
+    '芒种': '芒種',
+    '处暑': '處暑',
+    // 其他常用字
+    '为': '為',
+    '让': '讓',
+    '从': '從',
+    '来': '來',
+    '这': '這',
+    '会': '會',
+    '与': '與',
+    '对': '對',
+  }
+  
+  // 簡繁轉換方法
+  private convertToTraditional(text: string): string {
+    if (!text) return text
+    
+    let result = text
+    for (const [simplified, traditional] of Object.entries(this.simplifiedToTraditional)) {
+      result = result.replace(new RegExp(simplified, 'g'), traditional)
+    }
+    return result
+  }
+  
+  // 轉換字串陣列為繁體中文
+  private convertArrayToTraditional(array: string[]): string[] {
+    return array.map(item => this.convertToTraditional(item))
+  }
+  
   getLunarData(date: Date = new Date()): LunarData {
     const targetDate = new Date(date.getTime())
     const cacheKey = `${targetDate.getFullYear()}-${targetDate.getMonth()}-${targetDate.getDate()}`
@@ -169,7 +239,7 @@ class LunarService {
     try {
       if (obj && typeof obj[methodName] === 'function') {
         const result = obj[methodName]()
-        return result || ''
+        return this.convertToTraditional(result || '')
       }
       return ''
     } catch (error) {
@@ -182,7 +252,8 @@ class LunarService {
     try {
       if (obj && typeof obj[methodName] === 'function') {
         const result = obj[methodName]()
-        return Array.isArray(result) ? result : []
+        const array = Array.isArray(result) ? result : []
+        return this.convertArrayToTraditional(array)
       }
       return []
     } catch (error) {
