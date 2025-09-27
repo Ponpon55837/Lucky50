@@ -1,59 +1,45 @@
-<template>
-  <div
-    class="relative w-full h-full bg-gradient-to-br from-surface-bg/50 via-card-bg to-surface-bg rounded-lg overflow-hidden border border-border-light"
-  >
-    <div ref="threeContainer" class="w-full h-full"></div>
-    <div class="absolute top-4 left-4 text-primary-text">
-      <h3 class="text-lg font-semibold mb-2 text-primary-text">{{ title }}</h3>
-      <div class="text-sm space-y-1">
-        <div>
-          農曆: <span class="text-accent-text">{{ lunarDate }}</span>
-        </div>
-        <div>
-          節氣: <span class="text-success-text">{{ solarTerm }}</span>
-        </div>
-        <div>
-          宜: <span class="text-success-text">{{ suitable?.slice(0, 2).join(', ') }}</span>
-        </div>
-        <div>
-          忌: <span class="text-error-text">{{ avoid?.slice(0, 2).join(', ') }}</span>
-        </div>
-      </div>
-    </div>
-    <div class="absolute bottom-4 right-4 text-primary-text text-xs">
-      <div class="text-center">
-        <div class="text-lg font-bold text-accent-text">{{ investmentLuck }}</div>
-        <div class="text-sm text-secondary-text">投資運勢</div>
-      </div>
-    </div>
-  </div>
-</template>
+<style scoped>
+.relative {
+  position: relative;
+}
+</style>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, watch, nextTick } from 'vue'
+import { ref, onMounted, onUnmounted, watch, computed, nextTick } from 'vue'
 import * as THREE from 'three'
 import { ThreeJSScene, createThemeGlowMaterial, getThemeColor } from '@/utils/three-scene'
 import { useTheme } from '@/composables/useTheme'
+import { useDashboardStore } from '@/stores/dashboard'
 
 interface Props {
-  lunarDate?: string
-  solarTerm?: string
-  suitable?: string[]
-  avoid?: string[]
-  investmentLuck?: string
   title?: string
 }
 
-const props = withDefaults(defineProps<Props>(), {
-  lunarDate: '乙巳年八月初五',
-  solarTerm: '秋分',
-  suitable: () => ['開市', '投資', '求財', '交易'],
-  avoid: () => ['出行', '搬遷', '動土', '結婚'],
-  investmentLuck: '吉',
-  title: '農民曆 3D 展示',
-})
+const { title = '農民曆 3D 展示' } = defineProps<Props>()
 
 const { isDark } = useTheme()
+const dashboardStore = useDashboardStore()
+
+// 從 store 獲取數據
+const lunarDate = computed(() => {
+  if (!dashboardStore.lunarData) return '乙巳年八月初五'
+  return (
+    `${dashboardStore.lunarData.lunarYear || ''}年${dashboardStore.lunarData.lunarMonth || ''}月${dashboardStore.lunarData.lunarDay || ''}` ||
+    '乙巳年八月初五'
+  )
+})
+
+const solarTerm = computed(() => dashboardStore.lunarData?.jieQi || '秋分')
+
+const suitable = computed(() => dashboardStore.lunarData?.yi || ['開市', '投資', '求財', '交易'])
+
+const avoid = computed(() => dashboardStore.lunarData?.ji || ['出行', '搬遷', '動土', '結婚'])
+
+const investmentLuck = computed(() => {
+  if (!dashboardStore.investmentAdvice) return '吉'
+  const action = dashboardStore.investmentAdvice.recommendedAction
+  return action === 'buy' ? '吉' : action === 'sell' ? '凶' : '中'
+})
 const threeContainer = ref<HTMLElement>()
 let scene: ThreeJSScene | null = null
 let lunarGroup: THREE.Group | null = null
@@ -121,8 +107,8 @@ const createLunarVisualization = () => {
   }
 
   // 創建宜做指示柱群組 - 增強視覺
-  if (props.suitable && props.suitable.length > 0) {
-    const suitableCount = Math.min(props.suitable.length, 6)
+  if (suitable.value && suitable.value.length > 0) {
+    const suitableCount = Math.min(suitable.value.length, 6)
     for (let i = 0; i < suitableCount; i++) {
       const height = 1.2 + Math.random() * 0.8
       const suitableGeometry = new THREE.CylinderGeometry(0.12, 0.18, height, 8)
@@ -162,8 +148,8 @@ const createLunarVisualization = () => {
   }
 
   // 創建忌做指示柱群組 - 增強視覺
-  if (props.avoid && props.avoid.length > 0) {
-    const avoidCount = Math.min(props.avoid.length, 6)
+  if (avoid.value && avoid.value.length > 0) {
+    const avoidCount = Math.min(avoid.value.length, 6)
     for (let i = 0; i < avoidCount; i++) {
       const height = 1.0 + Math.random() * 0.6
       const avoidGeometry = new THREE.CylinderGeometry(0.18, 0.12, height, 8)
@@ -208,10 +194,10 @@ const createLunarVisualization = () => {
   // 創建投資運勢指示器 - 增強效果
   const luckHeight = 2.5
   const luckGeometry = new THREE.CylinderGeometry(0.4, 0.6, luckHeight, 12)
-  const isLucky = props.investmentLuck === '吉' || props.investmentLuck === '大吉'
+  const isLucky = investmentLuck.value === '吉'
   const luckColor = isLucky
     ? getThemeColor('success', isDark.value)
-    : props.investmentLuck === '凶'
+    : investmentLuck.value === '凶'
       ? getThemeColor('danger', isDark.value)
       : getThemeColor('warning', isDark.value)
   const luckMaterial = createThemeGlowMaterial(luckColor, isLucky ? 1.0 : 0.7, isDark.value)
@@ -463,11 +449,46 @@ watch(isDark, newTheme => {
 })
 
 // 監聽屬性變化
-watch(() => props, createLunarVisualization, { deep: true })
+watch(
+  [
+    () => lunarDate.value,
+    () => solarTerm.value,
+    () => suitable.value,
+    () => avoid.value,
+    () => investmentLuck.value,
+  ],
+  createLunarVisualization,
+  { deep: true }
+)
 </script>
 
-<style scoped>
-.relative {
-  position: relative;
-}
-</style>
+<template>
+  <div
+    class="relative w-full h-full bg-gradient-to-br from-surface-bg/50 via-card-bg to-surface-bg rounded-lg overflow-hidden border border-border-light"
+  >
+    <div ref="threeContainer" class="w-full h-full"></div>
+    <div class="absolute top-4 left-4 text-primary-text">
+      <h3 class="text-lg font-semibold mb-2 text-primary-text">{{ title }}</h3>
+      <div class="text-sm space-y-1">
+        <div>
+          農曆: <span class="text-accent-text">{{ lunarDate }}</span>
+        </div>
+        <div>
+          節氣: <span class="text-success-text">{{ solarTerm }}</span>
+        </div>
+        <div>
+          宜: <span class="text-success-text">{{ suitable?.slice(0, 2).join(', ') }}</span>
+        </div>
+        <div>
+          忌: <span class="text-error-text">{{ avoid?.slice(0, 2).join(', ') }}</span>
+        </div>
+      </div>
+    </div>
+    <div class="absolute bottom-4 right-4 text-primary-text text-xs">
+      <div class="text-center">
+        <div class="text-lg font-bold text-accent-text">{{ investmentLuck }}</div>
+        <div class="text-sm text-secondary-text">投資運勢</div>
+      </div>
+    </div>
+  </div>
+</template>

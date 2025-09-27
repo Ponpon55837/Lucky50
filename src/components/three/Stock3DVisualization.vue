@@ -1,34 +1,3 @@
-<template>
-  <div
-    class="relative w-full h-full bg-gradient-to-br from-surface-bg/50 via-card-bg to-surface-bg rounded-lg overflow-hidden border border-border-light"
-  >
-    <div ref="threeContainer" class="w-full h-full"></div>
-    <div class="absolute top-4 left-4 text-primary-text">
-      <h3 class="text-lg font-semibold mb-2 text-primary-text">{{ title }}</h3>
-      <div class="text-sm space-y-1">
-        <div>
-          最新價格: <span :class="priceChangeColor">{{ latestPrice?.toFixed(2) }}</span>
-        </div>
-        <div>
-          漲跌:
-          <span :class="priceChangeColor"
-            >{{ priceChange >= 0 ? '+' : '' }}{{ priceChange?.toFixed(2) }}</span
-          >
-        </div>
-        <div>
-          漲跌幅:
-          <span :class="priceChangeColor"
-            >{{ priceChange >= 0 ? '+' : '' }}{{ priceChangePercent?.toFixed(2) }}%</span
-          >
-        </div>
-      </div>
-    </div>
-    <div class="absolute bottom-4 right-4 text-secondary-text text-xs">
-      <div>運勢影響: {{ fortuneEffect }}</div>
-    </div>
-  </div>
-</template>
-
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, watch, computed, nextTick } from 'vue'
 import * as THREE from 'three'
@@ -39,18 +8,22 @@ import {
   getThemeColor,
 } from '@/utils/three-scene'
 import { useTheme } from '@/composables/useTheme'
-import type { ETFData } from '@/types'
+import { useDashboardStore } from '@/stores/dashboard'
+import { useAnalyticsStore } from '@/stores/analytics'
 
 interface Props {
-  etfData: ETFData[]
   title?: string
-  fortuneScore?: number
 }
 
-const props = withDefaults(defineProps<Props>(), {
-  title: '股價 3D 動態',
-  fortuneScore: 50,
-})
+const { title = '股價 3D 動態' } = defineProps<Props>()
+
+// 使用 stores
+const dashboardStore = useDashboardStore()
+const analyticsStore = useAnalyticsStore()
+
+// 從 store 獲取數據
+const etfData = computed(() => analyticsStore.getAdjustedEtfData(dashboardStore.etfData))
+const fortuneScore = computed(() => dashboardStore.unifiedInvestmentScore)
 
 const { isDark } = useTheme()
 const threeContainer = ref<HTMLElement>()
@@ -60,21 +33,21 @@ let fortuneOrb: THREE.Mesh | null = null
 
 // 計算最新價格和變化
 const latestPrice = computed(() => {
-  if (props.etfData.length === 0) return 0
-  return props.etfData[props.etfData.length - 1]?.close || 0
+  if (etfData.value.length === 0) return 0
+  return etfData.value[etfData.value.length - 1]?.close || 0
 })
 
 const priceChange = computed(() => {
-  if (props.etfData.length < 2) return 0
-  const current = props.etfData[props.etfData.length - 1]
-  const previous = props.etfData[props.etfData.length - 2]
+  if (etfData.value.length < 2) return 0
+  const current = etfData.value[etfData.value.length - 1]
+  const previous = etfData.value[etfData.value.length - 2]
   return current.close - previous.close
 })
 
 const priceChangePercent = computed(() => {
-  if (props.etfData.length < 2) return 0
-  const current = props.etfData[props.etfData.length - 1]
-  const previous = props.etfData[props.etfData.length - 2]
+  if (etfData.value.length < 2) return 0
+  const current = etfData.value[etfData.value.length - 1]
+  const previous = etfData.value[etfData.value.length - 2]
   return ((current.close - previous.close) / previous.close) * 100
 })
 
@@ -84,7 +57,7 @@ const priceChangeColor = computed(() => {
 })
 
 const fortuneEffect = computed(() => {
-  const score = props.fortuneScore
+  const score = fortuneScore.value
   if (score >= 80) return '極佳 ✨'
   if (score >= 60) return '良好 ⭐'
   if (score >= 40) return '普通 ➖'
@@ -93,7 +66,7 @@ const fortuneEffect = computed(() => {
 
 // 創建 3D 價格線
 const createPriceLine = () => {
-  if (!scene || props.etfData.length === 0) return
+  if (!scene || etfData.value.length === 0) return
 
   // 清除舊的價格線
   if (priceLineGroup) {
@@ -103,7 +76,7 @@ const createPriceLine = () => {
   priceLineGroup = new THREE.Group()
 
   // 計算價格範圍
-  const prices = props.etfData.map(d => d.close)
+  const prices = etfData.value.map(d => d.close)
   const minPrice = Math.min(...prices)
   const maxPrice = Math.max(...prices)
   const priceRange = maxPrice - minPrice
@@ -113,8 +86,8 @@ const createPriceLine = () => {
   const spheres: THREE.Mesh[] = []
   const bars: THREE.Mesh[] = []
 
-  props.etfData.forEach((data, index) => {
-    const x = (index / (props.etfData.length - 1)) * 8 - 4
+  etfData.value.forEach((data, index) => {
+    const x = (index / (etfData.value.length - 1)) * 8 - 4
     const y = ((data.close - minPrice) / priceRange) * 3 - 1.5
     const z = 0
 
@@ -122,7 +95,7 @@ const createPriceLine = () => {
 
     // 創建價格點球體 - 增強視覺效果
     const sphereGeometry = new THREE.SphereGeometry(0.06, 16, 16)
-    const isPositive = data.close > (index > 0 ? props.etfData[index - 1].close : data.close)
+    const isPositive = data.close > (index > 0 ? etfData.value[index - 1].close : data.close)
     const color = isPositive
       ? getThemeColor('success', isDark.value)
       : getThemeColor('danger', isDark.value)
@@ -144,7 +117,7 @@ const createPriceLine = () => {
     priceLineGroup!.add(sphere)
 
     // 添加成交量柱狀圖 - 增強動畫
-    const volumeHeight = (data.volume / Math.max(...props.etfData.map(d => d.volume))) * 1.2
+    const volumeHeight = (data.volume / Math.max(...etfData.value.map(d => d.volume))) * 1.2
     const barGeometry = new THREE.CylinderGeometry(0.02, 0.04, volumeHeight, 8)
     const barColor = getThemeColor('info', isDark.value)
     const barMaterial = createThemeGlowMaterial(barColor, 0.7, isDark.value)
@@ -254,13 +227,13 @@ const createFortuneOrb = () => {
 
   const orbGeometry = new THREE.SphereGeometry(0.3, 24, 24) // 縮小球體
   const orbColor =
-    props.fortuneScore >= 60
+    fortuneScore.value >= 60
       ? getThemeColor('success', isDark.value)
-      : props.fortuneScore >= 40
+      : fortuneScore.value >= 40
         ? getThemeColor('warning', isDark.value)
         : getThemeColor('danger', isDark.value)
 
-  const orbMaterial = createThemeGlowMaterial(orbColor, props.fortuneScore / 100, isDark.value)
+  const orbMaterial = createThemeGlowMaterial(orbColor, fortuneScore.value / 100, isDark.value)
   fortuneOrb = new THREE.Mesh(orbGeometry, orbMaterial)
   fortuneOrb.position.set(4, 1.5, 0) // 調整位置
 
@@ -298,7 +271,7 @@ const initScene = () => {
 
 // 監聽數據變化
 watch(
-  () => props.etfData,
+  () => etfData.value,
   () => {
     if (scene) {
       createPriceLine()
@@ -308,7 +281,7 @@ watch(
 )
 
 watch(
-  () => props.fortuneScore,
+  () => fortuneScore.value,
   () => {
     if (scene) {
       createFortuneOrb()
@@ -338,3 +311,34 @@ onUnmounted(() => {
   }
 })
 </script>
+
+<template>
+  <div
+    class="relative w-full h-full bg-gradient-to-br from-surface-bg/50 via-card-bg to-surface-bg rounded-lg overflow-hidden border border-border-light"
+  >
+    <div ref="threeContainer" class="w-full h-full"></div>
+    <div class="absolute top-4 left-4 text-primary-text">
+      <h3 class="text-lg font-semibold mb-2 text-primary-text">{{ title }}</h3>
+      <div class="text-sm space-y-1">
+        <div>
+          最新價格: <span :class="priceChangeColor">{{ latestPrice?.toFixed(2) }}</span>
+        </div>
+        <div>
+          漲跌:
+          <span :class="priceChangeColor"
+            >{{ priceChange >= 0 ? '+' : '' }}{{ priceChange?.toFixed(2) }}</span
+          >
+        </div>
+        <div>
+          漲跌幅:
+          <span :class="priceChangeColor"
+            >{{ priceChange >= 0 ? '+' : '' }}{{ priceChangePercent?.toFixed(2) }}%</span
+          >
+        </div>
+      </div>
+    </div>
+    <div class="absolute bottom-4 right-4 text-secondary-text text-xs">
+      <div>運勢影響: {{ fortuneEffect }}</div>
+    </div>
+  </div>
+</template>

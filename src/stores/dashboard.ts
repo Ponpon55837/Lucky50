@@ -291,7 +291,7 @@ export const useDashboardStore = defineStore('dashboard', () => {
   const retryIntegratedFortune = (userProfile: UserProfileCompat | null) => {
     return userProfile ? loadIntegratedFortune(userProfile, currentDate.value) : Promise.reject('無用戶資料')
   }
-
+lunarData
   // 重試載入ETF資料
   const retryETFData = () => {
     return loadETFData()
