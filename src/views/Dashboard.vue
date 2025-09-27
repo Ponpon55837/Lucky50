@@ -1,13 +1,27 @@
 <script setup lang="ts">
-import { onMounted, computed, watch } from 'vue'
+import { onMounted, computed, watch, defineAsyncComponent } from 'vue'
 import { useUserStore } from '@/stores/user'
 import { useDashboardStore } from '@/stores/dashboard'
 import { useTheme } from '@/composables/useTheme'
 import type { UserProfileCompat } from '@/services/integratedFortune'
-import PriceChart from '@/components/charts/PriceChart.vue'
-import ElementRadarChart from '@/components/charts/ElementRadarChart.vue'
-import LunarCalendarCard from '@/components/LunarCalendarCard.vue'
-import FortuneCard from '@/components/FortuneCard.vue'
+
+// Lazy load components
+const PriceChart = defineAsyncComponent({
+  loader: () => import('@/components/charts/PriceChart.vue'),
+  loadingComponent: () => import('@/components/ui/Loading.vue'),
+})
+const ElementRadarChart = defineAsyncComponent({
+  loader: () => import('@/components/charts/ElementRadarChart.vue'),
+  loadingComponent: () => import('@/components/ui/Loading.vue'),
+})
+const LunarCalendarCard = defineAsyncComponent({
+  loader: () => import('@/components/LunarCalendarCard.vue'),
+  loadingComponent: () => import('@/components/ui/Loading.vue'),
+})
+const FortuneCard = defineAsyncComponent({
+  loader: () => import('@/components/FortuneCard.vue'),
+  loadingComponent: () => import('@/components/ui/Loading.vue'),
+})
 
 // Store instances
 const userStore = useUserStore()

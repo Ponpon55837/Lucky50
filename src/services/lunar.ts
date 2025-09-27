@@ -1,6 +1,7 @@
 // @ts-ignore
 import { Solar, Lunar } from 'lunar-javascript'
 import { s2t } from 'chinese-s2t'
+import { apiCache, CacheKeyGenerator } from './apiCache'
 
 export interface LunarData {
   // 基本日期資訊
@@ -57,16 +58,26 @@ class LunarService {
   
   getLunarData(date: Date = new Date()): LunarData {
     const targetDate = new Date(date.getTime())
-    const cacheKey = `${targetDate.getFullYear()}-${targetDate.getMonth()}-${targetDate.getDate()}`
+    const cacheKey = CacheKeyGenerator.lunar(targetDate)
     
-    if (this.cache.has(cacheKey)) {
-      console.log('LunarService - 使用快取資料:', cacheKey)
-      return this.cache.get(cacheKey)!
+    // 先檢查全域快取
+    const cached = apiCache.get<LunarData>(cacheKey)
+    if (cached) {
+      console.log('LunarService - 使用全域快取資料:', cacheKey)
+      return cached
+    }
+    
+    // 檢查本地快取 (向後相容)
+    const localCacheKey = `${targetDate.getFullYear()}-${targetDate.getMonth()}-${targetDate.getDate()}`
+    if (this.cache.has(localCacheKey)) {
+      console.log('LunarService - 使用本地快取資料:', localCacheKey)
+      return this.cache.get(localCacheKey)!
     }
 
     try {
       const solar = Solar.fromYmd(targetDate.getFullYear(), targetDate.getMonth() + 1, targetDate.getDate())
       const lunar = solar.getLunar()
+      
       
       const lunarData: LunarData = {
         lunarYear: lunar.getYearInChinese(),
@@ -87,10 +98,10 @@ class LunarService {
         jiuXing: this.getSafeString(lunar, 'getDayJiuXing')
       }
       
-      this.cache.set(cacheKey, lunarData)
-      return lunarData
-      
-    } catch (error) {
+      // 同時存儲到本地和全域快取
+      this.cache.set(localCacheKey, lunarData)
+      apiCache.set(cacheKey, lunarData, 12 * 60 * 60 * 1000) // 12小時快取
+      return lunarData    } catch (error) {
       console.error('LunarService - 農民曆計算錯誤:', error)
       console.log('錯誤詳情:', {
         date: targetDate,

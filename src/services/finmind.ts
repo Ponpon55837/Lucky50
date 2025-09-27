@@ -1,5 +1,6 @@
 import axios from 'axios'
 import type { ETFData } from '@/types'
+import { apiCache, CacheKeyGenerator } from './apiCache'
 
 const finmindAPI = axios.create({
   baseURL: import.meta.env.VITE_FINMIND_API_URL || 'https://api.finmindtrade.com/api/v4',
@@ -62,44 +63,50 @@ export class FinMindService {
   }
 
   /**
-   * 取得 0050 ETF 歷史資料
+   * 取得 0050 ETF 歷史資料 (支援快取)
    */
   static async getETFData(startDate: string, endDate: string): Promise<ETFData[]> {
     console.log('FinMind - 開始載入數據:', startDate, '到', endDate)
     
+    // 生成快取鍵
+    const cacheKey = CacheKeyGenerator.stock('0050', startDate, endDate)
+    
     try {
-      const response = await finmindAPI.get('/data', {
-        params: {
-          dataset: 'TaiwanStockPrice',
-          data_id: '0050',
-          start_date: startDate,
-          end_date: endDate
+      // 使用快取包裝器
+      return await apiCache.cached(cacheKey, async () => {
+        const response = await finmindAPI.get('/data', {
+          params: {
+            dataset: 'TaiwanStockPrice',
+            data_id: '0050',
+            start_date: startDate,
+            end_date: endDate
+          }
+        })
+
+        console.log('FinMind - API 回應:', response.data)
+
+        // 檢查 API 回應狀態
+        if (response.data.status !== 200 || !response.data.data || response.data.data.length === 0) {
+          console.warn('FinMind API 無數據，使用備用模擬數據')
+          const mockData = this.getMockETFData(startDate, endDate)
+          console.log('FinMind - 生成備用數據:', mockData.length, '筆')
+          return mockData
         }
-      })
 
-      console.log('FinMind - API 回應:', response.data)
-
-      // 檢查 API 回應狀態
-      if (response.data.status !== 200 || !response.data.data || response.data.data.length === 0) {
-        console.warn('FinMind API 無數據，使用備用模擬數據')
-        const mockData = this.getMockETFData(startDate, endDate)
-        console.log('FinMind - 生成備用數據:', mockData.length, '筆')
-        return mockData
-      }
-
-      const formattedData = response.data.data.map((item: any) => ({
-        date: item.date,
-        open: parseFloat(item.open),
-        high: parseFloat(item.max || item.high),
-        low: parseFloat(item.min || item.low),
-        close: parseFloat(item.close),
-        volume: parseInt(item.Trading_Volume || item.volume || '0'),
-        change: parseFloat(item.close) - parseFloat(item.open),
-        changePercent: ((parseFloat(item.close) - parseFloat(item.open)) / parseFloat(item.open)) * 100
-      }))
-      
-      console.log('FinMind - 格式化數據:', formattedData.length, '筆')
-      return formattedData
+        const formattedData = response.data.data.map((item: any) => ({
+          date: item.date,
+          open: parseFloat(item.open),
+          high: parseFloat(item.max || item.high),
+          low: parseFloat(item.min || item.low),
+          close: parseFloat(item.close),
+          volume: parseInt(item.Trading_Volume || item.volume || '0'),
+          change: parseFloat(item.close) - parseFloat(item.open),
+          changePercent: ((parseFloat(item.close) - parseFloat(item.open)) / parseFloat(item.open)) * 100
+        }))
+        
+        console.log('FinMind - 格式化數據:', formattedData.length, '筆')
+        return formattedData
+      }, 10 * 60 * 1000) // 10分鐘快取
       
     } catch (error: any) {
       console.error('FinMind API 請求失敗:', error.message)

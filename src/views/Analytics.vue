@@ -1,15 +1,35 @@
 <script setup lang="ts">
-import { ref, computed, watch, onMounted } from 'vue'
+import { ref, computed, watch, onMounted, defineAsyncComponent } from 'vue'
 import { useDashboardStore } from '@/stores/dashboard'
 import { useAnalyticsStore } from '@/stores/analytics'
 import { useTheme } from '@/composables/useTheme'
 import { FinMindService } from '@/services/finmind'
-import PriceChart from '@/components/charts/PriceChart.vue'
-import VolumeChart from '@/components/charts/VolumeChart.vue'
-import Stock3DVisualization from '@/components/three/Stock3DVisualization.vue'
-import Fortune3DVisualization from '@/components/three/Fortune3DVisualization.vue'
-import Lunar3DVisualization from '@/components/three/Lunar3DVisualization.vue'
-import Technical3DVisualization from '@/components/three/Technical3DVisualization.vue'
+
+// Lazy load components
+const PriceChart = defineAsyncComponent({
+  loader: () => import('@/components/charts/PriceChart.vue'),
+  loadingComponent: () => import('@/components/ui/Loading.vue'),
+})
+const VolumeChart = defineAsyncComponent({
+  loader: () => import('@/components/charts/VolumeChart.vue'),
+  loadingComponent: () => import('@/components/ui/Loading.vue'),
+})
+const Stock3DVisualization = defineAsyncComponent({
+  loader: () => import('@/components/three/Stock3DVisualization.vue'),
+  loadingComponent: () => import('@/components/ui/Loading.vue'),
+})
+const Fortune3DVisualization = defineAsyncComponent({
+  loader: () => import('@/components/three/Fortune3DVisualization.vue'),
+  loadingComponent: () => import('@/components/ui/Loading.vue'),
+})
+const Lunar3DVisualization = defineAsyncComponent({
+  loader: () => import('@/components/three/Lunar3DVisualization.vue'),
+  loadingComponent: () => import('@/components/ui/Loading.vue'),
+})
+const Technical3DVisualization = defineAsyncComponent({
+  loader: () => import('@/components/three/Technical3DVisualization.vue'),
+  loadingComponent: () => import('@/components/ui/Loading.vue'),
+})
 
 const dashboardStore = useDashboardStore()
 const analyticsStore = useAnalyticsStore()

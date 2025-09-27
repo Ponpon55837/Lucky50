@@ -1,0 +1,10 @@
+{
+  "name": "analyze",
+  "scripts": {
+    "analyze:bundle": "npx vite-bundle-analyzer dist",
+    "analyze:size": "du -sh dist/ && echo '=== 詳細大小分析 ===' && du -h dist/assets/js/* | sort -hr",
+    "preview": "vite preview",
+    "lighthouse": "lighthouse http://localhost:4173 --output json --output html --chrome-flags='--headless'",
+    "perf:test": "pnpm build && pnpm preview --port 4173 & sleep 3 && pnpm lighthouse && kill %1"
+  }
+}

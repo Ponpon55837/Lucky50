@@ -1,12 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, watch, computed, nextTick } from 'vue'
 import * as THREE from 'three'
-import {
-  ThreeJSScene,
-  createThemeGlowMaterial,
-  animateObject,
-  getThemeColor,
-} from '@/utils/three-scene'
+import { ThreeJSScene, createThemeGlowMaterial, getThemeColor } from '@/utils/three-scene'
 import { useTheme } from '@/composables/useTheme'
 import { useDashboardStore } from '@/stores/dashboard'
 import { useAnalyticsStore } from '@/stores/analytics'
