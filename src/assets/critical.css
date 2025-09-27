@@ -1,0 +1,74 @@
+/* Critical CSS - Above the fold styles */
+body {
+  font-family: 'Noto Sans TC', sans-serif;
+  margin: 0;
+  padding: 0;
+  background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+  color: white;
+}
+
+.min-h-screen {
+  min-height: 100vh;
+}
+
+/* Loading states */
+.animate-spin {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Critical layout styles */
+.max-w-7xl {
+  max-width: 80rem;
+}
+
+.mx-auto {
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.px-4 {
+  padding-left: 1rem;
+  padding-right: 1rem;
+}
+
+.py-20 {
+  padding-top: 5rem;
+  padding-bottom: 5rem;
+}
+
+.text-center {
+  text-align: center;
+}
+
+.text-4xl {
+  font-size: 2.25rem;
+  line-height: 2.5rem;
+}
+
+@media (min-width: 768px) {
+  .md\:text-6xl {
+    font-size: 3.75rem;
+    line-height: 1;
+  }
+}
+
+.font-bold {
+  font-weight: 700;
+}
+
+.text-white {
+  color: rgb(255 255 255);
+}
+
+.mb-6 {
+  margin-bottom: 1.5rem;
+}
