@@ -16,6 +16,7 @@
     "@vuepic/vue-datepicker": "^11.0.2",
     "axios": "^1.6.0",
     "chart.js": "^4.4.0",
+    "chinese-s2t": "^1.0.0",
     "date-fns": "^2.30.0",
     "lunar-javascript": "^1.6.12",
     "pinia": "^3.0.3",
