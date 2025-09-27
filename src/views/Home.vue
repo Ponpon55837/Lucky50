@@ -33,16 +33,23 @@ const FortuneOrb = defineAsyncComponent({
         <!-- 3D Fortune Orb -->
         <div class="mt-12 sm:mt-16 flex justify-center">
           <div class="w-48 h-48 sm:w-64 sm:h-64 relative">
-            <FortuneOrb
-              :fortune-score="75"
-              :elements="{
-                metal: 85,
-                wood: 60,
-                water: 70,
-                fire: 90,
-                earth: 55,
-              }"
-            />
+            <Suspense>
+              <FortuneOrb
+                :fortune-score="75"
+                :elements="{
+                  metal: 85,
+                  wood: 60,
+                  water: 70,
+                  fire: 90,
+                  earth: 55,
+                }"
+              />
+              <template #fallback>
+                <div class="w-full h-full flex items-center justify-center">
+                  <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+                </div>
+              </template>
+            </Suspense>
           </div>
         </div>
       </div>
