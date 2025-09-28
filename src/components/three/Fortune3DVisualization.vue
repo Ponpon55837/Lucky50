@@ -23,27 +23,27 @@ const ANIMATION_CONFIG = {
     maxRadius: 1.8,
     pulseScale: 0.15,
     pulseSpeed: 0.002,
-    rotationSpeed: { x: 0.005, y: 0.008, z: 0.003 }
+    rotationSpeed: { x: 0.005, y: 0.008, z: 0.003 },
   },
   elementRings: {
     count: 3,
     baseRadius: 2.0,
     spacing: 0.4,
     baseThickness: 0.12,
-    thicknessIncrement: 0.02
+    thicknessIncrement: 0.02,
   },
   investmentBars: {
     count: 5,
     maxHeight: 4,
     baseRadius: 2.5,
-    animationDelay: 200
+    animationDelay: 200,
   },
   particles: {
     count: 300,
     minRadius: 2,
     maxRadius: 8,
-    spiralSpeed: { min: 0.5, max: 0.1 }
-  }
+    spiralSpeed: { min: 0.5, max: 0.1 },
+  },
 } as const
 
 type AnimationRefs = Set<() => void>
@@ -60,17 +60,6 @@ const threeContainer = ref<HTMLElement>()
 let scene: ThreeJSScene | null = null
 let fortuneGroup: THREE.Group | null = null
 
-// 清理所有動畫
-const cleanupAnimations = () => {
-  animationRefs.clear()
-}
-
-// 註冊動畫循環
-const registerAnimation = (animationFn: () => void) => {
-  animationRefs.add(animationFn)
-  return animationFn
-}
-
 // 從 store 獲取數據 - 優化計算屬性
 const userProfile = computed(() => userStore.profile)
 const zodiac = computed(() => userProfile.value?.zodiac || '龍')
@@ -79,13 +68,28 @@ const fortuneScore = computed(() => dashboardStore.unifiedInvestmentScore)
 const investmentScore = computed(() => dashboardStore.unifiedInvestmentScore)
 const lunarData = computed(() => dashboardStore.lunarData)
 
+// 互動狀態管理
+const hoveredElement = ref<string | null>(null)
+const mousePosition = ref({ x: 0, y: 0 })
+const showLegend = ref(false)
+
+// 元素說明數據
+type ElementType = 'zodiacSphere' | 'elementRings' | 'investmentBars' | 'particles' | 'lunarData'
+const elementDescriptions: Record<ElementType, string> = {
+  zodiacSphere: '生肖能量球：中心能量源，大小與運勢分數成正比',
+  elementRings: '五行環系：能量環，不同層級代表不同能量強度',
+  investmentBars: '投資指示柱：每根柱子高度代表投資建議強度',
+  particles: '五行能量粒子：環繞流動的粒子表示五行能量流動',
+  lunarData: '農民曆資訊：當前農曆日期和宜忌事項',
+}
+
 const lunarDate = computed(() => {
   const data = lunarData.value
   if (!data) return '乙巳年八月'
-  
+
   const { lunarYear = '', lunarMonth = '', lunarDay = '' } = data
-  return lunarYear && lunarMonth && lunarDay 
-    ? `${lunarYear}${lunarMonth}${lunarDay}`
+  return lunarYear && lunarMonth && lunarDay
+    ? `${lunarYear}年${lunarMonth}月${lunarDay}`
     : '乙巳年八月'
 })
 
@@ -111,6 +115,36 @@ const investmentAdviceColor = computed(() => {
   return 'text-error-text'
 })
 
+// 清理所有動畫
+const cleanupAnimations = () => {
+  animationRefs.clear()
+}
+
+// 註冊動畫循環
+const registerAnimation = (animationFn: () => void) => {
+  animationRefs.add(animationFn)
+  return animationFn
+}
+
+// 鼠標事件處理
+const handleMouseMove = (event: MouseEvent) => {
+  const rect = threeContainer.value?.getBoundingClientRect()
+  if (!rect) return
+
+  mousePosition.value = {
+    x: event.clientX - rect.left,
+    y: event.clientY - rect.top,
+  }
+}
+
+const handleElementHover = (elementType: ElementType) => {
+  hoveredElement.value = elementType
+}
+
+const handleElementLeave = () => {
+  hoveredElement.value = null
+}
+
 // 獲取五行對應的顏色
 const getElementColor = (element: string): number => {
   const elementColors = {
@@ -120,57 +154,61 @@ const getElementColor = (element: string): number => {
     金: getThemeColor('info', isDark.value), // 藍色
     水: getThemeColor('primary', isDark.value), // 深藍色
   }
-  return elementColors[element as keyof typeof elementColors] || getThemeColor('secondary', isDark.value)
+  return (
+    elementColors[element as keyof typeof elementColors] || getThemeColor('secondary', isDark.value)
+  )
 }
 
 // 創建生肖能量球
 const createZodiacSphere = (): THREE.Mesh => {
-  const { baseRadius, maxRadius, pulseScale, pulseSpeed, rotationSpeed } = ANIMATION_CONFIG.zodiacSphere
+  const { baseRadius, maxRadius, pulseScale, pulseSpeed, rotationSpeed } =
+    ANIMATION_CONFIG.zodiacSphere
   const score = fortuneScore.value
-  
+
   const radius = Math.max(baseRadius, Math.min(maxRadius, (score / 100) * 2.5))
   const geometry = new THREE.IcosahedronGeometry(radius, 2)
   const color = getThemeColor('accent', isDark.value)
   const material = createThemeGlowMaterial(color, score / 100, isDark.value)
-  
+
   const sphere = new THREE.Mesh(geometry, material)
   sphere.position.set(0, 1, 0)
 
   // 生肖球體脈動和旋轉動畫
   const animate = () => {
     if (!sphere.parent) return
-    
+
     const time = Date.now() * pulseSpeed
     const scale = 1 + Math.sin(time) * pulseScale
     sphere.scale.setScalar(scale)
     sphere.rotation.x += rotationSpeed.x
     sphere.rotation.y += rotationSpeed.y
     sphere.rotation.z += rotationSpeed.z
-    
+
     requestAnimationFrame(animate)
   }
-  
+
   registerAnimation(animate)
   animate()
-  
+
   return sphere
 }
 
 // 創建五行環系統
 const createElementRings = (): THREE.Mesh[] => {
   const rings: THREE.Mesh[] = []
-  const { count, baseRadius, spacing, baseThickness, thicknessIncrement } = ANIMATION_CONFIG.elementRings
+  const { count, baseRadius, spacing, baseThickness, thicknessIncrement } =
+    ANIMATION_CONFIG.elementRings
   const currentElement = element.value
 
   for (let i = 0; i < count; i++) {
     const radius = baseRadius + i * spacing
     const thickness = baseThickness + i * thicknessIncrement
-    
+
     const geometry = new THREE.TorusGeometry(radius, thickness, 16, 100)
     const color = getElementColor(currentElement)
     const opacity = 0.9 - i * 0.2
     const material = createThemeGlowMaterial(color, opacity, isDark.value)
-    
+
     const ring = new THREE.Mesh(geometry, material)
     ring.position.set(0, 0.5, 0)
     ring.rotation.x = Math.PI / 2 + (i * Math.PI) / 8
@@ -179,13 +217,13 @@ const createElementRings = (): THREE.Mesh[] => {
     // 每個環不同速度旋轉
     const animate = () => {
       if (!ring.parent) return
-      
+
       ring.rotation.z += (0.01 + i * 0.005) * (i % 2 === 0 ? 1 : -1)
       ring.rotation.y += 0.003 * (i + 1)
-      
+
       requestAnimationFrame(animate)
     }
-    
+
     registerAnimation(animate)
     animate()
     rings.push(ring)
@@ -204,11 +242,12 @@ const createInvestmentBars = (): THREE.Mesh[] => {
   for (let i = 0; i < count; i++) {
     const height = investmentHeight * (0.6 + Math.random() * 0.8)
     const geometry = new THREE.CylinderGeometry(0.15, 0.2, height, 8)
-    const color = currentScore >= 70
-      ? getThemeColor('success', isDark.value)
-      : currentScore >= 50
-        ? getThemeColor('warning', isDark.value)
-        : getThemeColor('danger', isDark.value)
+    const color =
+      currentScore >= 70
+        ? getThemeColor('success', isDark.value)
+        : currentScore >= 50
+          ? getThemeColor('warning', isDark.value)
+          : getThemeColor('danger', isDark.value)
     const material = createThemeGlowMaterial(color, 1.0, isDark.value)
     const bar = new THREE.Mesh(geometry, material)
 
@@ -226,11 +265,11 @@ const createInvestmentBars = (): THREE.Mesh[] => {
           // 開始波動動畫
           const oscillate = () => {
             if (!bar.parent) return
-            
+
             const time = Date.now() * 0.003 + i
             const offset = Math.sin(time) * 0.1
             bar.scale.y = 1 + offset
-            
+
             requestAnimationFrame(oscillate)
           }
           registerAnimation(oscillate)
@@ -249,7 +288,7 @@ const createInvestmentBars = (): THREE.Mesh[] => {
 // 創建五行能量粒子效果
 const createElementalParticles = (): THREE.Points => {
   const { count, minRadius, maxRadius } = ANIMATION_CONFIG.particles
-  
+
   const positions = new Float32Array(count * 3)
   const colors = new Float32Array(count * 3)
   const sizes = new Float32Array(count)
@@ -298,7 +337,7 @@ const createElementalParticles = (): THREE.Points => {
   // 粒子螺旋運動動畫
   const animate = () => {
     if (!particles.parent) return
-    
+
     const positions = particles.geometry.attributes.position.array as Float32Array
     const time = Date.now() * 0.001
 
@@ -308,7 +347,9 @@ const createElementalParticles = (): THREE.Points => {
       const originalZ = positions[i3 + 2]
 
       // 螺旋運動
-      const rotationSpeed = ANIMATION_CONFIG.particles.spiralSpeed.min + (i % 10) * ANIMATION_CONFIG.particles.spiralSpeed.max
+      const rotationSpeed =
+        ANIMATION_CONFIG.particles.spiralSpeed.min +
+        (i % 10) * ANIMATION_CONFIG.particles.spiralSpeed.max
       const angle = time * rotationSpeed + i * 0.1
       const radius = Math.sqrt(originalX * originalX + originalZ * originalZ)
 
@@ -319,10 +360,10 @@ const createElementalParticles = (): THREE.Points => {
 
     particles.geometry.attributes.position.needsUpdate = true
     particles.rotation.y += 0.002
-    
+
     requestAnimationFrame(animate)
   }
-  
+
   registerAnimation(animate)
   animate()
 
@@ -344,12 +385,7 @@ const createFortuneVisualization = () => {
   const particles = createElementalParticles()
 
   // 添加所有對象到場景
-  fortuneGroup.add(
-    zodiacSphere,
-    ...elementRings,
-    ...investmentBars,
-    particles
-  )
+  fortuneGroup.add(zodiacSphere, ...elementRings, ...investmentBars, particles)
 }
 
 // 初始化場景
@@ -394,9 +430,9 @@ onUnmounted(() => {
 })
 
 // 監聽主題變化
-watch(isDark, (newTheme) => {
+watch(isDark, newTheme => {
   if (!scene) return
-  
+
   scene.updateTheme(newTheme)
   nextTick(() => {
     createFortuneVisualization()
@@ -418,8 +454,109 @@ watch(
 <template>
   <div
     class="relative w-full h-full bg-gradient-to-br from-surface-bg/50 via-card-bg to-surface-bg rounded-lg overflow-hidden border border-border-light"
+    @mousemove="handleMouseMove"
   >
     <div ref="threeContainer" class="w-full h-full"></div>
+
+    <!-- 動態懸停說明 -->
+    <div
+      v-if="hoveredElement"
+      :style="{ left: mousePosition.x + 10 + 'px', top: mousePosition.y - 10 + 'px' }"
+      class="absolute z-10 bg-card-bg/90 backdrop-blur-sm border border-border-light rounded-lg p-3 shadow-lg pointer-events-none max-w-xs"
+    >
+      <div class="text-sm font-medium text-primary-text mb-1">
+        {{
+          hoveredElement === 'zodiacSphere'
+            ? `${zodiac}生肖球`
+            : hoveredElement === 'elementRings'
+              ? `${element}五行環`
+              : hoveredElement === 'investmentBars'
+                ? '投資指示柱'
+                : hoveredElement === 'particles'
+                  ? '五行粒子'
+                  : '農曆資訊'
+        }}
+      </div>
+      <div class="text-xs text-secondary-text">
+        {{ elementDescriptions[hoveredElement as ElementType] }}
+      </div>
+    </div>
+
+    <!-- 運勢分析圖例 -->
+    <div
+      v-if="showLegend"
+      class="absolute top-4 right-4 bg-card-bg/80 backdrop-blur-sm border border-border-light rounded-lg p-3 w-52"
+    >
+      <div class="flex justify-between items-center mb-2">
+        <h4 class="text-sm font-semibold text-primary-text">運勢分析</h4>
+        <button
+          @click="showLegend = false"
+          class="text-xs text-secondary-text hover:text-primary-text"
+        >
+          ×
+        </button>
+      </div>
+      <div class="space-y-2 text-xs">
+        <div
+          class="flex items-center justify-between cursor-pointer hover:bg-surface-bg/50 p-1 rounded"
+          @mouseenter="handleElementHover('zodiacSphere')"
+          @mouseleave="handleElementLeave"
+        >
+          <div class="flex items-center space-x-2">
+            <div
+              class="w-3 h-3 bg-gradient-to-r from-purple-400 to-pink-400 rounded-full animate-pulse"
+            ></div>
+            <span class="text-secondary-text">{{ zodiac }}生肖</span>
+          </div>
+          <span :class="fortuneScoreColor" class="font-mono text-xs">{{ fortuneScore }}</span>
+        </div>
+        <div
+          class="flex items-center justify-between cursor-pointer hover:bg-surface-bg/50 p-1 rounded"
+          @mouseenter="handleElementHover('elementRings')"
+          @mouseleave="handleElementLeave"
+        >
+          <div class="flex items-center space-x-2">
+            <div class="w-3 h-0.5 bg-gradient-to-r from-green-400 to-blue-400 rounded"></div>
+            <span class="text-secondary-text">{{ element }}五行</span>
+          </div>
+          <span class="text-info-text text-xs">強化</span>
+        </div>
+        <div
+          class="flex items-center justify-between cursor-pointer hover:bg-surface-bg/50 p-1 rounded"
+          @mouseenter="handleElementHover('investmentBars')"
+          @mouseleave="handleElementLeave"
+        >
+          <div class="flex items-center space-x-2">
+            <div class="flex space-x-0.5">
+              <div class="w-0.5 h-3 bg-green-400"></div>
+              <div class="w-0.5 h-2 bg-yellow-400"></div>
+              <div class="w-0.5 h-4 bg-green-400"></div>
+            </div>
+            <span class="text-secondary-text">投資建議</span>
+          </div>
+          <span :class="investmentAdviceColor" class="text-xs">{{ investmentAdvice }}</span>
+        </div>
+        <div
+          class="flex items-center space-x-2 cursor-pointer hover:bg-surface-bg/50 p-1 rounded"
+          @mouseenter="handleElementHover('lunarData')"
+          @mouseleave="handleElementLeave"
+        >
+          <div class="w-3 h-3 bg-yellow-300 rounded-full"></div>
+          <span class="text-secondary-text">農曆</span>
+          <span class="text-xs text-accent-text ml-auto">{{ lunarDate.slice(-4) }}</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- 圖例開關 -->
+    <button
+      v-if="!showLegend"
+      @click="showLegend = true"
+      class="absolute top-4 right-4 bg-card-bg/80 backdrop-blur-sm border border-border-light rounded-lg p-2 text-xs text-secondary-text hover:text-primary-text"
+    >
+      🔮 運勢
+    </button>
+
     <div class="absolute top-4 left-4 text-primary-text">
       <h3 class="text-lg font-semibold mb-2 text-primary-text">{{ title }}</h3>
       <div class="text-sm space-y-1">

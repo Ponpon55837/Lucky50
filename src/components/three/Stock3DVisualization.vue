@@ -49,6 +49,21 @@ let scene: ThreeJSScene | null = null
 let priceLineGroup: THREE.Group | null = null
 let fortuneOrb: THREE.Mesh | null = null
 
+// 互動狀態管理
+const hoveredElement = ref<string | null>(null)
+const mousePosition = ref({ x: 0, y: 0 })
+const showLegend = ref(false)
+
+// 元素說明數據
+type ElementType = 'priceSphere' | 'volumeBar' | 'priceLine' | 'fortuneOrb' | 'particles'
+const elementDescriptions: Record<ElementType, string> = {
+  priceSphere: '價格點：每個球體代表一個時間點的股價',
+  volumeBar: '成交量：柱狀圖高度表示交易量大小',
+  priceLine: '價格趨勢線：連接價格點形成趨勢軌跡',
+  fortuneOrb: '運勢球：大小和顏色反映當前投資運勢',
+  particles: '市場氛圍：粒子流動表示市場活躍度',
+}
+
 // 清理所有動畫
 const cleanupAnimations = () => {
   animationRefs.clear()
@@ -97,6 +112,25 @@ const fortuneEffect = computed(() => {
   return '不佳 ❌'
 })
 
+// 鼠標事件處理
+const handleMouseMove = (event: MouseEvent) => {
+  const rect = threeContainer.value?.getBoundingClientRect()
+  if (!rect) return
+
+  mousePosition.value = {
+    x: event.clientX - rect.left,
+    y: event.clientY - rect.top,
+  }
+}
+
+const handleElementHover = (elementType: ElementType) => {
+  hoveredElement.value = elementType
+}
+
+const handleElementLeave = () => {
+  hoveredElement.value = null
+}
+
 // 創建價格球體
 const createPriceSphere = (
   x: number,
@@ -122,7 +156,7 @@ const createPriceSphere = (
 
 // 創建成交量柱狀圖
 const createVolumeBar = (x: number, data: any, index: number): THREE.Mesh => {
-  const maxVolume = Math.max(...etfData.value.map(d => d.volume))
+  const maxVolume = Math.max(...etfData.value.map((d: any) => d.volume))
   const volumeHeight = (data.volume / maxVolume) * 1.2
 
   const geometry = new THREE.CylinderGeometry(0.02, 0.04, volumeHeight, 8)
@@ -247,7 +281,7 @@ const createPriceLine = () => {
   priceLineGroup = new THREE.Group()
 
   // 計算價格範圍
-  const prices = etfData.value.map(d => d.close)
+  const prices = etfData.value.map((d: any) => d.close)
   const minPrice = Math.min(...prices)
   const maxPrice = Math.max(...prices)
   const priceRange = maxPrice - minPrice
@@ -255,7 +289,7 @@ const createPriceLine = () => {
   // 創建價格點和連線
   const points: THREE.Vector3[] = []
 
-  etfData.value.forEach((data, index) => {
+  etfData.value.forEach((data: any, index: number) => {
     const x =
       (index / (etfData.value.length - 1)) * ANIMATION_CONFIG.priceRange.width -
       ANIMATION_CONFIG.priceRange.width / 2
@@ -402,8 +436,93 @@ onUnmounted(() => {
 <template>
   <div
     class="relative w-full h-full bg-gradient-to-br from-surface-bg/50 via-card-bg to-surface-bg rounded-lg overflow-hidden border border-border-light"
+    @mousemove="handleMouseMove"
   >
     <div ref="threeContainer" class="w-full h-full"></div>
+
+    <!-- 動態懸停說明 -->
+    <div
+      v-if="hoveredElement"
+      :style="{ left: mousePosition.x + 10 + 'px', top: mousePosition.y - 10 + 'px' }"
+      class="absolute z-10 bg-card-bg/90 backdrop-blur-sm border border-border-light rounded-lg p-3 shadow-lg pointer-events-none max-w-xs"
+    >
+      <div class="text-sm font-medium text-primary-text mb-1">{{ hoveredElement }}</div>
+      <div class="text-xs text-secondary-text">
+        {{ (hoveredElement && elementDescriptions[hoveredElement as ElementType]) || '未知元素' }}
+      </div>
+    </div>
+
+    <!-- 圖例面板 -->
+    <div
+      v-if="showLegend"
+      class="absolute top-4 right-4 bg-card-bg/80 backdrop-blur-sm border border-border-light rounded-lg p-3 w-48"
+    >
+      <div class="flex justify-between items-center mb-2">
+        <h4 class="text-sm font-semibold text-primary-text">元素說明</h4>
+        <button
+          @click="showLegend = false"
+          class="text-xs text-secondary-text hover:text-primary-text"
+        >
+          ×
+        </button>
+      </div>
+      <div class="space-y-2 text-xs">
+        <div
+          class="flex items-center space-x-2 cursor-pointer hover:bg-surface-bg/50 p-1 rounded"
+          @mouseenter="handleElementHover('priceSphere')"
+          @mouseleave="handleElementLeave"
+        >
+          <div class="w-3 h-3 bg-green-400 rounded-full"></div>
+          <span class="text-secondary-text">價格點</span>
+        </div>
+        <div
+          class="flex items-center space-x-2 cursor-pointer hover:bg-surface-bg/50 p-1 rounded"
+          @mouseenter="handleElementHover('volumeBar')"
+          @mouseleave="handleElementLeave"
+        >
+          <div class="w-3 h-2 bg-blue-400"></div>
+          <span class="text-secondary-text">成交量</span>
+        </div>
+        <div
+          class="flex items-center space-x-2 cursor-pointer hover:bg-surface-bg/50 p-1 rounded"
+          @mouseenter="handleElementHover('priceLine')"
+          @mouseleave="handleElementLeave"
+        >
+          <div class="w-6 h-0.5 bg-accent-text"></div>
+          <span class="text-secondary-text">趨勢線</span>
+        </div>
+        <div
+          class="flex items-center space-x-2 cursor-pointer hover:bg-surface-bg/50 p-1 rounded"
+          @mouseenter="handleElementHover('fortuneOrb')"
+          @mouseleave="handleElementLeave"
+        >
+          <div class="w-3 h-3 bg-yellow-400 rounded-full animate-pulse"></div>
+          <span class="text-secondary-text">運勢球</span>
+        </div>
+        <div
+          class="flex items-center space-x-2 cursor-pointer hover:bg-surface-bg/50 p-1 rounded"
+          @mouseenter="handleElementHover('particles')"
+          @mouseleave="handleElementLeave"
+        >
+          <div class="flex space-x-1">
+            <div class="w-1 h-1 bg-accent-text rounded-full"></div>
+            <div class="w-1 h-1 bg-accent-text rounded-full"></div>
+            <div class="w-1 h-1 bg-accent-text rounded-full"></div>
+          </div>
+          <span class="text-secondary-text">市場粒子</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- 圖例開關按鈕 -->
+    <button
+      v-if="!showLegend"
+      @click="showLegend = true"
+      class="absolute top-4 right-4 bg-card-bg/80 backdrop-blur-sm border border-border-light rounded-lg p-2 text-xs text-secondary-text hover:text-primary-text"
+    >
+      📊 圖例
+    </button>
+
     <div class="absolute top-4 left-4 text-primary-text">
       <h3 class="text-lg font-semibold mb-2 text-primary-text">{{ title }}</h3>
       <div class="text-sm space-y-1">

@@ -68,6 +68,21 @@ const threeContainer = ref<HTMLElement>()
 let scene: ThreeJSScene | null = null
 let indicatorGroup: THREE.Group | null = null
 
+// 互動狀態管理
+const hoveredElement = ref<string | null>(null)
+const mousePosition = ref({ x: 0, y: 0 })
+const showLegend = ref(false)
+
+// 元素說明數據
+type ElementType = 'rsiSphere' | 'macdBar' | 'bollingerRing' | 'kdOscillator' | 'particles'
+const elementDescriptions: Record<ElementType, string> = {
+  rsiSphere: 'RSI球體：相對強弱指標，球體大小反映超買超賣狀態',
+  macdBar: 'MACD柱：移動平均線收散，高度和顏色表示趨勢強度',
+  bollingerRing: '布林帶環：價格通道上下軌，旋轉這度表示波動率',
+  kdOscillator: 'KD振盪器：两根柱子代表K值和D值，交叉信號重要',
+  particles: '連接粒子：流動粒子連接各指標，表示市場相關性',
+}
+
 // 清理所有動畫
 const cleanupAnimations = () => {
   animationRefs.clear()
@@ -408,6 +423,25 @@ onUnmounted(() => {
   cleanup()
 })
 
+// 鼠標事件處理
+const handleMouseMove = (event: MouseEvent) => {
+  const rect = threeContainer.value?.getBoundingClientRect()
+  if (!rect) return
+
+  mousePosition.value = {
+    x: event.clientX - rect.left,
+    y: event.clientY - rect.top,
+  }
+}
+
+const handleElementHover = (elementType: ElementType) => {
+  hoveredElement.value = elementType
+}
+
+const handleElementLeave = () => {
+  hoveredElement.value = null
+}
+
 // 監聽主題變化
 watch(isDark, newTheme => {
   if (!scene) return
@@ -433,8 +467,113 @@ watch(
 <template>
   <div
     class="relative w-full h-full bg-gradient-to-br from-surface-bg/50 via-card-bg to-surface-bg rounded-lg overflow-hidden border border-border-light"
+    @mousemove="handleMouseMove"
   >
     <div ref="threeContainer" class="w-full h-full"></div>
+
+    <!-- 動態懸停說明 -->
+    <div
+      v-if="hoveredElement"
+      :style="{ left: mousePosition.x + 10 + 'px', top: mousePosition.y - 10 + 'px' }"
+      class="absolute z-10 bg-card-bg/90 backdrop-blur-sm border border-border-light rounded-lg p-3 shadow-lg pointer-events-none max-w-xs"
+    >
+      <div class="text-sm font-medium text-primary-text mb-1">
+        {{
+          hoveredElement === 'rsiSphere'
+            ? 'RSI 相對強弱指標'
+            : hoveredElement === 'macdBar'
+              ? 'MACD 線'
+              : hoveredElement === 'bollingerRing'
+                ? '布林帶'
+                : hoveredElement === 'kdOscillator'
+                  ? 'KD 振盪器'
+                  : '連接粒子'
+        }}
+      </div>
+      <div class="text-xs text-secondary-text">
+        {{ elementDescriptions[hoveredElement as ElementType] }}
+      </div>
+    </div>
+
+    <!-- 技術指標圖例 -->
+    <div
+      v-if="showLegend"
+      class="absolute top-4 right-4 bg-card-bg/80 backdrop-blur-sm border border-border-light rounded-lg p-3 w-56"
+    >
+      <div class="flex justify-between items-center mb-2">
+        <h4 class="text-sm font-semibold text-primary-text">技術分析</h4>
+        <button
+          @click="showLegend = false"
+          class="text-xs text-secondary-text hover:text-primary-text"
+        >
+          ×
+        </button>
+      </div>
+      <div class="space-y-2 text-xs">
+        <div
+          class="flex items-center justify-between cursor-pointer hover:bg-surface-bg/50 p-1 rounded"
+          @mouseenter="handleElementHover('rsiSphere')"
+          @mouseleave="handleElementLeave"
+        >
+          <div class="flex items-center space-x-2">
+            <div class="w-3 h-3 rounded-full" :class="rsiColor.replace('text-', 'bg-')"></div>
+            <span class="text-secondary-text">RSI</span>
+          </div>
+          <span :class="rsiColor" class="font-mono text-xs">{{ indicators.rsi.toFixed(1) }}</span>
+        </div>
+        <div
+          class="flex items-center justify-between cursor-pointer hover:bg-surface-bg/50 p-1 rounded"
+          @mouseenter="handleElementHover('macdBar')"
+          @mouseleave="handleElementLeave"
+        >
+          <div class="flex items-center space-x-2">
+            <div class="w-2 h-4" :class="macdColor.replace('text-', 'bg-')"></div>
+            <span class="text-secondary-text">MACD</span>
+          </div>
+          <span :class="macdColor" class="font-mono text-xs">{{ indicators.macd.toFixed(2) }}</span>
+        </div>
+        <div
+          class="flex items-center justify-between cursor-pointer hover:bg-surface-bg/50 p-1 rounded"
+          @mouseenter="handleElementHover('bollingerRing')"
+          @mouseleave="handleElementLeave"
+        >
+          <div class="flex items-center space-x-2">
+            <div class="w-3 h-0.5 rounded-full" :class="bollColor.replace('text-', 'bg-')"></div>
+            <span class="text-secondary-text">布林帶</span>
+          </div>
+          <span :class="bollColor" class="text-xs">{{ indicators.bollingerBand }}</span>
+        </div>
+        <div
+          class="flex items-center justify-between cursor-pointer hover:bg-surface-bg/50 p-1 rounded"
+          @mouseenter="handleElementHover('kdOscillator')"
+          @mouseleave="handleElementLeave"
+        >
+          <div class="flex items-center space-x-2">
+            <div class="flex space-x-0.5">
+              <div class="w-0.5 h-3 bg-blue-400"></div>
+              <div class="w-0.5 h-3 bg-purple-400"></div>
+            </div>
+            <span class="text-secondary-text">KD</span>
+          </div>
+          <span class="text-accent-text font-mono text-xs">
+            {{ indicators.kd.k.toFixed(1) }}/{{ indicators.kd.d.toFixed(1) }}
+          </span>
+        </div>
+      </div>
+      <div class="mt-3 pt-2 border-t border-border-light text-center">
+        <div class="text-lg font-bold" :class="overallSignalColor">{{ overallSignal }}</div>
+        <div class="text-xs text-secondary-text">總合信號</div>
+      </div>
+    </div>
+
+    <!-- 圖例開關 -->
+    <button
+      v-if="!showLegend"
+      @click="showLegend = true"
+      class="absolute top-4 right-4 bg-card-bg/80 backdrop-blur-sm border border-border-light rounded-lg p-2 text-xs text-secondary-text hover:text-primary-text"
+    >
+      📈 指標
+    </button>
     <div class="absolute top-4 left-4 text-primary-text">
       <h3 class="text-lg font-semibold mb-2 text-primary-text">{{ title }}</h3>
       <div class="text-sm space-y-1">

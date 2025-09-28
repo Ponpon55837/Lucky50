@@ -61,6 +61,30 @@ const threeContainer = ref<HTMLElement>()
 let scene: ThreeJSScene | null = null
 let lunarGroup: THREE.Group | null = null
 
+// 互動狀態管理
+const hoveredElement = ref<string | null>(null)
+const mousePosition = ref({ x: 0, y: 0 })
+const showLegend = ref(false)
+
+// 元素說明數據
+type ElementType =
+  | 'moon'
+  | 'solarTermRings'
+  | 'suitableBars'
+  | 'avoidBars'
+  | 'celestialWheel'
+  | 'fortuneIndicator'
+  | 'starField'
+const elementDescriptions: Record<ElementType, string> = {
+  moon: '月亮：農曆的核心，大小和光苒表示當日月相能量',
+  solarTermRings: '節氣環：二十四節氣的能量環，不同層級代表時節影響',
+  suitableBars: '宜事柱：綠色柱子代表當日適宜做的事情',
+  avoidBars: '忌事柱：紅色柱子代表當日需要送免的事情',
+  celestialWheel: '天干地支：外圈地支和內圈天干，表示時空能量',
+  fortuneIndicator: '運勢指示器：中心柱子代表綜合投資運勢分數',
+  starField: '星空背景：閃爜的星星製造宇宙氛圍',
+}
+
 // 清理所有動畫
 const cleanupAnimations = () => {
   animationRefs.clear()
@@ -542,6 +566,25 @@ onUnmounted(() => {
   cleanup()
 })
 
+// 鼠標事件處理
+const handleMouseMove = (event: MouseEvent) => {
+  const rect = threeContainer.value?.getBoundingClientRect()
+  if (!rect) return
+
+  mousePosition.value = {
+    x: event.clientX - rect.left,
+    y: event.clientY - rect.top,
+  }
+}
+
+const handleElementHover = (elementType: ElementType) => {
+  hoveredElement.value = elementType
+}
+
+const handleElementLeave = () => {
+  hoveredElement.value = null
+}
+
 // 監聽主題變化 - 優化重新創建邏輯
 watch(isDark, newTheme => {
   if (!scene) return
@@ -568,8 +611,133 @@ watch(
 <template>
   <div
     class="relative w-full h-full bg-gradient-to-br from-surface-bg/50 via-card-bg to-surface-bg rounded-lg overflow-hidden border border-border-light"
+    @mousemove="handleMouseMove"
   >
     <div ref="threeContainer" class="w-full h-full"></div>
+
+    <!-- 動態懸停說明 -->
+    <div
+      v-if="hoveredElement"
+      :style="{ left: mousePosition.x + 10 + 'px', top: mousePosition.y - 10 + 'px' }"
+      class="absolute z-10 bg-card-bg/90 backdrop-blur-sm border border-border-light rounded-lg p-3 shadow-lg pointer-events-none max-w-xs"
+    >
+      <div class="text-sm font-medium text-primary-text mb-1">
+        {{
+          hoveredElement === 'moon'
+            ? '月亮能量球'
+            : hoveredElement === 'solarTermRings'
+              ? '節氣環系'
+              : hoveredElement === 'suitableBars'
+                ? '宜事指示'
+                : hoveredElement === 'avoidBars'
+                  ? '忌事指示'
+                  : hoveredElement === 'celestialWheel'
+                    ? '天干地支輪'
+                    : hoveredElement === 'fortuneIndicator'
+                      ? '運勢指示器'
+                      : '星空背景'
+        }}
+      </div>
+      <div class="text-xs text-secondary-text">
+        {{ elementDescriptions[hoveredElement as ElementType] }}
+      </div>
+    </div>
+
+    <!-- 農曆分析圖例 -->
+    <div
+      v-if="showLegend"
+      class="absolute top-4 right-4 bg-card-bg/80 backdrop-blur-sm border border-border-light rounded-lg p-3 w-56"
+    >
+      <div class="flex justify-between items-center mb-2">
+        <h4 class="text-sm font-semibold text-primary-text">農曆分析</h4>
+        <button
+          @click="showLegend = false"
+          class="text-xs text-secondary-text hover:text-primary-text"
+        >
+          ×
+        </button>
+      </div>
+      <div class="space-y-2 text-xs">
+        <div
+          class="flex items-center justify-between cursor-pointer hover:bg-surface-bg/50 p-1 rounded"
+          @mouseenter="handleElementHover('moon')"
+          @mouseleave="handleElementLeave"
+        >
+          <div class="flex items-center space-x-2">
+            <div
+              class="w-3 h-3 bg-gradient-to-r from-yellow-300 to-orange-300 rounded-full animate-pulse"
+            ></div>
+            <span class="text-secondary-text">月亮</span>
+          </div>
+          <span class="text-accent-text text-xs">中心能量</span>
+        </div>
+        <div
+          class="flex items-center justify-between cursor-pointer hover:bg-surface-bg/50 p-1 rounded"
+          @mouseenter="handleElementHover('solarTermRings')"
+          @mouseleave="handleElementLeave"
+        >
+          <div class="flex items-center space-x-2">
+            <div class="flex space-x-0.5">
+              <div class="w-0.5 h-0.5 bg-green-400 rounded-full"></div>
+              <div class="w-0.5 h-0.5 bg-yellow-400 rounded-full"></div>
+              <div class="w-0.5 h-0.5 bg-blue-400 rounded-full"></div>
+            </div>
+            <span class="text-secondary-text">節氣</span>
+          </div>
+          <span class="text-success-text text-xs">{{ solarTerm }}</span>
+        </div>
+        <div
+          class="flex items-center justify-between cursor-pointer hover:bg-surface-bg/50 p-1 rounded"
+          @mouseenter="handleElementHover('suitableBars')"
+          @mouseleave="handleElementLeave"
+        >
+          <div class="flex items-center space-x-2">
+            <div class="flex space-x-0.5">
+              <div class="w-0.5 h-3 bg-green-400"></div>
+              <div class="w-0.5 h-2 bg-green-400"></div>
+              <div class="w-0.5 h-4 bg-green-400"></div>
+            </div>
+            <span class="text-secondary-text">宜</span>
+          </div>
+          <span class="text-success-text text-xs">{{ suitable?.slice(0, 2).join(', ') }}</span>
+        </div>
+        <div
+          class="flex items-center justify-between cursor-pointer hover:bg-surface-bg/50 p-1 rounded"
+          @mouseenter="handleElementHover('avoidBars')"
+          @mouseleave="handleElementLeave"
+        >
+          <div class="flex items-center space-x-2">
+            <div class="flex space-x-0.5">
+              <div class="w-0.5 h-2 bg-red-400"></div>
+              <div class="w-0.5 h-3 bg-red-400"></div>
+              <div class="w-0.5 h-2 bg-red-400"></div>
+            </div>
+            <span class="text-secondary-text">忌</span>
+          </div>
+          <span class="text-error-text text-xs">{{ avoid?.slice(0, 2).join(', ') }}</span>
+        </div>
+        <div
+          class="flex items-center justify-between cursor-pointer hover:bg-surface-bg/50 p-1 rounded"
+          @mouseenter="handleElementHover('celestialWheel')"
+          @mouseleave="handleElementLeave"
+        >
+          <div class="flex items-center space-x-2">
+            <div class="w-3 h-3 bg-gradient-to-r from-purple-400 to-blue-400 rounded"></div>
+            <span class="text-secondary-text">天干地支</span>
+          </div>
+          <span class="text-info-text text-xs">新轉</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- 圖例開關 -->
+    <button
+      v-if="!showLegend"
+      @click="showLegend = true"
+      class="absolute top-4 right-4 bg-card-bg/80 backdrop-blur-sm border border-border-light rounded-lg p-2 text-xs text-secondary-text hover:text-primary-text"
+    >
+      🌙 農曆
+    </button>
     <div class="absolute top-4 left-4 text-primary-text">
       <h3 class="text-lg font-semibold mb-2 text-primary-text">{{ title }}</h3>
       <div class="text-sm space-y-1">
