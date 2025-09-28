@@ -15,30 +15,86 @@ interface Props {
   title?: string
 }
 
+// 配置常量
+const ANIMATION_CONFIG = {
+  moon: {
+    radius: 1.2,
+    breathScale: 0.15,
+    breathSpeed: 0.8,
+    rotationSpeed: { x: 0.003, y: 0.005, z: 0.002 },
+  },
+  solarTerms: {
+    layers: 3,
+    baseRadius: 2.2,
+    layerSpacing: 0.5,
+    baseThickness: 0.08,
+    thicknessIncrement: 0.02,
+  },
+  celestial: {
+    branches: { count: 12, radius: 5.5 },
+    stems: { count: 10, radius: 3.5 },
+  },
+  stars: {
+    count: 800,
+    minRadius: 12,
+    maxRadius: 37,
+    minSize: 0.03,
+    maxSize: 0.15,
+  },
+  bars: {
+    suitable: { baseRadius: 4.0, maxCount: 6 },
+    avoid: { baseRadius: 4.0, maxCount: 6 },
+  },
+} as const
+
+type FortuneLevel = '大吉' | '吉' | '平' | '忌'
+type AnimationRefs = Set<() => void>
+
 const { title = '農民曆 3D 展示' } = defineProps<Props>()
 
 const { isDark } = useTheme()
 const dashboardStore = useDashboardStore()
 
-// 從 store 獲取數據
+// 動畫管理
+const animationRefs: AnimationRefs = new Set()
+const threeContainer = ref<HTMLElement>()
+let scene: ThreeJSScene | null = null
+let lunarGroup: THREE.Group | null = null
+
+// 清理所有動畫
+const cleanupAnimations = () => {
+  animationRefs.clear()
+}
+
+// 註冊動畫循環
+const registerAnimation = (animationFn: () => void) => {
+  animationRefs.add(animationFn)
+  return animationFn
+}
+
+// 從 store 獲取數據 - 優化計算屬性
+const lunarData = computed(() => dashboardStore.lunarData)
+
 const lunarDate = computed(() => {
-  if (!dashboardStore.lunarData) return '乙巳年八月初五'
-  return (
-    `${dashboardStore.lunarData.lunarYear || ''}年${dashboardStore.lunarData.lunarMonth || ''}月${dashboardStore.lunarData.lunarDay || ''}` ||
-    '乙巳年八月初五'
-  )
+  const data = lunarData.value
+  if (!data) return '乙巳年八月初五'
+
+  const { lunarYear = '', lunarMonth = '', lunarDay = '' } = data
+  return lunarYear && lunarMonth && lunarDay
+    ? `${lunarYear}年${lunarMonth}月${lunarDay}`
+    : '乙巳年八月初五'
 })
 
-const solarTerm = computed(() => dashboardStore.lunarData?.jieQi || '秋分')
+const solarTerm = computed(() => lunarData.value?.jieQi || '秋分')
 
-const suitable = computed(() => dashboardStore.lunarData?.yi || ['開市', '投資', '求財', '交易'])
+const suitable = computed(() => lunarData.value?.yi || ['開市', '投資', '求財', '交易'])
 
-const avoid = computed(() => dashboardStore.lunarData?.ji || ['出行', '搬遷', '動土', '結婚'])
+const avoid = computed(() => lunarData.value?.ji || ['出行', '搬遷', '動土', '結婚'])
 
-// 使用與 Dashboard 相同的運勢邏輯
+// 運勢相關計算 - 提取為獨立邏輯
 const fortuneScore = computed(() => dashboardStore.unifiedInvestmentScore || 50)
 
-const fortuneLevel = computed(() => {
+const fortuneLevel = computed((): FortuneLevel => {
   const score = fortuneScore.value
   if (score >= 80) return '大吉'
   if (score >= 65) return '吉'
@@ -54,303 +110,283 @@ const fortuneColor = computed(() => {
   return 'text-red-400'
 })
 
-const threeContainer = ref<HTMLElement>()
-let scene: ThreeJSScene | null = null
-let lunarGroup: THREE.Group | null = null
+const fortuneThemeColor = computed(() => {
+  const score = fortuneScore.value
+  if (score >= 80) return 'success'
+  if (score >= 65) return 'warning'
+  if (score >= 35) return 'info'
+  return 'danger'
+})
 
-// 創建農民曆可視化
-const createLunarVisualization = () => {
-  if (!scene || !lunarGroup) return
+// 創建月亮組件
+const createMoon = (): THREE.Mesh => {
+  const { radius, breathScale, breathSpeed, rotationSpeed } = ANIMATION_CONFIG.moon
 
-  // 清空現有內容
-  lunarGroup.clear()
-
-  // 創建動態月相球
-  const moonRadius = 1.2
-  const moonGeometry = new THREE.IcosahedronGeometry(moonRadius, 3)
-  const moonColor = getThemeColor('accent', isDark.value)
-  const moonMaterial = createThemeGlowMaterial(moonColor, 0.9, isDark.value)
-  const moon = new THREE.Mesh(moonGeometry, moonMaterial)
+  const geometry = new THREE.IcosahedronGeometry(radius, 3)
+  const color = getThemeColor('accent', isDark.value)
+  const material = createThemeGlowMaterial(color, 0.9, isDark.value)
+  const moon = new THREE.Mesh(geometry, material)
   moon.position.set(0, 1.5, 0)
 
-  // 月亮呼吸和旋轉動畫
-  const animateMoon = () => {
-    if (moon.parent) {
-      const time = Date.now() * 0.001
-      const scale = 1 + Math.sin(time * 0.8) * 0.15
-      moon.scale.setScalar(scale)
-      moon.rotation.x += 0.003
-      moon.rotation.y += 0.005
-      moon.rotation.z += 0.002
-      requestAnimationFrame(animateMoon)
-    }
-  }
-  animateMoon()
-  lunarGroup.add(moon)
+  // 統一的月亮動畫
+  const animate = () => {
+    if (!moon.parent) return
 
-  // 創建多層二十四節氣環系統
-  for (let layer = 0; layer < 3; layer++) {
-    const solarTermRadius = 2.2 + layer * 0.5
-    const solarTermGeometry = new THREE.TorusGeometry(solarTermRadius, 0.08 + layer * 0.02, 12, 80)
-    const solarTermColor =
-      layer === 0
-        ? getThemeColor('success', isDark.value)
-        : layer === 1
-          ? getThemeColor('warning', isDark.value)
-          : getThemeColor('info', isDark.value)
-    const solarTermMaterial = createThemeGlowMaterial(
-      solarTermColor,
-      0.8 - layer * 0.1,
-      isDark.value
+    const time = Date.now() * 0.001
+    const scale = 1 + Math.sin(time * breathSpeed) * breathScale
+    moon.scale.setScalar(scale)
+    moon.rotation.x += rotationSpeed.x
+    moon.rotation.y += rotationSpeed.y
+    moon.rotation.z += rotationSpeed.z
+
+    requestAnimationFrame(animate)
+  }
+
+  registerAnimation(animate)
+  animate()
+
+  return moon
+}
+
+// 創建節氣環系統
+const createSolarTermRings = (): THREE.Mesh[] => {
+  const rings: THREE.Mesh[] = []
+  const { layers, baseRadius, layerSpacing, baseThickness, thicknessIncrement } =
+    ANIMATION_CONFIG.solarTerms
+
+  for (let layer = 0; layer < layers; layer++) {
+    const radius = baseRadius + layer * layerSpacing
+    const thickness = baseThickness + layer * thicknessIncrement
+
+    const geometry = new THREE.TorusGeometry(radius, thickness, 12, 80)
+    const colorType = layer === 0 ? 'success' : layer === 1 ? 'warning' : 'info'
+    const color = getThemeColor(colorType, isDark.value)
+    const material = createThemeGlowMaterial(color, 0.8 - layer * 0.1, isDark.value)
+
+    const ring = new THREE.Mesh(geometry, material)
+    ring.position.set(0, 0, 0)
+    ring.rotation.x = Math.PI / 2 + (layer * Math.PI) / 12
+    ring.rotation.z = (layer * Math.PI) / 6
+
+    // 環形動畫
+    const animate = () => {
+      if (!ring.parent) return
+
+      ring.rotation.z += (0.005 + layer * 0.003) * (layer % 2 === 0 ? 1 : -1)
+      ring.rotation.y += 0.002 * (layer + 1)
+
+      requestAnimationFrame(animate)
+    }
+
+    registerAnimation(animate)
+    animate()
+    rings.push(ring)
+  }
+
+  return rings
+}
+
+// 創建指示柱（通用函數）
+const createIndicatorBars = (
+  items: string[],
+  config: { baseRadius: number; maxCount: number },
+  colorType: 'success' | 'danger',
+  startAngle: number,
+  yOffset: number,
+  isUpward: boolean = true
+): THREE.Mesh[] => {
+  if (!items?.length) return []
+
+  const bars: THREE.Mesh[] = []
+  const count = Math.min(items.length, config.maxCount)
+
+  for (let i = 0; i < count; i++) {
+    const height = isUpward ? 1.2 + Math.random() * 0.8 : 1.0 + Math.random() * 0.6
+    const geometry = isUpward
+      ? new THREE.CylinderGeometry(0.12, 0.18, height, 8)
+      : new THREE.CylinderGeometry(0.18, 0.12, height, 8)
+
+    const color = getThemeColor(colorType, isDark.value)
+    const material = createThemeGlowMaterial(color, 0.9, isDark.value)
+    const bar = new THREE.Mesh(geometry, material)
+
+    const angle = (i / count) * Math.PI + startAngle
+    bar.position.set(
+      Math.cos(angle) * config.baseRadius,
+      yOffset + (isUpward ? height / 2 - 0.5 : -height / 2 + 0.5),
+      Math.sin(angle) * config.baseRadius
     )
-    const solarTermRing = new THREE.Mesh(solarTermGeometry, solarTermMaterial)
-    solarTermRing.position.set(0, 0, 0)
-    solarTermRing.rotation.x = Math.PI / 2 + (layer * Math.PI) / 12
-    solarTermRing.rotation.z = (layer * Math.PI) / 6
 
-    // 每層環不同速度旋轉
-    const animateRing = () => {
-      if (solarTermRing.parent) {
-        solarTermRing.rotation.z += (0.005 + layer * 0.003) * (layer % 2 === 0 ? 1 : -1)
-        solarTermRing.rotation.y += 0.002 * (layer + 1)
-        requestAnimationFrame(animateRing)
-      }
-    }
-    animateRing()
-    lunarGroup.add(solarTermRing)
-  }
+    // 動態出現動畫
+    bar.scale.y = 0
+    const delay = isUpward ? i * 200 : i * 250 + 1000
 
-  // 創建宜做指示柱群組 - 增強視覺
-  if (suitable.value && suitable.value.length > 0) {
-    const suitableCount = Math.min(suitable.value.length, 6)
-    for (let i = 0; i < suitableCount; i++) {
-      const height = 1.2 + Math.random() * 0.8
-      const suitableGeometry = new THREE.CylinderGeometry(0.12, 0.18, height, 8)
-      const suitableColor = getThemeColor('success', isDark.value)
-      const suitableMaterial = createThemeGlowMaterial(suitableColor, 0.9, isDark.value)
-      const suitableBar = new THREE.Mesh(suitableGeometry, suitableMaterial)
+    setTimeout(() => {
+      const animateScale = () => {
+        bar.scale.y += (1 - bar.scale.y) * 0.06
+        if (Math.abs(1 - bar.scale.y) > 0.01) {
+          requestAnimationFrame(animateScale)
+        } else {
+          // 輕微搖擺
+          const sway = () => {
+            if (!bar.parent) return
 
-      const angle = (i / suitableCount) * Math.PI + Math.PI / 4
-      const radius = 4.0
-      suitableBar.position.set(Math.cos(angle) * radius, height / 2 - 0.5, Math.sin(angle) * radius)
+            const time = Date.now() * 0.002 + i + (isUpward ? 0 : Math.PI)
+            bar.rotation.z = Math.sin(time) * 0.08
+            bar.rotation.x = Math.cos(time * 0.7) * 0.05
 
-      // 漸進上升動畫
-      suitableBar.scale.y = 0
-      setTimeout(() => {
-        const animateUp = () => {
-          suitableBar.scale.y += (1 - suitableBar.scale.y) * 0.06
-          if (Math.abs(1 - suitableBar.scale.y) > 0.01) {
-            requestAnimationFrame(animateUp)
-          } else {
-            // 輕微搖擺
-            const sway = () => {
-              if (suitableBar.parent) {
-                const time = Date.now() * 0.002 + i
-                suitableBar.rotation.z = Math.sin(time) * 0.08
-                suitableBar.rotation.x = Math.cos(time * 0.7) * 0.05
-                requestAnimationFrame(sway)
-              }
-            }
-            sway()
+            requestAnimationFrame(sway)
           }
+          registerAnimation(sway)
+          sway()
         }
-        animateUp()
-      }, i * 200)
+      }
+      animateScale()
+    }, delay)
 
-      lunarGroup.add(suitableBar)
-    }
+    bars.push(bar)
   }
 
-  // 創建忌做指示柱群組 - 增強視覺
-  if (avoid.value && avoid.value.length > 0) {
-    const avoidCount = Math.min(avoid.value.length, 6)
-    for (let i = 0; i < avoidCount; i++) {
-      const height = 1.0 + Math.random() * 0.6
-      const avoidGeometry = new THREE.CylinderGeometry(0.18, 0.12, height, 8)
-      const avoidColor = getThemeColor('danger', isDark.value)
-      const avoidMaterial = createThemeGlowMaterial(avoidColor, 0.9, isDark.value)
-      const avoidBar = new THREE.Mesh(avoidGeometry, avoidMaterial)
+  return bars
+}
 
-      const angle = (i / avoidCount) * Math.PI + (Math.PI * 5) / 4
-      const radius = 4.0
-      avoidBar.position.set(Math.cos(angle) * radius, -height / 2 + 0.5, Math.sin(angle) * radius)
-
-      // 漸進下降動畫
-      avoidBar.scale.y = 0
-      setTimeout(
-        () => {
-          const animateDown = () => {
-            avoidBar.scale.y += (1 - avoidBar.scale.y) * 0.06
-            if (Math.abs(1 - avoidBar.scale.y) > 0.01) {
-              requestAnimationFrame(animateDown)
-            } else {
-              // 輕微搖擺
-              const sway = () => {
-                if (avoidBar.parent) {
-                  const time = Date.now() * 0.002 + i + Math.PI
-                  avoidBar.rotation.z = Math.sin(time) * 0.08
-                  avoidBar.rotation.x = Math.cos(time * 0.7) * 0.05
-                  requestAnimationFrame(sway)
-                }
-              }
-              sway()
-            }
-          }
-          animateDown()
-        },
-        i * 250 + 1000
-      )
-
-      lunarGroup.add(avoidBar)
-    }
-  }
-
-  // 創建投資運勢指示器 - 增強效果
-  const luckHeight = 2.5
-  const luckGeometry = new THREE.CylinderGeometry(0.4, 0.6, luckHeight, 12)
+// 創建運勢指示器
+const createFortuneIndicator = (): THREE.Mesh => {
+  const height = 2.5
+  const geometry = new THREE.CylinderGeometry(0.4, 0.6, height, 12)
+  const color = getThemeColor(fortuneThemeColor.value, isDark.value)
   const score = fortuneScore.value
   const isExcellent = score >= 80
-  const isGood = score >= 65
-  const isAverage = score >= 35
+  const material = createThemeGlowMaterial(color, isExcellent ? 1.0 : 0.7, isDark.value)
 
-  const luckColor = isExcellent
-    ? getThemeColor('success', isDark.value) // 大吉 - 綠色
-    : isGood
-      ? getThemeColor('warning', isDark.value) // 吉 - 黃色
-      : isAverage
-        ? getThemeColor('info', isDark.value) // 平 - 藍色
-        : getThemeColor('danger', isDark.value) // 忌 - 紅色
-  const luckMaterial = createThemeGlowMaterial(luckColor, isExcellent ? 1.0 : 0.7, isDark.value)
-  const luckIndicator = new THREE.Mesh(luckGeometry, luckMaterial)
-  luckIndicator.position.set(0, -1.5, 2.0)
+  const indicator = new THREE.Mesh(geometry, material)
+  indicator.position.set(0, -1.5, 2.0)
 
-  // 投資運勢脈動動畫 - 根據運勢等級調整強度
-  const animateLuck = () => {
-    if (luckIndicator.parent) {
-      const time = Date.now() * 0.003
-      const intensity = isExcellent ? 1.2 : isGood ? 1.0 : isAverage ? 0.8 : 0.6
-      const scale = 1 + Math.sin(time) * 0.1 * intensity
-      luckIndicator.scale.setScalar(scale)
-      luckIndicator.rotation.y += 0.01 * intensity
-      requestAnimationFrame(animateLuck)
-    }
+  // 脈動動畫
+  const animate = () => {
+    if (!indicator.parent) return
+
+    const time = Date.now() * 0.003
+    const intensity = isExcellent ? 1.2 : score >= 65 ? 1.0 : score >= 35 ? 0.8 : 0.6
+    const scale = 1 + Math.sin(time) * 0.1 * intensity
+    indicator.scale.setScalar(scale)
+    indicator.rotation.y += 0.01 * intensity
+
+    requestAnimationFrame(animate)
   }
-  animateLuck()
-  lunarGroup.add(luckIndicator)
 
-  // 創建天干地支星座
-  createCelestialWheel()
+  registerAnimation(animate)
+  animate()
 
-  // 創建星星粒子效果
-  createEnhancedStarField()
+  return indicator
 }
 
 // 創建天干地支星座
-const createCelestialWheel = () => {
-  if (!lunarGroup) return
+const createCelestialWheel = (): THREE.Mesh[] => {
+  const celestialObjects: THREE.Mesh[] = []
+  const { branches, stems } = ANIMATION_CONFIG.celestial
 
   // 地支外環 (12個) - 子丑寅卯辰巳午未申酉戌亥
-  for (let i = 0; i < 12; i++) {
-    const angle = (i / 12) * Math.PI * 2
-    const radius = 5.5
+  for (let i = 0; i < branches.count; i++) {
+    const angle = (i / branches.count) * Math.PI * 2
 
-    const branchGeometry = new THREE.OctahedronGeometry(0.2, 0)
-    const branchColor =
-      i % 3 === 0
-        ? getThemeColor('primary', isDark.value)
-        : i % 3 === 1
-          ? getThemeColor('secondary', isDark.value)
-          : getThemeColor('accent', isDark.value)
-    const branchMaterial = createThemeGlowMaterial(branchColor, 0.8, isDark.value)
-    const branchShape = new THREE.Mesh(branchGeometry, branchMaterial)
+    const geometry = new THREE.OctahedronGeometry(0.2, 0)
+    const colorType = i % 3 === 0 ? 'primary' : i % 3 === 1 ? 'secondary' : 'accent'
+    const color = getThemeColor(colorType, isDark.value)
+    const material = createThemeGlowMaterial(color, 0.8, isDark.value)
+    const branch = new THREE.Mesh(geometry, material)
 
-    branchShape.position.set(
-      Math.cos(angle) * radius,
+    branch.position.set(
+      Math.cos(angle) * branches.radius,
       Math.sin(i * 0.3) * 0.8,
-      Math.sin(angle) * radius
+      Math.sin(angle) * branches.radius
     )
 
-    // 地支自轉和軌道運動
-    const animateBranch = () => {
-      if (branchShape.parent) {
-        const time = Date.now() * 0.001 + i * 0.5
-        branchShape.rotation.x += 0.008 + i * 0.001
-        branchShape.rotation.y += 0.012 + i * 0.002
-        branchShape.position.y = Math.sin(time * 0.8) * 0.5 + Math.sin(i * 0.3) * 0.8
+    // 地支動畫
+    const animate = () => {
+      if (!branch.parent) return
 
-        // 順時針軌道運動
-        const orbitTime = Date.now() * 0.0003 + (i * Math.PI * 2) / 12
-        branchShape.position.x = Math.cos(orbitTime) * radius
-        branchShape.position.z = Math.sin(orbitTime) * radius
+      const time = Date.now() * 0.001 + i * 0.5
+      branch.rotation.x += 0.008 + i * 0.001
+      branch.rotation.y += 0.012 + i * 0.002
+      branch.position.y = Math.sin(time * 0.8) * 0.5 + Math.sin(i * 0.3) * 0.8
 
-        requestAnimationFrame(animateBranch)
-      }
+      // 順時針軌道運動
+      const orbitTime = Date.now() * 0.0003 + (i * Math.PI * 2) / branches.count
+      branch.position.x = Math.cos(orbitTime) * branches.radius
+      branch.position.z = Math.sin(orbitTime) * branches.radius
+
+      requestAnimationFrame(animate)
     }
-    animateBranch()
 
-    lunarGroup.add(branchShape)
+    registerAnimation(animate)
+    animate()
+    celestialObjects.push(branch)
   }
 
   // 天干內環 (10個) - 甲乙丙丁戊己庚辛壬癸
-  for (let i = 0; i < 10; i++) {
-    const angle = (i / 10) * Math.PI * 2
-    const radius = 3.5
+  for (let i = 0; i < stems.count; i++) {
+    const angle = (i / stems.count) * Math.PI * 2
 
-    const stemGeometry = new THREE.TetrahedronGeometry(0.25, 1)
-    const stemColor = getThemeColor('warning', isDark.value)
-    const stemMaterial = createThemeGlowMaterial(stemColor, 0.9, isDark.value)
-    const stemShape = new THREE.Mesh(stemGeometry, stemMaterial)
+    const geometry = new THREE.TetrahedronGeometry(0.25, 1)
+    const color = getThemeColor('warning', isDark.value)
+    const material = createThemeGlowMaterial(color, 0.9, isDark.value)
+    const stem = new THREE.Mesh(geometry, material)
 
-    stemShape.position.set(
-      Math.cos(angle) * radius,
+    stem.position.set(
+      Math.cos(angle) * stems.radius,
       Math.cos(i * 0.4) * 1.2 + 0.8,
-      Math.sin(angle) * radius
+      Math.sin(angle) * stems.radius
     )
 
     // 天干反向旋轉
-    const animateStem = () => {
-      if (stemShape.parent) {
-        const time = Date.now() * 0.001 + i * 0.6
-        stemShape.rotation.x += 0.015 - i * 0.001
-        stemShape.rotation.y -= 0.018 + i * 0.002
-        stemShape.rotation.z += 0.01
+    const animate = () => {
+      if (!stem.parent) return
 
-        // 上下波動
-        stemShape.position.y = Math.cos(time * 1.2) * 0.6 + Math.cos(i * 0.4) * 1.2 + 0.8
+      const time = Date.now() * 0.001 + i * 0.6
+      stem.rotation.x += 0.015 - i * 0.001
+      stem.rotation.y -= 0.018 + i * 0.002
+      stem.rotation.z += 0.01
 
-        // 逆時針軌道運動
-        const orbitTime = -Date.now() * 0.0005 + (i * Math.PI * 2) / 10
-        stemShape.position.x = Math.cos(orbitTime) * radius
-        stemShape.position.z = Math.sin(orbitTime) * radius
+      // 上下波動
+      stem.position.y = Math.cos(time * 1.2) * 0.6 + Math.cos(i * 0.4) * 1.2 + 0.8
 
-        requestAnimationFrame(animateStem)
-      }
+      // 逆時針軌道運動
+      const orbitTime = -Date.now() * 0.0005 + (i * Math.PI * 2) / stems.count
+      stem.position.x = Math.cos(orbitTime) * stems.radius
+      stem.position.z = Math.sin(orbitTime) * stems.radius
+
+      requestAnimationFrame(animate)
     }
-    animateStem()
 
-    lunarGroup.add(stemShape)
+    registerAnimation(animate)
+    animate()
+    celestialObjects.push(stem)
   }
+
+  return celestialObjects
 }
 
 // 創建增強星空背景
-const createEnhancedStarField = () => {
-  if (!lunarGroup) return
+const createEnhancedStarField = (): THREE.Points => {
+  const { count, minRadius, maxRadius, minSize, maxSize } = ANIMATION_CONFIG.stars
 
-  const starCount = 800
-  const positions = new Float32Array(starCount * 3)
-  const colors = new Float32Array(starCount * 3)
-  const sizes = new Float32Array(starCount)
+  const positions = new Float32Array(count * 3)
+  const colors = new Float32Array(count * 3)
+  const sizes = new Float32Array(count)
 
-  const goldColor = new THREE.Color(0xffd700)
-  const silverColor = new THREE.Color(0xc0c0c0)
-  const blueColor = new THREE.Color(getThemeColor('info', isDark.value))
-  const accentColor = new THREE.Color(getThemeColor('accent', isDark.value))
+  const starColors = [
+    new THREE.Color(0xffd700), // 金色
+    new THREE.Color(0xc0c0c0), // 銀色
+    new THREE.Color(getThemeColor('info', isDark.value)),
+    new THREE.Color(getThemeColor('accent', isDark.value)),
+  ]
 
-  for (let i = 0; i < starCount; i++) {
+  for (let i = 0; i < count; i++) {
     const i3 = i * 3
 
     // 球形星空分布
-    const radius = 12 + Math.random() * 25
+    const radius = minRadius + Math.random() * (maxRadius - minRadius)
     const theta = Math.random() * Math.PI * 2
     const phi = Math.random() * Math.PI
 
@@ -358,32 +394,21 @@ const createEnhancedStarField = () => {
     positions[i3 + 1] = radius * Math.cos(phi)
     positions[i3 + 2] = radius * Math.sin(phi) * Math.sin(theta)
 
-    // 多種星星顏色
-    const colorChoice = Math.random()
-    let starColor
-    if (colorChoice < 0.3) {
-      starColor = goldColor
-    } else if (colorChoice < 0.5) {
-      starColor = silverColor
-    } else if (colorChoice < 0.7) {
-      starColor = blueColor
-    } else {
-      starColor = accentColor
-    }
-
+    // 隨機星星顏色
+    const starColor = starColors[Math.floor(Math.random() * starColors.length)]
     colors[i3] = starColor.r
     colors[i3 + 1] = starColor.g
     colors[i3 + 2] = starColor.b
 
-    sizes[i] = Math.random() * 0.12 + 0.03
+    sizes[i] = minSize + Math.random() * (maxSize - minSize)
   }
 
-  const starGeometry = new THREE.BufferGeometry()
-  starGeometry.setAttribute('position', new THREE.BufferAttribute(positions, 3))
-  starGeometry.setAttribute('color', new THREE.BufferAttribute(colors, 3))
-  starGeometry.setAttribute('size', new THREE.BufferAttribute(sizes, 1))
+  const geometry = new THREE.BufferGeometry()
+  geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3))
+  geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3))
+  geometry.setAttribute('size', new THREE.BufferAttribute(sizes, 1))
 
-  const starMaterial = new THREE.PointsMaterial({
+  const material = new THREE.PointsMaterial({
     size: 0.15,
     vertexColors: true,
     transparent: true,
@@ -392,41 +417,88 @@ const createEnhancedStarField = () => {
     blending: THREE.AdditiveBlending,
   })
 
-  const starField = new THREE.Points(starGeometry, starMaterial)
-  lunarGroup.add(starField)
+  const starField = new THREE.Points(geometry, material)
 
   // 星空旋轉和閃爍動畫
-  const animateStars = () => {
-    if (starField.parent) {
-      starField.rotation.y += 0.0003
-      starField.rotation.x += 0.0001
-      starField.rotation.z += 0.0002
+  const animate = () => {
+    if (!starField.parent) return
 
-      // 星星閃爍效果
-      const colors = starField.geometry.attributes.color.array as Float32Array
-      const sizes = starField.geometry.attributes.size.array as Float32Array
-      const time = Date.now() * 0.001
+    starField.rotation.y += 0.0003
+    starField.rotation.x += 0.0001
+    starField.rotation.z += 0.0002
 
-      for (let i = 0; i < starCount; i++) {
-        const i3 = i * 3
-        const twinkle = ((Math.sin(time * 2 + i * 0.1) + 1) / 2) * 0.4 + 0.6
-        const pulse = ((Math.sin(time * 3 + i * 0.2) + 1) / 2) * 0.3 + 0.7
+    // 星星閃爍效果
+    const colorAttr = starField.geometry.attributes.color.array as Float32Array
+    const sizeAttr = starField.geometry.attributes.size.array as Float32Array
+    const time = Date.now() * 0.001
 
-        // 顏色閃爍
-        colors[i3] *= twinkle
-        colors[i3 + 1] *= twinkle
-        colors[i3 + 2] *= twinkle
+    for (let i = 0; i < count; i++) {
+      const i3 = i * 3
+      const twinkle = ((Math.sin(time * 2 + i * 0.1) + 1) / 2) * 0.4 + 0.6
+      const pulse = ((Math.sin(time * 3 + i * 0.2) + 1) / 2) * 0.3 + 0.7
 
-        // 大小脈動
-        sizes[i] = sizes[i] * pulse
-      }
+      // 顏色閃爍
+      colorAttr[i3] *= twinkle
+      colorAttr[i3 + 1] *= twinkle
+      colorAttr[i3 + 2] *= twinkle
 
-      starField.geometry.attributes.color.needsUpdate = true
-      starField.geometry.attributes.size.needsUpdate = true
-      requestAnimationFrame(animateStars)
+      // 大小脈動
+      sizeAttr[i] *= pulse
     }
+
+    starField.geometry.attributes.color.needsUpdate = true
+    starField.geometry.attributes.size.needsUpdate = true
+
+    requestAnimationFrame(animate)
   }
-  animateStars()
+
+  registerAnimation(animate)
+  animate()
+
+  return starField
+}
+
+// 主要的創建函數 - 重構後更清晰
+const createLunarVisualization = () => {
+  if (!scene || !lunarGroup) return
+
+  // 清空現有內容和動畫
+  lunarGroup.clear()
+  cleanupAnimations()
+
+  // 創建各個組件
+  const moon = createMoon()
+  const solarTermRings = createSolarTermRings()
+  const suitableBars = createIndicatorBars(
+    suitable.value,
+    ANIMATION_CONFIG.bars.suitable,
+    'success',
+    Math.PI / 4,
+    0,
+    true
+  )
+  const avoidBars = createIndicatorBars(
+    avoid.value,
+    ANIMATION_CONFIG.bars.avoid,
+    'danger',
+    (Math.PI * 5) / 4,
+    0,
+    false
+  )
+  const fortuneIndicator = createFortuneIndicator()
+  const celestialObjects = createCelestialWheel()
+  const starField = createEnhancedStarField()
+
+  // 添加所有對象到場景
+  lunarGroup.add(
+    moon,
+    ...solarTermRings,
+    ...suitableBars,
+    ...avoidBars,
+    fortuneIndicator,
+    ...celestialObjects,
+    starField
+  )
 }
 
 // 初始化場景
@@ -452,6 +524,14 @@ const initScene = () => {
   scene.getCamera().lookAt(0, 0, 0)
 }
 
+// 清理資源
+const cleanup = () => {
+  cleanupAnimations()
+  scene?.destroy()
+  scene = null
+  lunarGroup = null
+}
+
 // 生命週期
 onMounted(async () => {
   await nextTick()
@@ -459,25 +539,28 @@ onMounted(async () => {
 })
 
 onUnmounted(() => {
-  scene?.destroy()
+  cleanup()
 })
 
-// 監聽主題變化
+// 監聽主題變化 - 優化重新創建邏輯
 watch(isDark, newTheme => {
-  scene?.updateTheme(newTheme)
-  createLunarVisualization() // 重新創建以應用新主題
+  if (!scene) return
+
+  scene.updateTheme(newTheme)
+  // 延遲重新創建以避免頻繁更新
+  nextTick(() => {
+    createLunarVisualization()
+  })
 })
 
-// 監聽屬性變化
+// 監聽屬性變化 - 優化依賴追蹤
 watch(
-  [
-    () => lunarDate.value,
-    () => solarTerm.value,
-    () => suitable.value,
-    () => avoid.value,
-    () => fortuneScore.value,
-  ],
-  createLunarVisualization,
+  [lunarDate, solarTerm, suitable, avoid, fortuneScore],
+  () => {
+    nextTick(() => {
+      createLunarVisualization()
+    })
+  },
   { deep: true }
 )
 </script>
