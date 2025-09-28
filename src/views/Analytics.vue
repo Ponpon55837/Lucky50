@@ -2,6 +2,7 @@
 import { ref, computed, watch, onMounted, defineAsyncComponent } from 'vue'
 import { useDashboardStore } from '@/stores/dashboard'
 import { useAnalyticsStore } from '@/stores/analytics'
+import { useUserStore } from '@/stores/user'
 import { useTheme } from '@/composables/useTheme'
 import { FinMindService } from '@/services/finmind'
 
@@ -87,8 +88,14 @@ const loadAnalyticsData = async () => {
     const days = analyticsStore.getPeriodDays(selectedPeriod.value)
     const startDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
 
+    // 載入 ETF 數據
     const etfData = await FinMindService.getETFData(startDate, endDate)
     dashboardStore.setETFData(etfData)
+
+    // 確保 Dashboard 的完整數據也被載入（包括農民曆和運勢數據）
+    // 需要用戶資料來計算整合運勢分數
+    const userStore = useUserStore()
+    await dashboardStore.loadAllData(userStore.profile)
   } catch (err) {
     console.error('Analytics 數據載入失敗:', err)
     error.value = '數據載入失敗'

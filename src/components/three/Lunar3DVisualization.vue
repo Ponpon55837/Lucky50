@@ -35,11 +35,25 @@ const suitable = computed(() => dashboardStore.lunarData?.yi || ['開市', '投�
 
 const avoid = computed(() => dashboardStore.lunarData?.ji || ['出行', '搬遷', '動土', '結婚'])
 
-const investmentLuck = computed(() => {
-  if (!dashboardStore.investmentAdvice) return '吉'
-  const action = dashboardStore.investmentAdvice.recommendedAction
-  return action === 'buy' ? '吉' : action === 'sell' ? '凶' : '中'
+// 使用與 Dashboard 相同的運勢邏輯
+const fortuneScore = computed(() => dashboardStore.unifiedInvestmentScore || 50)
+
+const fortuneLevel = computed(() => {
+  const score = fortuneScore.value
+  if (score >= 80) return '大吉'
+  if (score >= 65) return '吉'
+  if (score >= 35) return '平'
+  return '忌'
 })
+
+const fortuneColor = computed(() => {
+  const score = fortuneScore.value
+  if (score >= 80) return 'text-emerald-400'
+  if (score >= 65) return 'text-green-400'
+  if (score >= 35) return 'text-yellow-400'
+  return 'text-red-400'
+})
+
 const threeContainer = ref<HTMLElement>()
 let scene: ThreeJSScene | null = null
 let lunarGroup: THREE.Group | null = null
@@ -194,24 +208,30 @@ const createLunarVisualization = () => {
   // 創建投資運勢指示器 - 增強效果
   const luckHeight = 2.5
   const luckGeometry = new THREE.CylinderGeometry(0.4, 0.6, luckHeight, 12)
-  const isLucky = investmentLuck.value === '吉'
-  const luckColor = isLucky
-    ? getThemeColor('success', isDark.value)
-    : investmentLuck.value === '凶'
-      ? getThemeColor('danger', isDark.value)
-      : getThemeColor('warning', isDark.value)
-  const luckMaterial = createThemeGlowMaterial(luckColor, isLucky ? 1.0 : 0.7, isDark.value)
+  const score = fortuneScore.value
+  const isExcellent = score >= 80
+  const isGood = score >= 65
+  const isAverage = score >= 35
+
+  const luckColor = isExcellent
+    ? getThemeColor('success', isDark.value) // 大吉 - 綠色
+    : isGood
+      ? getThemeColor('warning', isDark.value) // 吉 - 黃色
+      : isAverage
+        ? getThemeColor('info', isDark.value) // 平 - 藍色
+        : getThemeColor('danger', isDark.value) // 忌 - 紅色
+  const luckMaterial = createThemeGlowMaterial(luckColor, isExcellent ? 1.0 : 0.7, isDark.value)
   const luckIndicator = new THREE.Mesh(luckGeometry, luckMaterial)
   luckIndicator.position.set(0, -1.5, 2.0)
 
-  // 投資運勢脈動動畫
+  // 投資運勢脈動動畫 - 根據運勢等級調整強度
   const animateLuck = () => {
     if (luckIndicator.parent) {
       const time = Date.now() * 0.003
-      const intensity = isLucky ? 1.2 : 0.8
+      const intensity = isExcellent ? 1.2 : isGood ? 1.0 : isAverage ? 0.8 : 0.6
       const scale = 1 + Math.sin(time) * 0.1 * intensity
       luckIndicator.scale.setScalar(scale)
-      luckIndicator.rotation.y += 0.01
+      luckIndicator.rotation.y += 0.01 * intensity
       requestAnimationFrame(animateLuck)
     }
   }
@@ -455,7 +475,7 @@ watch(
     () => solarTerm.value,
     () => suitable.value,
     () => avoid.value,
-    () => investmentLuck.value,
+    () => fortuneScore.value,
   ],
   createLunarVisualization,
   { deep: true }
@@ -486,7 +506,8 @@ watch(
     </div>
     <div class="absolute bottom-4 right-4 text-primary-text text-xs">
       <div class="text-center">
-        <div class="text-lg font-bold text-accent-text">{{ investmentLuck }}</div>
+        <div class="text-2xl font-bold mb-1" :class="fortuneColor">{{ fortuneLevel }}</div>
+        <div class="text-lg font-semibold text-gold-400 mb-1">{{ fortuneScore }}</div>
         <div class="text-sm text-secondary-text">投資運勢</div>
       </div>
     </div>
