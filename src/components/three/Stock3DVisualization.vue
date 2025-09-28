@@ -10,21 +10,74 @@ interface Props {
   title?: string
 }
 
+// 配置常量
+const ANIMATION_CONFIG = {
+  priceSphere: {
+    radius: 0.06,
+    pulseScale: 0.2,
+    pulseSpeed: 0.002,
+  },
+  fortuneOrb: {
+    radius: 0.3,
+    position: { x: 4, y: 1.5, z: 0 },
+    rotationSpeed: 0.01,
+  },
+  particles: {
+    count: 150,
+    bounds: { x: 12, y: 8, z: 6 },
+    floatSpeed: 0.002,
+  },
+  priceRange: {
+    width: 8,
+    height: 3,
+  },
+} as const
+
+type AnimationRefs = Set<() => void>
+
 const { title = '股價 3D 動態' } = defineProps<Props>()
 
 // 使用 stores
 const dashboardStore = useDashboardStore()
 const analyticsStore = useAnalyticsStore()
-
-// 從 store 獲取數據
-const etfData = computed(() => analyticsStore.getAdjustedEtfData(dashboardStore.etfData))
-const fortuneScore = computed(() => dashboardStore.unifiedInvestmentScore)
-
 const { isDark } = useTheme()
+
+// 動畫管理
+const animationRefs: AnimationRefs = new Set()
 const threeContainer = ref<HTMLElement>()
 let scene: ThreeJSScene | null = null
 let priceLineGroup: THREE.Group | null = null
 let fortuneOrb: THREE.Mesh | null = null
+
+// 互動狀態管理
+const hoveredElement = ref<string | null>(null)
+const mousePosition = ref({ x: 0, y: 0 })
+const showLegend = ref(false)
+
+// 元素說明數據
+type ElementType = 'priceSphere' | 'volumeBar' | 'priceLine' | 'fortuneOrb' | 'particles'
+const elementDescriptions: Record<ElementType, string> = {
+  priceSphere: '價格點：每個球體代表一個時間點的股價',
+  volumeBar: '成交量：柱狀圖高度表示交易量大小',
+  priceLine: '價格趨勢線：連接價格點形成趨勢軌跡',
+  fortuneOrb: '運勢球：大小和顏色反映當前投資運勢',
+  particles: '市場氛圍：粒子流動表示市場活躍度',
+}
+
+// 清理所有動畫
+const cleanupAnimations = () => {
+  animationRefs.clear()
+}
+
+// 註冊動畫循環
+const registerAnimation = (animationFn: () => void) => {
+  animationRefs.add(animationFn)
+  return animationFn
+}
+
+// 從 store 獲取數據 - 優化計算屬性
+const etfData = computed(() => analyticsStore.getAdjustedEtfData(dashboardStore.etfData))
+const fortuneScore = computed(() => dashboardStore.unifiedInvestmentScore)
 
 // 計算最新價格和變化
 const latestPrice = computed(() => {
@@ -59,87 +112,219 @@ const fortuneEffect = computed(() => {
   return '不佳 ❌'
 })
 
-// 創建 3D 價格線
+// 鼠標事件處理
+const handleMouseMove = (event: MouseEvent) => {
+  const rect = threeContainer.value?.getBoundingClientRect()
+  if (!rect) return
+
+  mousePosition.value = {
+    x: event.clientX - rect.left,
+    y: event.clientY - rect.top,
+  }
+}
+
+const handleElementHover = (elementType: ElementType) => {
+  hoveredElement.value = elementType
+}
+
+const handleElementLeave = () => {
+  hoveredElement.value = null
+}
+
+// 創建價格球體
+const createPriceSphere = (
+  x: number,
+  y: number,
+  z: number,
+  price: number,
+  index: number
+): THREE.Mesh => {
+  const { radius } = ANIMATION_CONFIG.priceSphere
+
+  const geometry = new THREE.SphereGeometry(radius, 16, 16)
+  const isPositive = index > 0 ? price > etfData.value[index - 1].close : true
+  const color = isPositive
+    ? getThemeColor('success', isDark.value)
+    : getThemeColor('danger', isDark.value)
+  const material = createThemeGlowMaterial(color, 1.0, isDark.value)
+
+  const sphere = new THREE.Mesh(geometry, material)
+  sphere.position.set(x, y, z)
+
+  return sphere
+}
+
+// 創建成交量柱狀圖
+const createVolumeBar = (x: number, data: any, index: number): THREE.Mesh => {
+  const maxVolume = Math.max(...etfData.value.map((d: any) => d.volume))
+  const volumeHeight = (data.volume / maxVolume) * 1.2
+
+  const geometry = new THREE.CylinderGeometry(0.02, 0.04, volumeHeight, 8)
+  const color = getThemeColor('info', isDark.value)
+  const material = createThemeGlowMaterial(color, 0.7, isDark.value)
+  const bar = new THREE.Mesh(geometry, material)
+  bar.position.set(x, -2 + volumeHeight / 2, -0.8)
+
+  // 添加上升動畫
+  bar.scale.y = 0
+  setTimeout(() => {
+    const animateBar = () => {
+      bar.scale.y += (1 - bar.scale.y) * 0.08
+      if (Math.abs(1 - bar.scale.y) > 0.01) {
+        requestAnimationFrame(animateBar)
+      }
+    }
+    animateBar()
+  }, index * 100)
+
+  return bar
+}
+
+// 創建粒子背景
+const createParticleBackground = (): THREE.Points => {
+  const { count, bounds } = ANIMATION_CONFIG.particles
+
+  const positions = new Float32Array(count * 3)
+  const colors = new Float32Array(count * 3)
+
+  const baseColor = new THREE.Color(getThemeColor('accent', isDark.value))
+
+  for (let i = 0; i < count; i++) {
+    const i3 = i * 3
+    positions[i3] = (Math.random() - 0.5) * bounds.x
+    positions[i3 + 1] = (Math.random() - 0.5) * bounds.y
+    positions[i3 + 2] = (Math.random() - 0.5) * bounds.z
+
+    colors[i3] = baseColor.r + (Math.random() - 0.5) * 0.3
+    colors[i3 + 1] = baseColor.g + (Math.random() - 0.5) * 0.3
+    colors[i3 + 2] = baseColor.b + (Math.random() - 0.5) * 0.3
+  }
+
+  const geometry = new THREE.BufferGeometry()
+  geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3))
+  geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3))
+
+  const material = new THREE.PointsMaterial({
+    size: 0.03,
+    vertexColors: true,
+    transparent: true,
+    opacity: isDark.value ? 0.6 : 0.4,
+  })
+
+  const particles = new THREE.Points(geometry, material)
+
+  // 粒子漂浮動畫
+  const animate = () => {
+    if (!particles.parent) return
+
+    const positions = particles.geometry.attributes.position.array as Float32Array
+    for (let i = 0; i < count; i++) {
+      const i3 = i * 3
+      positions[i3 + 1] +=
+        Math.sin(Date.now() * 0.001 + i * 0.1) * ANIMATION_CONFIG.particles.floatSpeed
+    }
+    particles.geometry.attributes.position.needsUpdate = true
+    particles.rotation.y += 0.003
+
+    requestAnimationFrame(animate)
+  }
+
+  registerAnimation(animate)
+  animate()
+
+  return particles
+}
+
+// 創建運勢能量球
+const createFortuneOrb = (): THREE.Mesh => {
+  const { radius, position, rotationSpeed } = ANIMATION_CONFIG.fortuneOrb
+
+  const geometry = new THREE.SphereGeometry(radius, 24, 24)
+  const score = fortuneScore.value
+  const color =
+    score >= 60
+      ? getThemeColor('success', isDark.value)
+      : score >= 40
+        ? getThemeColor('warning', isDark.value)
+        : getThemeColor('danger', isDark.value)
+
+  const material = createThemeGlowMaterial(color, score / 100, isDark.value)
+  const orb = new THREE.Mesh(geometry, material)
+  orb.position.set(position.x, position.y, position.z)
+
+  // 旋轉動畫
+  const animate = () => {
+    if (!orb.parent) return
+
+    orb.rotation.x += rotationSpeed
+    orb.rotation.y += rotationSpeed
+
+    requestAnimationFrame(animate)
+  }
+
+  registerAnimation(animate)
+  animate()
+
+  return orb
+}
+
+// 創建 3D 價格線 - 重構後更清晰
 const createPriceLine = () => {
   if (!scene || etfData.value.length === 0) return
 
-  // 清除舊的價格線
+  // 清除舊的價格線和動畫
   if (priceLineGroup) {
     scene.removeFromScene(priceLineGroup)
   }
+  cleanupAnimations()
 
   priceLineGroup = new THREE.Group()
 
   // 計算價格範圍
-  const prices = etfData.value.map(d => d.close)
+  const prices = etfData.value.map((d: any) => d.close)
   const minPrice = Math.min(...prices)
   const maxPrice = Math.max(...prices)
   const priceRange = maxPrice - minPrice
 
   // 創建價格點和連線
   const points: THREE.Vector3[] = []
-  const spheres: THREE.Mesh[] = []
-  const bars: THREE.Mesh[] = []
 
-  etfData.value.forEach((data, index) => {
-    const x = (index / (etfData.value.length - 1)) * 8 - 4
-    const y = ((data.close - minPrice) / priceRange) * 3 - 1.5
+  etfData.value.forEach((data: any, index: number) => {
+    const x =
+      (index / (etfData.value.length - 1)) * ANIMATION_CONFIG.priceRange.width -
+      ANIMATION_CONFIG.priceRange.width / 2
+    const y =
+      ((data.close - minPrice) / priceRange) * ANIMATION_CONFIG.priceRange.height -
+      ANIMATION_CONFIG.priceRange.height / 2
     const z = 0
 
     points.push(new THREE.Vector3(x, y, z))
 
-    // 創建價格點球體 - 增強視覺效果
-    const sphereGeometry = new THREE.SphereGeometry(0.06, 16, 16)
-    const isPositive = data.close > (index > 0 ? etfData.value[index - 1].close : data.close)
-    const color = isPositive
-      ? getThemeColor('success', isDark.value)
-      : getThemeColor('danger', isDark.value)
-    const sphereMaterial = createThemeGlowMaterial(color, 1.0, isDark.value)
-    const sphere = new THREE.Mesh(sphereGeometry, sphereMaterial)
-    sphere.position.set(x, y, z)
+    // 創建價格點球體
+    const sphere = createPriceSphere(x, y, z, data.close, index)
 
-    // 添加脈動效果
+    // 統一的脈動動畫
     const animate = () => {
-      if (sphere.parent) {
-        const time = Date.now() * 0.002 + index * 0.3
-        const scale = 1 + Math.sin(time) * 0.2
-        sphere.scale.setScalar(scale)
-        requestAnimationFrame(animate)
-      }
+      if (!sphere.parent) return
+
+      const time = Date.now() * ANIMATION_CONFIG.priceSphere.pulseSpeed + index * 0.3
+      const scale = 1 + Math.sin(time) * ANIMATION_CONFIG.priceSphere.pulseScale
+      sphere.scale.setScalar(scale)
+
+      requestAnimationFrame(animate)
     }
 
-    spheres.push(sphere)
+    registerAnimation(animate)
+    animate()
     priceLineGroup!.add(sphere)
 
-    // 添加成交量柱狀圖 - 增強動畫
-    const volumeHeight = (data.volume / Math.max(...etfData.value.map(d => d.volume))) * 1.2
-    const barGeometry = new THREE.CylinderGeometry(0.02, 0.04, volumeHeight, 8)
-    const barColor = getThemeColor('info', isDark.value)
-    const barMaterial = createThemeGlowMaterial(barColor, 0.7, isDark.value)
-    const bar = new THREE.Mesh(barGeometry, barMaterial)
-    bar.position.set(x, -2 + volumeHeight / 2, -0.8)
-
-    // 添加上升動畫
-    bar.scale.y = 0
-    setTimeout(() => {
-      const targetScale = { y: 1 }
-      const animateBar = () => {
-        bar.scale.y += (targetScale.y - bar.scale.y) * 0.08
-        if (Math.abs(targetScale.y - bar.scale.y) > 0.01) {
-          requestAnimationFrame(animateBar)
-        }
-      }
-      animateBar()
-      animate() // 啟動球體脈動
-    }, index * 100)
-
-    bars.push(bar)
-    priceLineGroup!.add(bar)
+    // 添加成交量柱狀圖
+    const volumeBar = createVolumeBar(x, data, index)
+    priceLineGroup!.add(volumeBar)
   })
 
   // 創建增強的價格線 - 管道效果
   if (points.length > 1) {
-    // 創建曲線
     const curve = new THREE.CatmullRomCurve3(points)
     const tubeGeometry = new THREE.TubeGeometry(curve, 100, 0.02, 8, false)
     const lineColor =
@@ -163,91 +348,29 @@ const createPriceLine = () => {
   }
 
   // 添加粒子背景效果
-  const particleCount = 150
-  const positions = new Float32Array(particleCount * 3)
-  const colors = new Float32Array(particleCount * 3)
-
-  const baseColor = new THREE.Color(getThemeColor('accent', isDark.value))
-
-  for (let i = 0; i < particleCount; i++) {
-    const i3 = i * 3
-    positions[i3] = (Math.random() - 0.5) * 12
-    positions[i3 + 1] = (Math.random() - 0.5) * 8
-    positions[i3 + 2] = (Math.random() - 0.5) * 6
-
-    colors[i3] = baseColor.r + (Math.random() - 0.5) * 0.3
-    colors[i3 + 1] = baseColor.g + (Math.random() - 0.5) * 0.3
-    colors[i3 + 2] = baseColor.b + (Math.random() - 0.5) * 0.3
-  }
-
-  const particleGeometry = new THREE.BufferGeometry()
-  particleGeometry.setAttribute('position', new THREE.BufferAttribute(positions, 3))
-  particleGeometry.setAttribute('color', new THREE.BufferAttribute(colors, 3))
-
-  const particleMaterial = new THREE.PointsMaterial({
-    size: 0.03,
-    vertexColors: true,
-    transparent: true,
-    opacity: isDark.value ? 0.6 : 0.4,
-  })
-
-  const particles = new THREE.Points(particleGeometry, particleMaterial)
+  const particles = createParticleBackground()
   priceLineGroup!.add(particles)
-
-  // 粒子漂浮動畫
-  const animateParticles = () => {
-    if (particles.parent) {
-      const positions = particles.geometry.attributes.position.array as Float32Array
-      for (let i = 0; i < particleCount; i++) {
-        const i3 = i * 3
-        positions[i3 + 1] += Math.sin(Date.now() * 0.001 + i * 0.1) * 0.002
-      }
-      particles.geometry.attributes.position.needsUpdate = true
-      particles.rotation.y += 0.003
-      requestAnimationFrame(animateParticles)
-    }
-  }
-  animateParticles()
 
   scene.addToScene(priceLineGroup)
 }
 
-// 創建運勢能量球
-const createFortuneOrb = () => {
+// 主要創建函數
+const createVisualization = () => {
   if (!scene) return
 
+  createPriceLine()
+
+  // 重新創建運勢球
   if (fortuneOrb) {
     scene.removeFromScene(fortuneOrb)
   }
-
-  const orbGeometry = new THREE.SphereGeometry(0.3, 24, 24) // 縮小球體
-  const orbColor =
-    fortuneScore.value >= 60
-      ? getThemeColor('success', isDark.value)
-      : fortuneScore.value >= 40
-        ? getThemeColor('warning', isDark.value)
-        : getThemeColor('danger', isDark.value)
-
-  const orbMaterial = createThemeGlowMaterial(orbColor, fortuneScore.value / 100, isDark.value)
-  fortuneOrb = new THREE.Mesh(orbGeometry, orbMaterial)
-  fortuneOrb.position.set(4, 1.5, 0) // 調整位置
-
+  fortuneOrb = createFortuneOrb()
   scene.addToScene(fortuneOrb)
-
-  // 旋轉動畫
-  const rotateOrb = () => {
-    if (fortuneOrb) {
-      fortuneOrb.rotation.x += 0.01
-      fortuneOrb.rotation.y += 0.01
-      requestAnimationFrame(rotateOrb)
-    }
-  }
-  rotateOrb()
 }
 
 // 初始化場景
 const initScene = () => {
-  if (!threeContainer.value) return
+  if (!threeContainer.value || scene) return
 
   scene = new ThreeJSScene(threeContainer.value, {
     alpha: true,
@@ -255,41 +378,47 @@ const initScene = () => {
     isDark: isDark.value,
   })
 
-  // 設置相機位置 - 調整視角
+  // 設置相機位置
   const camera = scene.getCamera()
-  camera.position.set(0, 1, 8) // 調整相機位置
+  camera.position.set(0, 1, 8)
   camera.lookAt(0, 0, 0)
 
-  createPriceLine()
-  createFortuneOrb()
+  createVisualization()
+}
+
+// 清理資源
+const cleanup = () => {
+  cleanupAnimations()
+  scene?.destroy()
+  scene = null
+  priceLineGroup = null
+  fortuneOrb = null
 }
 
 // 監聽數據變化
 watch(
-  () => etfData.value,
+  etfData,
   () => {
     if (scene) {
-      createPriceLine()
+      createVisualization()
     }
   },
   { deep: true }
 )
 
-watch(
-  () => fortuneScore.value,
-  () => {
-    if (scene) {
-      createFortuneOrb()
-    }
+watch(fortuneScore, () => {
+  if (scene) {
+    createVisualization()
   }
-)
+})
 
 // 監聽主題變化
 watch(isDark, newIsDark => {
   if (scene) {
     scene.updateTheme(newIsDark)
-    createPriceLine()
-    createFortuneOrb()
+    nextTick(() => {
+      createVisualization()
+    })
   }
 })
 
@@ -300,18 +429,100 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
-  if (scene) {
-    scene.destroy()
-    scene = null
-  }
+  cleanup()
 })
 </script>
 
 <template>
   <div
     class="relative w-full h-full bg-gradient-to-br from-surface-bg/50 via-card-bg to-surface-bg rounded-lg overflow-hidden border border-border-light"
+    @mousemove="handleMouseMove"
   >
     <div ref="threeContainer" class="w-full h-full"></div>
+
+    <!-- 動態懸停說明 -->
+    <div
+      v-if="hoveredElement"
+      :style="{ left: mousePosition.x + 10 + 'px', top: mousePosition.y - 10 + 'px' }"
+      class="absolute z-10 bg-card-bg/90 backdrop-blur-sm border border-border-light rounded-lg p-3 shadow-lg pointer-events-none max-w-xs"
+    >
+      <div class="text-sm font-medium text-primary-text mb-1">{{ hoveredElement }}</div>
+      <div class="text-xs text-secondary-text">
+        {{ (hoveredElement && elementDescriptions[hoveredElement as ElementType]) || '未知元素' }}
+      </div>
+    </div>
+
+    <!-- 圖例面板 -->
+    <div
+      v-if="showLegend"
+      class="absolute top-4 right-4 bg-card-bg/80 backdrop-blur-sm border border-border-light rounded-lg p-3 w-48"
+    >
+      <div class="flex justify-between items-center mb-2">
+        <h4 class="text-sm font-semibold text-primary-text">元素說明</h4>
+        <button
+          @click="showLegend = false"
+          class="text-xs text-secondary-text hover:text-primary-text"
+        >
+          ×
+        </button>
+      </div>
+      <div class="space-y-2 text-xs">
+        <div
+          class="flex items-center space-x-2 cursor-pointer hover:bg-surface-bg/50 p-1 rounded"
+          @mouseenter="handleElementHover('priceSphere')"
+          @mouseleave="handleElementLeave"
+        >
+          <div class="w-3 h-3 bg-green-400 rounded-full"></div>
+          <span class="text-secondary-text">價格點</span>
+        </div>
+        <div
+          class="flex items-center space-x-2 cursor-pointer hover:bg-surface-bg/50 p-1 rounded"
+          @mouseenter="handleElementHover('volumeBar')"
+          @mouseleave="handleElementLeave"
+        >
+          <div class="w-3 h-2 bg-blue-400"></div>
+          <span class="text-secondary-text">成交量</span>
+        </div>
+        <div
+          class="flex items-center space-x-2 cursor-pointer hover:bg-surface-bg/50 p-1 rounded"
+          @mouseenter="handleElementHover('priceLine')"
+          @mouseleave="handleElementLeave"
+        >
+          <div class="w-6 h-0.5 bg-accent-text"></div>
+          <span class="text-secondary-text">趨勢線</span>
+        </div>
+        <div
+          class="flex items-center space-x-2 cursor-pointer hover:bg-surface-bg/50 p-1 rounded"
+          @mouseenter="handleElementHover('fortuneOrb')"
+          @mouseleave="handleElementLeave"
+        >
+          <div class="w-3 h-3 bg-yellow-400 rounded-full animate-pulse"></div>
+          <span class="text-secondary-text">運勢球</span>
+        </div>
+        <div
+          class="flex items-center space-x-2 cursor-pointer hover:bg-surface-bg/50 p-1 rounded"
+          @mouseenter="handleElementHover('particles')"
+          @mouseleave="handleElementLeave"
+        >
+          <div class="flex space-x-1">
+            <div class="w-1 h-1 bg-accent-text rounded-full"></div>
+            <div class="w-1 h-1 bg-accent-text rounded-full"></div>
+            <div class="w-1 h-1 bg-accent-text rounded-full"></div>
+          </div>
+          <span class="text-secondary-text">市場粒子</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- 圖例開關按鈕 -->
+    <button
+      v-if="!showLegend"
+      @click="showLegend = true"
+      class="absolute top-4 right-4 bg-card-bg/80 backdrop-blur-sm border border-border-light rounded-lg p-2 text-xs text-secondary-text hover:text-primary-text"
+    >
+      📊 圖例
+    </button>
+
     <div class="absolute top-4 left-4 text-primary-text">
       <h3 class="text-lg font-semibold mb-2 text-primary-text">{{ title }}</h3>
       <div class="text-sm space-y-1">
