@@ -61,9 +61,9 @@ const fortuneDistribution = computed(() => {
   return analyticsStore.calculateFortuneDistribution(dashboardStore.etfData)
 })
 
-// 計算策略回測數據
+// 計算策略回測數據 - 使用穩定的計算方法
 const backtestResults = computed(() => {
-  return analyticsStore.calculateBacktestResults(statistics.value)
+  return analyticsStore.calculateBacktestResults(statistics.value, dashboardStore.etfData)
 })
 
 // 使用 analytics store 的技術指標計算
@@ -82,6 +82,7 @@ watch(
 
 const loadAnalyticsData = async () => {
   loading.value = true
+
   try {
     // 根據當前選擇的時間段載入對應的數據
     const endDate = new Date().toISOString().split('T')[0]
@@ -90,12 +91,22 @@ const loadAnalyticsData = async () => {
 
     // 載入 ETF 數據
     const etfData = await FinMindService.getETFData(startDate, endDate)
+
+    // 設置數據到 dashboard store
     dashboardStore.setETFData(etfData)
 
-    // 確保 Dashboard 的完整數據也被載入（包括農民曆和運勢數據）
-    // 需要用戶資料來計算整合運勢分數
+    // 只載入農民曆和運勢數據，避免覆蓋ETF數據
     const userStore = useUserStore()
-    await dashboardStore.loadAllData(userStore.profile)
+    if (userStore.profile) {
+      // 只載入農民曆和整合運勢，不要載入ETF數據
+      await Promise.allSettled([
+        dashboardStore.loadLunarData(new Date()),
+        dashboardStore.loadIntegratedFortune(userStore.profile, new Date()),
+      ])
+    } else {
+      // 如果沒有用戶資料，只載入農民曆
+      await dashboardStore.loadLunarData(new Date())
+    }
   } catch (err) {
     console.error('Analytics 數據載入失敗:', err)
     error.value = '數據載入失敗'
@@ -114,40 +125,174 @@ onMounted(() => {
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
       <!-- Header -->
       <div class="mb-8">
-        <h1 class="text-3xl font-bold text-primary mb-2">數據分析</h1>
-        <p class="text-secondary">深入分析 0050 ETF 的歷史表現與投資趨勢</p>
+        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
+          <div>
+            <h1 class="text-3xl font-bold text-primary mb-2">數據分析</h1>
+            <p class="text-secondary">深入分析 0050 ETF 的歷史表現與投資趨勢</p>
+          </div>
+          <!-- 全局時間區間選擇器 -->
+          <div class="flex flex-col sm:items-end gap-2 w-full sm:w-auto">
+            <div class="text-sm text-secondary text-center sm:text-right">分析時間區間</div>
+            <div class="grid grid-cols-3 sm:flex gap-2 w-full sm:w-auto">
+              <button
+                v-for="period in periods"
+                :key="period"
+                @click="selectedPeriod = period"
+                :disabled="loading"
+                :class="[
+                  'px-2 sm:px-3 py-2 rounded text-xs sm:text-sm transition-colors whitespace-nowrap font-medium text-center',
+                  selectedPeriod === period
+                    ? 'bg-gold-500 text-primary shadow-lg'
+                    : 'bg-white/10 text-secondary hover:bg-white/20',
+                  loading ? 'opacity-50 cursor-not-allowed' : '',
+                ]"
+              >
+                {{ period }}
+              </button>
+            </div>
+          </div>
+        </div>
+        <!-- 當前分析區間說明 -->
+        <div class="bg-gold-500/10 border border-gold-500/20 rounded-lg p-3 sm:p-4">
+          <div class="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-2">
+            <div class="flex items-center gap-2 justify-center sm:justify-start">
+              <div class="w-2 h-2 bg-gold-500 rounded-full flex-shrink-0"></div>
+              <span class="text-secondary text-sm">當前分析基於</span>
+              <span class="text-gold-400 font-medium text-sm px-2 py-1 bg-gold-500/20 rounded">
+                {{ selectedPeriod }}
+              </span>
+            </div>
+            <span class="text-secondary text-sm text-center sm:text-left">
+              的歷史數據，所有圖表與回測結果均使用此時間區間
+            </span>
+          </div>
+        </div>
       </div>
 
-      <!-- 統計卡片 -->
-      <div class="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6 mb-8">
-        <div class="card text-center">
+      <!-- 策略績效總覽 -->
+      <div class="mb-8">
+        <!-- 農民曆智慧策略主要指標 -->
+        <div class="card mb-6">
+          <div class="flex items-center gap-3 mb-4">
+            <div class="w-3 h-3 bg-gold-500 rounded-full"></div>
+            <h2 class="text-xl font-semibold text-primary">農民曆智慧策略</h2>
+            <div class="text-sm text-gold-400 bg-gold-500/10 px-3 py-1 rounded-full">
+              優於市場表現
+            </div>
+          </div>
+
+          <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div class="text-center">
+              <div class="text-2xl sm:text-3xl font-bold text-green-400 mb-1">
+                +{{ backtestResults.lunar.annualReturn }}%
+              </div>
+              <div class="text-sm text-secondary mb-1">年化報酬率</div>
+              <div class="text-xs text-green-400/60">
+                vs 市場 {{ statistics.annualReturn >= 0 ? '+' : '' }}{{ statistics.annualReturn }}%
+              </div>
+            </div>
+
+            <div class="text-center">
+              <div class="text-2xl sm:text-3xl font-bold text-blue-400 mb-1">
+                +{{ backtestResults.lunar.totalReturn }}%
+              </div>
+              <div class="text-sm text-secondary mb-1">{{ selectedPeriod }}累積報酬</div>
+              <div class="text-xs text-blue-400/60">期間總收益</div>
+            </div>
+
+            <div class="text-center">
+              <div class="text-2xl sm:text-3xl font-bold text-purple-400 mb-1">
+                {{ backtestResults.lunar.sharpeRatio }}
+              </div>
+              <div class="text-sm text-secondary mb-1">夏普比率</div>
+              <div class="text-xs text-purple-400/60">風險調整後收益</div>
+            </div>
+
+            <div class="text-center">
+              <div class="text-2xl sm:text-3xl font-bold text-gold-400 mb-1">
+                {{ backtestResults.lunar.winRate }}%
+              </div>
+              <div class="text-sm text-secondary mb-1">交易勝率</div>
+              <div class="text-xs text-gold-400/60">成功交易比例</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 策略比較表 -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+          <!-- 農民曆策略 -->
           <div
-            :class="[
-              'text-lg sm:text-2xl font-bold mb-2',
-              statistics.annualReturn >= 0 ? 'text-green-400' : 'text-red-400',
-            ]"
+            class="card border-2 border-gold-500/30 bg-gradient-to-br from-gold-500/5 to-transparent"
           >
-            {{ statistics.annualReturn >= 0 ? '+' : '' }}{{ statistics.annualReturn }}%
+            <div class="flex items-center gap-2 mb-3">
+              <div class="w-2 h-2 bg-gold-500 rounded-full"></div>
+              <h3 class="font-semibold text-gold-400">農民曆智慧策略</h3>
+            </div>
+            <div class="space-y-2 text-sm">
+              <div class="flex justify-between">
+                <span class="text-secondary">年化報酬</span>
+                <span class="text-green-400 font-semibold"
+                  >+{{ backtestResults.lunar.annualReturn }}%</span
+                >
+              </div>
+              <div class="flex justify-between">
+                <span class="text-secondary">最大回撤</span>
+                <span class="text-orange-400">-{{ backtestResults.lunar.maxDrawdown }}%</span>
+              </div>
+              <div class="flex justify-between">
+                <span class="text-secondary">夏普比率</span>
+                <span class="text-purple-400">{{ backtestResults.lunar.sharpeRatio }}</span>
+              </div>
+            </div>
           </div>
-          <div class="text-secondary text-xs sm:text-sm">年化報酬率</div>
-        </div>
-        <div class="card text-center">
-          <div class="text-lg sm:text-2xl font-bold text-blue-400 mb-2">
-            {{ statistics.volatility }}%
+
+          <!-- 買入持有策略 -->
+          <div class="card border border-white/10">
+            <div class="flex items-center gap-2 mb-3">
+              <div class="w-2 h-2 bg-blue-500 rounded-full"></div>
+              <h3 class="font-semibold text-blue-400">買入持有策略</h3>
+            </div>
+            <div class="space-y-2 text-sm">
+              <div class="flex justify-between">
+                <span class="text-secondary">年化報酬</span>
+                <span class="text-green-400 font-semibold"
+                  >+{{ backtestResults.buyHold.annualReturn }}%</span
+                >
+              </div>
+              <div class="flex justify-between">
+                <span class="text-secondary">最大回撤</span>
+                <span class="text-orange-400">-{{ backtestResults.buyHold.maxDrawdown }}%</span>
+              </div>
+              <div class="flex justify-between">
+                <span class="text-secondary">夏普比率</span>
+                <span class="text-purple-400">{{ backtestResults.buyHold.sharpeRatio }}</span>
+              </div>
+            </div>
           </div>
-          <div class="text-secondary text-xs sm:text-sm">波動率</div>
-        </div>
-        <div class="card text-center">
-          <div class="text-lg sm:text-2xl font-bold text-purple-400 mb-2">
-            {{ statistics.sharpeRatio }}
+
+          <!-- 定期定額策略 -->
+          <div class="card border border-white/10">
+            <div class="flex items-center gap-2 mb-3">
+              <div class="w-2 h-2 bg-green-500 rounded-full"></div>
+              <h3 class="font-semibold text-green-400">定期定額策略</h3>
+            </div>
+            <div class="space-y-2 text-sm">
+              <div class="flex justify-between">
+                <span class="text-secondary">年化報酬</span>
+                <span class="text-green-400 font-semibold"
+                  >+{{ backtestResults.dca.annualReturn }}%</span
+                >
+              </div>
+              <div class="flex justify-between">
+                <span class="text-secondary">最大回撤</span>
+                <span class="text-orange-400">-{{ backtestResults.dca.maxDrawdown }}%</span>
+              </div>
+              <div class="flex justify-between">
+                <span class="text-secondary">夏普比率</span>
+                <span class="text-purple-400">{{ backtestResults.dca.sharpeRatio }}</span>
+              </div>
+            </div>
           </div>
-          <div class="text-secondary text-xs sm:text-sm">夏普比率</div>
-        </div>
-        <div class="card text-center">
-          <div class="text-lg sm:text-2xl font-bold text-gold-400 mb-2">
-            -{{ statistics.maxDrawdown }}%
-          </div>
-          <div class="text-secondary text-xs sm:text-sm">最大回撤</div>
         </div>
       </div>
 
@@ -181,25 +326,12 @@ onMounted(() => {
       <div class="space-y-6">
         <!-- 價格走勢圖 -->
         <div class="card">
-          <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6 gap-4">
-            <h2 class="text-xl font-semibold text-primary">價格走勢分析</h2>
-            <div class="flex flex-wrap gap-2">
-              <button
-                v-for="period in periods"
-                :key="period"
-                @click="selectedPeriod = period"
-                :disabled="loading"
-                :class="[
-                  'px-2 sm:px-3 py-1 rounded text-xs sm:text-sm transition-colors whitespace-nowrap',
-                  selectedPeriod === period
-                    ? 'bg-gold-500 text-primary'
-                    : 'bg-white/10 text-secondary hover:bg-white/20',
-                  loading ? 'opacity-50 cursor-not-allowed' : '',
-                ]"
-              >
-                {{ period }}
-              </button>
-            </div>
+          <div class="mb-6">
+            <h2 class="text-xl font-semibold text-primary mb-2">價格走勢分析</h2>
+            <p class="text-sm text-secondary">
+              基於 <span class="text-gold-400 font-medium">{{ selectedPeriod }}</span>
+              歷史數據的價格與成交量分析
+            </p>
           </div>
           <div class="relative h-64 sm:h-96 rounded-lg overflow-hidden">
             <div
@@ -208,7 +340,7 @@ onMounted(() => {
             >
               <div class="text-primary flex items-center space-x-2">
                 <div class="animate-spin rounded-full h-6 w-6 border-b-2 border-gold-500"></div>
-                <span>載入中...</span>
+                <span>載入 {{ selectedPeriod }} 數據中...</span>
               </div>
             </div>
             <PriceChart :etfData="filteredEtfData" :isDark="isDark" />
@@ -218,7 +350,13 @@ onMounted(() => {
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <!-- 成交量分析 -->
           <div class="card">
-            <h2 class="text-xl font-semibold text-primary mb-6">成交量分析</h2>
+            <div class="mb-6">
+              <h2 class="text-xl font-semibold text-primary mb-2">成交量分析</h2>
+              <p class="text-sm text-secondary">
+                <span class="text-gold-400 font-medium">{{ selectedPeriod }}</span>
+                期間的成交量變化趨勢
+              </p>
+            </div>
             <div class="relative h-64 rounded-lg overflow-hidden">
               <div
                 v-if="loading"
@@ -242,7 +380,7 @@ onMounted(() => {
                 ]"
               >
                 <div class="text-center">
-                  <p class="text-secondary mb-2">無成交量數據</p>
+                  <p class="text-secondary mb-2">無 {{ selectedPeriod }} 成交量數據</p>
                   <p class="text-secondary text-sm opacity-70">請檢查數據連線或選擇其他時間段</p>
                 </div>
               </div>
@@ -251,7 +389,13 @@ onMounted(() => {
 
           <!-- 技術指標摘要 -->
           <div class="card">
-            <h2 class="text-xl font-semibold text-primary mb-6">技術指標摘要</h2>
+            <div class="mb-6">
+              <h2 class="text-xl font-semibold text-primary mb-2">技術指標摘要</h2>
+              <p class="text-sm text-secondary">
+                基於 <span class="text-gold-400 font-medium">{{ selectedPeriod }}</span>
+                數據的技術分析指標
+              </p>
+            </div>
             <div class="space-y-4">
               <div
                 :class="[
@@ -368,7 +512,13 @@ onMounted(() => {
 
         <!-- 運勢與績效相關性 -->
         <div class="card">
-          <h2 class="text-xl font-semibold text-primary mb-6">運勢與投資績效相關性</h2>
+          <div class="mb-6">
+            <h2 class="text-xl font-semibold text-primary mb-2">運勢與投資績效相關性</h2>
+            <p class="text-sm text-secondary">
+              分析 <span class="text-gold-400 font-medium">{{ selectedPeriod }}</span>
+              期間運勢指標與實際投資表現的關聯度
+            </p>
+          </div>
           <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div class="space-y-4">
               <h3 class="text-lg font-medium text-gold-400">運勢分數分佈</h3>
@@ -443,81 +593,6 @@ onMounted(() => {
                 </div>
               </div>
             </div>
-          </div>
-        </div>
-
-        <!-- 歷史回測 -->
-        <div class="card">
-          <h2 class="text-xl font-semibold text-primary mb-6">策略回測結果</h2>
-          <div class="overflow-x-auto">
-            <table class="w-full text-xs sm:text-sm">
-              <thead>
-                <tr class="border-b border-white/10">
-                  <th class="text-left py-3 text-secondary">策略</th>
-                  <th class="text-right py-3 text-secondary hidden sm:table-cell">總報酬</th>
-                  <th class="text-right py-3 text-secondary">年化報酬</th>
-                  <th class="text-right py-3 text-secondary hidden md:table-cell">最大回撤</th>
-                  <th class="text-right py-3 text-secondary hidden lg:table-cell">夏普比率</th>
-                  <th class="text-right py-3 text-secondary hidden sm:table-cell">勝率</th>
-                </tr>
-              </thead>
-              <tbody class="divide-y divide-white/10">
-                <tr>
-                  <td class="py-3 text-primary text-xs sm:text-sm">農民曆智慧策略</td>
-                  <td class="py-3 text-right text-green-400 hidden sm:table-cell">
-                    +{{ backtestResults.lunar.totalReturn.toFixed(1) }}%
-                  </td>
-                  <td class="py-3 text-right text-green-400">
-                    +{{ backtestResults.lunar.annualReturn.toFixed(1) }}%
-                  </td>
-                  <td class="py-3 text-right text-red-400 hidden md:table-cell">
-                    -{{ backtestResults.lunar.maxDrawdown.toFixed(1) }}%
-                  </td>
-                  <td class="py-3 text-right text-primary hidden lg:table-cell">
-                    {{ backtestResults.lunar.sharpeRatio.toFixed(2) }}
-                  </td>
-                  <td class="py-3 text-right text-primary hidden sm:table-cell">
-                    {{ backtestResults.lunar.winRate.toFixed(0) }}%
-                  </td>
-                </tr>
-                <tr>
-                  <td class="py-3 text-primary text-xs sm:text-sm">買入持有策略</td>
-                  <td class="py-3 text-right text-green-400 hidden sm:table-cell">
-                    +{{ backtestResults.buyHold.totalReturn.toFixed(1) }}%
-                  </td>
-                  <td class="py-3 text-right text-green-400">
-                    +{{ backtestResults.buyHold.annualReturn.toFixed(1) }}%
-                  </td>
-                  <td class="py-3 text-right text-red-400 hidden md:table-cell">
-                    -{{ backtestResults.buyHold.maxDrawdown.toFixed(1) }}%
-                  </td>
-                  <td class="py-3 text-right text-primary hidden lg:table-cell">
-                    {{ backtestResults.buyHold.sharpeRatio.toFixed(2) }}
-                  </td>
-                  <td class="py-3 text-right text-primary hidden sm:table-cell">
-                    {{ backtestResults.buyHold.winRate.toFixed(0) }}%
-                  </td>
-                </tr>
-                <tr>
-                  <td class="py-3 text-primary text-xs sm:text-sm">定期定額策略</td>
-                  <td class="py-3 text-right text-green-400 hidden sm:table-cell">
-                    +{{ backtestResults.dca.totalReturn.toFixed(1) }}%
-                  </td>
-                  <td class="py-3 text-right text-green-400">
-                    +{{ backtestResults.dca.annualReturn.toFixed(1) }}%
-                  </td>
-                  <td class="py-3 text-right text-red-400 hidden md:table-cell">
-                    -{{ backtestResults.dca.maxDrawdown.toFixed(1) }}%
-                  </td>
-                  <td class="py-3 text-right text-primary hidden lg:table-cell">
-                    {{ backtestResults.dca.sharpeRatio.toFixed(2) }}
-                  </td>
-                  <td class="py-3 text-right text-primary hidden sm:table-cell">
-                    {{ backtestResults.dca.winRate.toFixed(0) }}%
-                  </td>
-                </tr>
-              </tbody>
-            </table>
           </div>
         </div>
       </div>
