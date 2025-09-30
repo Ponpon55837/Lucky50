@@ -55,13 +55,13 @@
     <Teleport to="body">
       <div
         v-if="showPrivacyModal"
-        class="fixed inset-0 z-[9999] flex items-center justify-center p-4"
+        class="fixed inset-0 z-[9999] flex items-start sm:items-center justify-center overflow-y-auto"
         :class="isDark ? 'bg-black/60' : 'bg-black/40'"
         style="backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px)"
         @click="showPrivacyModal = false"
       >
         <div
-          class="w-full max-w-4xl max-h-[90vh] flex flex-col rounded-lg shadow-2xl border"
+          class="w-full mx-4 my-4 sm:my-8 sm:max-w-4xl min-h-0 max-h-[calc(100vh-2rem)] sm:max-h-[85vh] flex flex-col rounded-lg shadow-2xl border"
           :class="[isDark ? 'bg-gray-900 border-gold-500/20' : 'bg-white border-gray-200']"
           @click.stop
         >
@@ -222,13 +222,13 @@
     <Teleport to="body">
       <div
         v-if="showTermsModal"
-        class="fixed inset-0 z-[9999] flex items-center justify-center p-4"
+        class="fixed inset-0 z-[9999] flex items-start sm:items-center justify-center overflow-y-auto"
         :class="isDark ? 'bg-black/60' : 'bg-black/40'"
         style="backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px)"
         @click="showTermsModal = false"
       >
         <div
-          class="w-full max-w-4xl max-h-[90vh] flex flex-col rounded-lg shadow-2xl border"
+          class="w-full mx-4 my-4 sm:my-8 sm:max-w-4xl min-h-0 max-h-[calc(100vh-2rem)] sm:max-h-[85vh] flex flex-col rounded-lg shadow-2xl border"
           :class="[isDark ? 'bg-gray-900 border-gold-500/20' : 'bg-white border-gray-200']"
           @click.stop
         >
