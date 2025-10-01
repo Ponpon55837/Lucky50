@@ -614,18 +614,11 @@ function getClashZhi(zodiac: string): string[] {
       </div>
 
       <!-- 節氣節日 -->
-      <div v-if="lunarInfo.jieQi || lunarInfo.festivals?.length" class="lunar-card">
+      <div v-if="lunarInfo.jieQi" class="lunar-card">
         <h4 class="font-semibold mb-2" style="color: var(--accent-text)">節氣節日</h4>
         <div class="flex flex-wrap gap-2">
           <span v-if="lunarInfo.jieQi" class="festival-tag festival-tag-green">
             {{ lunarInfo.jieQi }}
-          </span>
-          <span
-            v-for="festival in lunarInfo.festivals"
-            :key="festival"
-            class="festival-tag festival-tag-red"
-          >
-            {{ festival }}
           </span>
         </div>
       </div>
