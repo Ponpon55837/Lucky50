@@ -1,19 +1,3 @@
-<template>
-  <img
-    v-if="shouldLoad"
-    :src="src"
-    :alt="alt"
-    :class="className"
-    :loading="loading"
-    :decoding="decoding"
-    @load="onLoad"
-    @error="onError"
-  />
-  <div v-else-if="!loaded" :class="placeholderClass" :style="placeholderStyle">
-    <div class="animate-pulse bg-gray-300 dark:bg-gray-700 w-full h-full rounded"></div>
-  </div>
-</template>
-
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 
@@ -81,3 +65,20 @@ const onError = () => {
   console.warn(`Failed to load image: ${props.src}`)
 }
 </script>
+
+<template>
+  <img
+    v-if="shouldLoad"
+    :src="src"
+    :alt="alt"
+    :class="className"
+    :loading="loading"
+    :decoding="decoding"
+    @load="onLoad"
+    @error="onError"
+  />
+  <div v-else-if="!loaded" :class="placeholderClass" :style="placeholderStyle">
+    <div class="animate-pulse bg-gray-300 dark:bg-gray-700 w-full h-full rounded"></div>
+  </div>
+</template>
+

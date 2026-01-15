@@ -1,3 +1,15 @@
+<script setup lang="ts">
+import { ref } from 'vue'
+import { useTheme } from '@/composables/useTheme'
+
+// 主題狀態
+const { isDark } = useTheme()
+
+// 彈窗狀態
+const showPrivacyModal = ref(false)
+const showTermsModal = ref(false)
+</script>
+
 <template>
   <footer class="bg-black/20 backdrop-blur-md border-t border-white/10 mt-auto">
     <div class="max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
@@ -441,14 +453,3 @@
   </footer>
 </template>
 
-<script setup lang="ts">
-import { ref } from 'vue'
-import { useTheme } from '@/composables/useTheme'
-
-// 主題狀態
-const { isDark } = useTheme()
-
-// 彈窗狀態
-const showPrivacyModal = ref(false)
-const showTermsModal = ref(false)
-</script>
