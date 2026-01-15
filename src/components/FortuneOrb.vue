@@ -1,89 +1,3 @@
-<script setup lang="ts">
-import { ref, onMounted } from 'vue'
-
-interface Fortune {
-  character: string
-  meaning: string
-  description: string
-  wealthIndex: number
-  investmentAdvice: string
-}
-
-const isFloating = ref(false)
-const isGenerating = ref(false)
-
-const currentFortune = ref<Fortune>({
-  character: '福',
-  meaning: '福氣臨門',
-  description: '今日運勢極佳，適合進行投資決策。天時地利人和，把握良機。',
-  wealthIndex: 8,
-  investmentAdvice: '積極',
-})
-
-const fortunes = [
-  {
-    character: '福',
-    meaning: '福氣臨門',
-    description: '今日運勢極佳，適合進行投資決策。天時地利人和，把握良機。',
-    wealthIndex: 8,
-    investmentAdvice: '積極',
-  },
-  {
-    character: '祿',
-    meaning: '財祿雙收',
-    description: '財運亨通，投資機會多多。但需謹慎選擇，切勿貪心。',
-    wealthIndex: 9,
-    investmentAdvice: '謹慎樂觀',
-  },
-  {
-    character: '壽',
-    meaning: '長久穩健',
-    description: '宜採用穩健投資策略，追求長期收益而非短期利潤。',
-    wealthIndex: 6,
-    investmentAdvice: '穩健',
-  },
-  {
-    character: '喜',
-    meaning: '喜事連連',
-    description: '運勢上升，投資環境有利，可適度增加投資比例。',
-    wealthIndex: 7,
-    investmentAdvice: '適度積極',
-  },
-  {
-    character: '財',
-    meaning: '財源廣進',
-    description: '財運極佳，適合大膽投資。但需注意風險控制。',
-    wealthIndex: 10,
-    investmentAdvice: '積極',
-  },
-]
-
-const toggleFloat = () => {
-  isFloating.value = !isFloating.value
-}
-
-const generateFortune = async () => {
-  if (isGenerating.value) return
-
-  isGenerating.value = true
-
-  // 模擬運算過程
-  setTimeout(() => {
-    const randomIndex = Math.floor(Math.random() * fortunes.length)
-    currentFortune.value = fortunes[randomIndex]
-    isFloating.value = true
-    isGenerating.value = false
-  }, 1500)
-}
-
-onMounted(() => {
-  // 初始動畫
-  setTimeout(() => {
-    isFloating.value = true
-  }, 500)
-})
-</script>
-
 <style scoped>
 .fortune-orb-container {
   display: flex;
@@ -338,6 +252,94 @@ onMounted(() => {
   will-change: transform;
 }
 </style>
+
+
+<script setup lang="ts">
+import { ref, onMounted } from 'vue'
+
+interface Fortune {
+  character: string
+  meaning: string
+  description: string
+  wealthIndex: number
+  investmentAdvice: string
+}
+
+const isFloating = ref(false)
+const isGenerating = ref(false)
+
+const currentFortune = ref<Fortune>({
+  character: '福',
+  meaning: '福氣臨門',
+  description: '今日運勢極佳，適合進行投資決策。天時地利人和，把握良機。',
+  wealthIndex: 8,
+  investmentAdvice: '積極',
+})
+
+const fortunes = [
+  {
+    character: '福',
+    meaning: '福氣臨門',
+    description: '今日運勢極佳，適合進行投資決策。天時地利人和，把握良機。',
+    wealthIndex: 8,
+    investmentAdvice: '積極',
+  },
+  {
+    character: '祿',
+    meaning: '財祿雙收',
+    description: '財運亨通，投資機會多多。但需謹慎選擇，切勿貪心。',
+    wealthIndex: 9,
+    investmentAdvice: '謹慎樂觀',
+  },
+  {
+    character: '壽',
+    meaning: '長久穩健',
+    description: '宜採用穩健投資策略，追求長期收益而非短期利潤。',
+    wealthIndex: 6,
+    investmentAdvice: '穩健',
+  },
+  {
+    character: '喜',
+    meaning: '喜事連連',
+    description: '運勢上升，投資環境有利，可適度增加投資比例。',
+    wealthIndex: 7,
+    investmentAdvice: '適度積極',
+  },
+  {
+    character: '財',
+    meaning: '財源廣進',
+    description: '財運極佳，適合大膽投資。但需注意風險控制。',
+    wealthIndex: 10,
+    investmentAdvice: '積極',
+  },
+]
+
+const toggleFloat = () => {
+  isFloating.value = !isFloating.value
+}
+
+const generateFortune = async () => {
+  if (isGenerating.value) return
+
+  isGenerating.value = true
+
+  // 模擬運算過程
+  setTimeout(() => {
+    const randomIndex = Math.floor(Math.random() * fortunes.length)
+    currentFortune.value = fortunes[randomIndex]
+    isFloating.value = true
+    isGenerating.value = false
+  }, 1500)
+}
+
+onMounted(() => {
+  // 初始動畫
+  setTimeout(() => {
+    isFloating.value = true
+  }, 500)
+})
+</script>
+
 
 <template>
   <div class="fortune-orb-container">
