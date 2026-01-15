@@ -76,11 +76,23 @@
 
 ## 必須遵守的寫法
 
-### 1. Vue 3 Composition API 規則
+### 1. Vue 3 檔案結構順序
+
+**所有 Vue 單文件元件（SFC）必須遵循以下順序：`<style>` → `<script>` → `<template>`**
 
 ✅ **正確寫法**：
 
 ```vue
+<style scoped>
+.container {
+  @apply p-4 rounded-lg bg-card-bg;
+}
+
+.button {
+  @apply px-4 py-2 rounded-lg transition-colors;
+}
+</style>
+
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
@@ -124,16 +136,33 @@ onMounted(() => {
 <template>
   <div class="container">
     <h1>{{ displayText }}</h1>
-    <button @click="handleClick">增加</button>
+    <button @click="handleClick" class="button">增加</button>
   </div>
 </template>
+```
+
+❌ **錯誤寫法 - 不要使用其他順序**：
+
+```vue
+<!-- 不要將 script 放在最前面 -->
+<script setup lang="ts">
+// ...
+</script>
+
+<template>// ...</template>
 
 <style scoped>
-.container {
-  @apply p-4 rounded-lg bg-card-bg;
-}
+// ...
 </style>
 ```
+
+**檔案結構原則**：
+
+1. **`<style scoped>`** - 樣式定義永遠放在最前面
+2. **`<script setup lang="ts">`** - TypeScript 邏輯放在中間
+3. **`<template>`** - HTML 模板放在最後
+
+### 2. Vue 3 Composition API 規則
 
 ❌ **禁止使用 Options API**：
 
