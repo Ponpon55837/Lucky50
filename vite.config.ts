@@ -62,16 +62,9 @@ export default defineConfig({
   server: {
     port: 3000,
     open: true,
-    headers: {
-      'Content-Type': 'application/javascript; charset=utf-8',
-    },
-    middlewareMode: false,
   },
   preview: {
     port: 3000,
-    headers: {
-      'Content-Type': 'application/javascript; charset=utf-8',
-    },
   },
   build: {
     target: 'es2015',
