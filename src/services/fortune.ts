@@ -1,7 +1,7 @@
-// @ts-ignore
+// @ts-expect-error - lunar-javascript doesn't have TypeScript definitions
 import { Solar } from 'lunar-javascript'
 import { perfMonitor } from '@/utils/performance'
-import type { UserProfile, FortuneData, ElementsEnergy, LunarObject } from '@/types'
+import type { UserProfile, FortuneData, LunarObject } from '@/types'
 
 // 天干地支修正值映射表 - 提取為常數以提高性能
 const GAN_MODIFIERS = Object.freeze({
@@ -317,7 +317,11 @@ export class FortuneService {
   /**
    * 根據農民曆和生肖計算吉利交易時段
    */
-  private static calculateLuckyTime(profile: UserProfile, lunar: LunarObject, seed: number): string {
+  private static calculateLuckyTime(
+    profile: UserProfile,
+    lunar: LunarObject,
+    seed: number
+  ): string {
     const random = this.seededRandom(seed + 2000)
 
     // 取得生肖對應的吉利地支
@@ -377,7 +381,11 @@ export class FortuneService {
   /**
    * 根據農民曆和生肖計算需要避開的交易時段
    */
-  private static calculateAvoidTime(profile: UserProfile, lunar: LunarObject, seed: number): string {
+  private static calculateAvoidTime(
+    profile: UserProfile,
+    lunar: LunarObject,
+    seed: number
+  ): string {
     const random = this.seededRandom(seed + 3000)
 
     // 取得與生肖相沖的地支

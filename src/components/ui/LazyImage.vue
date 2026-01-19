@@ -76,9 +76,13 @@ const onError = () => {
     :decoding="decoding"
     @load="onLoad"
     @error="onError"
-  />
-  <div v-else-if="!loaded" :class="placeholderClass" :style="placeholderStyle">
-    <div class="animate-pulse bg-gray-300 dark:bg-gray-700 w-full h-full rounded"></div>
+  >
+  <div
+    v-else-if="!loaded"
+    :class="placeholderClass"
+    :style="placeholderStyle"
+  >
+    <div class="animate-pulse bg-gray-300 dark:bg-gray-700 w-full h-full rounded" />
   </div>
 </template>
 

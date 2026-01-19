@@ -1,5 +1,5 @@
-// @ts-ignore
-import { Solar, Lunar } from 'lunar-javascript'
+// @ts-expect-error - lunar-javascript doesn't have TypeScript definitions
+import { Solar } from 'lunar-javascript'
 import { s2t } from 'chinese-s2t'
 import { apiCache, CacheKeyGenerator } from './apiCache'
 import type { LunarObject, SolarObject } from '@/types'

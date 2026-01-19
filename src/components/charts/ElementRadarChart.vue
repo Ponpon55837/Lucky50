@@ -171,8 +171,13 @@ const chartOptions = computed(() => {
       :options="chartOptions"
       class="w-full h-full"
     />
-    <div v-else class="h-full bg-gray-800/50 rounded-lg flex items-center justify-center">
-      <p class="text-gray-400">載入圖表中...</p>
+    <div
+      v-else
+      class="h-full bg-gray-800/50 rounded-lg flex items-center justify-center"
+    >
+      <p class="text-gray-400">
+        載入圖表中...
+      </p>
     </div>
   </div>
 </template>

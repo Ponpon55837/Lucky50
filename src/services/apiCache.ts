@@ -115,14 +115,9 @@ export class ApiCacheService {
     }
 
     // 快取不存在，執行 fetcher
-    try {
-      const data = await fetcher()
-      this.set(key, data, ttl)
-      return data
-    } catch (error) {
-      // 如果 fetcher 失敗，不快取錯誤結果
-      throw error
-    }
+    const data = await fetcher()
+    this.set(key, data, ttl)
+    return data
   }
 
   /**

@@ -1,9 +1,3 @@
-<style scoped>
-.relative {
-  position: relative;
-}
-</style>
-
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, watch, computed, nextTick } from 'vue'
 import * as THREE from 'three'
@@ -469,7 +463,10 @@ watch(
     class="relative w-full h-full bg-gradient-to-br from-surface-bg/50 via-card-bg to-surface-bg rounded-lg overflow-hidden border border-border-light"
     @mousemove="handleMouseMove"
   >
-    <div ref="threeContainer" class="w-full h-full"></div>
+    <div
+      ref="threeContainer"
+      class="w-full h-full"
+    />
 
     <!-- 動態懸停說明 -->
     <div
@@ -501,10 +498,12 @@ watch(
       class="absolute top-4 right-4 bg-card-bg/80 backdrop-blur-sm border border-border-light rounded-lg p-3 w-56"
     >
       <div class="flex justify-between items-center mb-2">
-        <h4 class="text-sm font-semibold text-primary-text">技術分析</h4>
+        <h4 class="text-sm font-semibold text-primary-text">
+          技術分析
+        </h4>
         <button
-          @click="showLegend = false"
           class="text-xs text-secondary-text hover:text-primary-text"
+          @click="showLegend = false"
         >
           ×
         </button>
@@ -516,10 +515,16 @@ watch(
           @mouseleave="handleElementLeave"
         >
           <div class="flex items-center space-x-2">
-            <div class="w-3 h-3 rounded-full" :class="rsiColor.replace('text-', 'bg-')"></div>
+            <div
+              class="w-3 h-3 rounded-full"
+              :class="rsiColor.replace('text-', 'bg-')"
+            />
             <span class="text-secondary-text">RSI</span>
           </div>
-          <span :class="rsiColor" class="font-mono text-xs">{{ indicators.rsi.toFixed(1) }}</span>
+          <span
+            :class="rsiColor"
+            class="font-mono text-xs"
+          >{{ indicators.rsi.toFixed(1) }}</span>
         </div>
         <div
           class="flex items-center justify-between cursor-pointer hover:bg-surface-bg/50 p-1 rounded"
@@ -527,10 +532,16 @@ watch(
           @mouseleave="handleElementLeave"
         >
           <div class="flex items-center space-x-2">
-            <div class="w-2 h-4" :class="macdColor.replace('text-', 'bg-')"></div>
+            <div
+              class="w-2 h-4"
+              :class="macdColor.replace('text-', 'bg-')"
+            />
             <span class="text-secondary-text">MACD</span>
           </div>
-          <span :class="macdColor" class="font-mono text-xs">{{ indicators.macd.toFixed(2) }}</span>
+          <span
+            :class="macdColor"
+            class="font-mono text-xs"
+          >{{ indicators.macd.toFixed(2) }}</span>
         </div>
         <div
           class="flex items-center justify-between cursor-pointer hover:bg-surface-bg/50 p-1 rounded"
@@ -538,10 +549,16 @@ watch(
           @mouseleave="handleElementLeave"
         >
           <div class="flex items-center space-x-2">
-            <div class="w-3 h-0.5 rounded-full" :class="bollColor.replace('text-', 'bg-')"></div>
+            <div
+              class="w-3 h-0.5 rounded-full"
+              :class="bollColor.replace('text-', 'bg-')"
+            />
             <span class="text-secondary-text">布林帶</span>
           </div>
-          <span :class="bollColor" class="text-xs">{{ indicators.bollingerBand }}</span>
+          <span
+            :class="bollColor"
+            class="text-xs"
+          >{{ indicators.bollingerBand }}</span>
         </div>
         <div
           class="flex items-center justify-between cursor-pointer hover:bg-surface-bg/50 p-1 rounded"
@@ -550,8 +567,8 @@ watch(
         >
           <div class="flex items-center space-x-2">
             <div class="flex space-x-0.5">
-              <div class="w-0.5 h-3 bg-blue-400"></div>
-              <div class="w-0.5 h-3 bg-purple-400"></div>
+              <div class="w-0.5 h-3 bg-blue-400" />
+              <div class="w-0.5 h-3 bg-purple-400" />
             </div>
             <span class="text-secondary-text">KD</span>
           </div>
@@ -561,37 +578,69 @@ watch(
         </div>
       </div>
       <div class="mt-3 pt-2 border-t border-border-light text-center">
-        <div class="text-lg font-bold" :class="overallSignalColor">{{ overallSignal }}</div>
-        <div class="text-xs text-secondary-text">總合信號</div>
+        <div
+          class="text-lg font-bold"
+          :class="overallSignalColor"
+        >
+          {{ overallSignal }}
+        </div>
+        <div class="text-xs text-secondary-text">
+          總合信號
+        </div>
       </div>
     </div>
 
     <!-- 圖例開關 -->
     <button
       v-if="!showLegend"
-      @click="showLegend = true"
       class="absolute top-4 right-4 bg-card-bg/80 backdrop-blur-sm border border-border-light rounded-lg p-2 text-xs text-secondary-text hover:text-primary-text"
+      @click="showLegend = true"
     >
       📈 指標
     </button>
     <div class="absolute top-4 left-4 text-primary-text">
-      <h3 class="text-lg font-semibold mb-2 text-primary-text">{{ title }}</h3>
+      <h3 class="text-lg font-semibold mb-2 text-primary-text">
+        {{ title }}
+      </h3>
       <div class="text-sm space-y-1">
         <div class="grid grid-cols-2 gap-4">
           <div>
-            <div class="text-xs text-secondary-text">RSI</div>
-            <div :class="rsiColor" class="font-mono">{{ indicators.rsi.toFixed(1) }}</div>
+            <div class="text-xs text-secondary-text">
+              RSI
+            </div>
+            <div
+              :class="rsiColor"
+              class="font-mono"
+            >
+              {{ indicators.rsi.toFixed(1) }}
+            </div>
           </div>
           <div>
-            <div class="text-xs text-secondary-text">MACD</div>
-            <div :class="macdColor" class="font-mono">{{ indicators.macd.toFixed(2) }}</div>
+            <div class="text-xs text-secondary-text">
+              MACD
+            </div>
+            <div
+              :class="macdColor"
+              class="font-mono"
+            >
+              {{ indicators.macd.toFixed(2) }}
+            </div>
           </div>
           <div>
-            <div class="text-xs text-secondary-text">布林帶</div>
-            <div :class="bollColor" class="font-mono">{{ indicators.bollingerBand }}</div>
+            <div class="text-xs text-secondary-text">
+              布林帶
+            </div>
+            <div
+              :class="bollColor"
+              class="font-mono"
+            >
+              {{ indicators.bollingerBand }}
+            </div>
           </div>
           <div>
-            <div class="text-xs text-secondary-text">KD</div>
+            <div class="text-xs text-secondary-text">
+              KD
+            </div>
             <div class="text-accent-text font-mono">
               {{ indicators.kd.k.toFixed(1) }}/{{ indicators.kd.d.toFixed(1) }}
             </div>
@@ -601,9 +650,22 @@ watch(
     </div>
     <div class="absolute bottom-4 right-4 text-primary-text text-xs">
       <div class="text-center">
-        <div class="text-lg font-bold" :class="overallSignalColor">{{ overallSignal }}</div>
-        <div class="text-sm text-secondary-text">技術信號</div>
+        <div
+          class="text-lg font-bold"
+          :class="overallSignalColor"
+        >
+          {{ overallSignal }}
+        </div>
+        <div class="text-sm text-secondary-text">
+          技術信號
+        </div>
       </div>
     </div>
   </div>
 </template>
+
+<style scoped>
+.relative {
+  position: relative;
+}
+</style>

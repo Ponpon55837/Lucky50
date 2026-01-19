@@ -114,7 +114,7 @@ export class PerformanceMonitor {
       try {
         observer.observe({ entryTypes: ['longtask'] })
         this.observers.set('longtask', observer)
-      } catch (e) {
+      } catch {
         console.warn('長任務監控不支持')
       }
     }
@@ -138,7 +138,10 @@ export class PerformanceMonitor {
     const report = {
       timestamp: new Date().toISOString(),
       memory: this.getMemoryUsage(),
-      metrics: {} as Record<string, { count: number; avg: number; min: number; max: number; median: number; p95: number }>,
+      metrics: {} as Record<
+        string,
+        { count: number; avg: number; min: number; max: number; median: number; p95: number }
+      >,
     }
 
     for (const [name] of this.metrics) {

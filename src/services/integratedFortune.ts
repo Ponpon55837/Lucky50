@@ -1,5 +1,5 @@
-// @ts-ignore
-import { Solar, Lunar } from 'lunar-javascript'
+// @ts-expect-error - lunar-javascript doesn't have TypeScript definitions
+import { Solar } from 'lunar-javascript'
 import { lunarService } from '@/services/lunar'
 import { TaiwanStockService } from './taiwanStock'
 import type { LunarData } from '@/services/lunar'
@@ -124,8 +124,8 @@ const ZHI_ELEMENTS = Object.freeze({
   亥: 'water',
 } as const)
 
-// 五行相生相剋關係
-const ELEMENT_RELATIONS = Object.freeze({
+// 五行相生相剋關係 (保留供未來使用)
+const _ELEMENT_RELATIONS = Object.freeze({
   wood: { generates: 'fire', destroys: 'earth', generatedBy: 'water', destroyedBy: 'metal' },
   fire: { generates: 'earth', destroys: 'metal', generatedBy: 'wood', destroyedBy: 'water' },
   earth: { generates: 'metal', destroys: 'water', generatedBy: 'fire', destroyedBy: 'wood' },
@@ -133,8 +133,8 @@ const ELEMENT_RELATIONS = Object.freeze({
   water: { generates: 'wood', destroys: 'fire', generatedBy: 'metal', destroyedBy: 'earth' },
 } as const)
 
-// 生肖配對關係
-const ZODIAC_COMPATIBILITY = {
+// 生肖配對關係 (保留供未來使用)
+const _ZODIAC_COMPATIBILITY = {
   鼠: { best: ['龍', '猴'], good: ['牛'], avoid: ['馬', '羊'] },
   牛: { best: ['蛇', '雞'], good: ['鼠'], avoid: ['羊', '馬'] },
   虎: { best: ['馬', '狗'], good: ['豬'], avoid: ['猴', '蛇'] },
@@ -241,7 +241,7 @@ export class IntegratedFortuneService {
   /**
    * 計算個人八字
    */
-  private static calculatePersonalBaZi(profile: UserProfileCompat, date: Date) {
+  private static calculatePersonalBaZi(profile: UserProfileCompat, _date: Date) {
     const birthDate = new Date(profile.birthDate)
     const solar = Solar.fromDate(birthDate)
     const lunar = solar.getLunar()
@@ -273,7 +273,7 @@ export class IntegratedFortuneService {
     // 個人設定的五行屬性（最重要的基礎）
     if (profile?.element) {
       const userElement = this.mapElementToEnglish(profile.element)
-      if (userElement && elements.hasOwnProperty(userElement)) {
+      if (userElement && Object.prototype.hasOwnProperty.call(elements, userElement)) {
         elements[userElement as keyof typeof elements] += 30 // 個人本命五行占最大權重
       }
     }
@@ -361,7 +361,7 @@ export class IntegratedFortuneService {
 
     // 生肖年運影響 (簡化版本，避免 TypeScript 複雜類型問題)
     const currentYearZodiac = lunarData.zodiac
-    const personalZodiac = personalBaZi.zodiac
+    const _personalZodiac = personalBaZi.zodiac // 保留供未來使用
 
     // 簡化的生肖配對邏輯
     const goodMatches = ['龍', '猴', '蛇', '雞', '馬', '狗', '羊', '豬']
@@ -413,8 +413,8 @@ export class IntegratedFortuneService {
    * 生成投資建議
    */
   private static generateInvestmentAdvice(
-    personalBaZi: PersonalBaZi,
-    lunarData: LunarData,
+    _personalBaZi: PersonalBaZi,
+    _lunarData: LunarData,
     elements: ElementsEnergy,
     scores: FortuneScores
   ) {
@@ -475,7 +475,7 @@ export class IntegratedFortuneService {
    */
   private static calculateStockTradingAnalysis(
     personalBaZi: PersonalBaZi,
-    lunarData: LunarData,
+    _lunarData: LunarData,
     date: Date
   ) {
     // 獲取台股交易狀態（檢查當前時間和日期）
@@ -545,7 +545,7 @@ export class IntegratedFortuneService {
   /**
    * 計算方位分析
    */
-  private static calculateDirectionAnalysis(personalBaZi: PersonalBaZi, lunarData: LunarData) {
+  private static calculateDirectionAnalysis(personalBaZi: PersonalBaZi, _lunarData: LunarData) {
     // 根據天干地支計算吉方
     const dayGan = personalBaZi.dayGanZhi[0]
     const dayZhi = personalBaZi.dayGanZhi[1]
@@ -559,7 +559,7 @@ export class IntegratedFortuneService {
   /**
    * 生成活動建議
    */
-  private static generateActivitiesAdvice(personalBaZi: PersonalBaZi, lunarData: LunarData) {
+  private static generateActivitiesAdvice(_personalBaZi: PersonalBaZi, lunarData: LunarData) {
     const suitable = [...lunarData.yi]
     const forbidden = [...lunarData.ji]
 
@@ -572,7 +572,11 @@ export class IntegratedFortuneService {
   /**
    * 生成特殊建議
    */
-  private static generateSpecialAdvice(personalBaZi: PersonalBaZi, lunarData: LunarData, elements: ElementsEnergy) {
+  private static generateSpecialAdvice(
+    _personalBaZi: PersonalBaZi,
+    lunarData: LunarData,
+    elements: ElementsEnergy
+  ) {
     const warnings: string[] = []
     const opportunities: string[] = []
 
@@ -694,7 +698,10 @@ export class IntegratedFortuneService {
     return zhiToTime[zhi] || '11:00-13:00'
   }
 
-  private static calculateBestTradingHours(personalBaZi: PersonalBaZi, lunarData: LunarData): string[] {
+  private static calculateBestTradingHours(
+    personalBaZi: PersonalBaZi,
+    _lunarData: LunarData
+  ): string[] {
     // 計算交易時段內的最佳時間
     const tradingHours = []
     const luckyZhi = this.getLuckyZhiForZodiac(personalBaZi.zodiac)
@@ -716,7 +723,7 @@ export class IntegratedFortuneService {
     return tradingHours
   }
 
-  private static calculateLuckyDirection(dayGan: string, dayZhi: string): string {
+  private static calculateLuckyDirection(dayGan: string, _dayZhi: string): string {
     // 根據天干地支計算吉方
     const ganToDirection: { [key: string]: string } = {
       甲: '東方',
@@ -734,7 +741,7 @@ export class IntegratedFortuneService {
     return ganToDirection[dayGan] || '東方'
   }
 
-  private static calculateAvoidDirection(dayGan: string, dayZhi: string): string {
+  private static calculateAvoidDirection(dayGan: string, _dayZhi: string): string {
     // 根據天干地支計算凶方
     const ganToAvoid: { [key: string]: string } = {
       甲: '西方',
@@ -752,7 +759,7 @@ export class IntegratedFortuneService {
     return ganToAvoid[dayGan] || '西方'
   }
 
-  private static calculateLuckyColors(personalBaZi: PersonalBaZi, lunarData: LunarData): string[] {
+  private static calculateLuckyColors(personalBaZi: PersonalBaZi, _lunarData: LunarData): string[] {
     const element = personalBaZi.element
     const elementToColors: { [key: string]: string[] } = {
       wood: ['綠色', '青色', '蘭色'],
@@ -765,7 +772,10 @@ export class IntegratedFortuneService {
     return elementToColors[element] || ['藍色', '黑色']
   }
 
-  private static calculateLuckyNumbers(personalBaZi: PersonalBaZi, lunarData: LunarData): number[] {
+  private static calculateLuckyNumbers(
+    personalBaZi: PersonalBaZi,
+    _lunarData: LunarData
+  ): number[] {
     const element = personalBaZi.element
     const elementToNumbers: { [key: string]: number[] } = {
       wood: [3, 8],

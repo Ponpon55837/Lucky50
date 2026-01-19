@@ -15,16 +15,24 @@ const FortuneOrb = defineAsyncComponent({
     <section class="relative overflow-hidden">
       <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
         <div class="text-center">
-          <h1 class="text-4xl md:text-6xl font-bold text-white mb-6">農民曆智慧投資</h1>
+          <h1 class="text-4xl md:text-6xl font-bold text-white mb-6">
+            農民曆智慧投資
+          </h1>
           <p class="text-xl md:text-2xl text-gray-300 mb-8 max-w-3xl mx-auto">
-            結合傳統農民曆智慧與現代金融科技<br />
+            結合傳統農民曆智慧與現代金融科技<br>
             為您的 0050 ETF 投資提供個人化建議
           </p>
           <div class="flex flex-col sm:flex-row gap-4 justify-center">
-            <RouterLink to="/dashboard" class="btn-primary text-lg px-8 py-3">
+            <RouterLink
+              to="/dashboard"
+              class="btn-primary text-lg px-8 py-3"
+            >
               開始投資分析
             </RouterLink>
-            <RouterLink to="/profile" class="btn-secondary text-lg px-8 py-3">
+            <RouterLink
+              to="/profile"
+              class="btn-secondary text-lg px-8 py-3"
+            >
               設定個人資料
             </RouterLink>
           </div>
@@ -46,7 +54,7 @@ const FortuneOrb = defineAsyncComponent({
               />
               <template #fallback>
                 <div class="w-full h-full flex items-center justify-center">
-                  <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+                  <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500" />
                 </div>
               </template>
             </Suspense>
@@ -59,7 +67,9 @@ const FortuneOrb = defineAsyncComponent({
     <section class="py-20">
       <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div class="text-center mb-16">
-          <h2 class="text-3xl md:text-4xl font-bold text-white mb-6">專案特色</h2>
+          <h2 class="text-3xl md:text-4xl font-bold text-white mb-6">
+            專案特色
+          </h2>
           <p class="text-xl text-gray-300 max-w-2xl mx-auto">
             創新結合東方智慧與西方科技，為現代投資者提供全新視角
           </p>
@@ -84,7 +94,9 @@ const FortuneOrb = defineAsyncComponent({
                 />
               </svg>
             </div>
-            <h3 class="text-lg sm:text-xl font-semibold text-white mb-2">個人化分析</h3>
+            <h3 class="text-lg sm:text-xl font-semibold text-white mb-2">
+              個人化分析
+            </h3>
             <p class="text-sm sm:text-base text-gray-300">
               根據出生年月日、時辰與生肖計算個人投資運勢
             </p>
@@ -108,8 +120,12 @@ const FortuneOrb = defineAsyncComponent({
                 />
               </svg>
             </div>
-            <h3 class="text-lg sm:text-xl font-semibold text-white mb-2">農民曆整合</h3>
-            <p class="text-sm sm:text-base text-gray-300">結合傳統農民曆的吉凶宜忌判斷投資時機</p>
+            <h3 class="text-lg sm:text-xl font-semibold text-white mb-2">
+              農民曆整合
+            </h3>
+            <p class="text-sm sm:text-base text-gray-300">
+              結合傳統農民曆的吉凶宜忌判斷投資時機
+            </p>
           </div>
 
           <div class="card text-center">
@@ -130,7 +146,9 @@ const FortuneOrb = defineAsyncComponent({
                 />
               </svg>
             </div>
-            <h3 class="text-lg sm:text-xl font-semibold text-white mb-2">3D 視覺化</h3>
+            <h3 class="text-lg sm:text-xl font-semibold text-white mb-2">
+              3D 視覺化
+            </h3>
             <p class="text-sm sm:text-base text-gray-300">
               使用 Three.js 打造沉浸式 3D 投資運勢球體
             </p>
@@ -154,7 +172,9 @@ const FortuneOrb = defineAsyncComponent({
                 />
               </svg>
             </div>
-            <h3 class="text-lg sm:text-xl font-semibold text-white mb-2">0050 專注</h3>
+            <h3 class="text-lg sm:text-xl font-semibold text-white mb-2">
+              0050 專注
+            </h3>
             <p class="text-sm sm:text-base text-gray-300">
               專門針對台灣最具代表性的 ETF 提供精準分析
             </p>
@@ -167,9 +187,16 @@ const FortuneOrb = defineAsyncComponent({
     <section class="py-20">
       <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
         <div class="card">
-          <h2 class="text-3xl font-bold text-white mb-6">立即開始您的智慧投資之旅</h2>
-          <p class="text-xl text-gray-300 mb-8">設定您的個人資料，獲取專屬的投資運勢分析</p>
-          <RouterLink to="/profile" class="btn-primary text-lg px-8 py-4 inline-block">
+          <h2 class="text-3xl font-bold text-white mb-6">
+            立即開始您的智慧投資之旅
+          </h2>
+          <p class="text-xl text-gray-300 mb-8">
+            設定您的個人資料，獲取專屬的投資運勢分析
+          </p>
+          <RouterLink
+            to="/profile"
+            class="btn-primary text-lg px-8 py-4 inline-block"
+          >
             建立個人檔案
           </RouterLink>
         </div>

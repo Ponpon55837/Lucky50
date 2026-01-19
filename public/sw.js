@@ -1,5 +1,5 @@
 // Service Worker for caching and performance
-const CACHE_NAME = 'lucky50-v1.0.0'
+const _CACHE_NAME = 'lucky50-v1.0.0' // Kept for reference
 const STATIC_CACHE = 'lucky50-static-v1'
 const API_CACHE = 'lucky50-api-v1'
 

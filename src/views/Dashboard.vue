@@ -70,7 +70,9 @@ watch(
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
       <!-- Header -->
       <div class="mb-8">
-        <h1 class="text-3xl font-bold text-white mb-2">投資儀表板</h1>
+        <h1 class="text-3xl font-bold text-white mb-2">
+          投資儀表板
+        </h1>
         <p class="text-gray-300">
           今日是 {{ dashboardStore.formattedCurrentDate }}，
           <span
@@ -112,28 +114,31 @@ watch(
       <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
         <!-- 今日運勢 -->
         <FortuneCard
-          :fortuneData="dashboardStore.integratedFortune"
+          :fortune-data="dashboardStore.integratedFortune"
           :loading="dashboardStore.fortuneLoading"
-          :errorMessage="dashboardStore.fortuneError || ''"
+          :error-message="dashboardStore.fortuneError || ''"
           title="今日投資運勢"
           icon="🔮"
-          :showWealthScore="true"
-          :showTimeAdvice="false"
-          :showDirectionAdvice="false"
-          :showLuckyInfo="false"
+          :show-wealth-score="true"
+          :show-time-advice="false"
+          :show-direction-advice="false"
+          :show-lucky-info="false"
           @retry="retryIntegratedFortune"
         />
 
         <!-- 0050 即時資訊 -->
         <div class="card">
-          <h2 class="text-lg sm:text-xl font-semibold text-white mb-4">元大台灣50 (0050)</h2>
-          <div v-if="dashboardStore.latestPrice" class="space-y-3 sm:space-y-4">
+          <h2 class="text-lg sm:text-xl font-semibold text-white mb-4">
+            元大台灣50 (0050)
+          </h2>
+          <div
+            v-if="dashboardStore.latestPrice"
+            class="space-y-3 sm:space-y-4"
+          >
             <div
               class="flex flex-col sm:flex-row sm:items-baseline space-y-1 sm:space-y-0 sm:space-x-2"
             >
-              <span class="text-2xl sm:text-3xl font-bold text-white"
-                >${{ dashboardStore.latestPrice.close }}</span
-              >
+              <span class="text-2xl sm:text-3xl font-bold text-white">${{ dashboardStore.latestPrice.close }}</span>
               <span
                 :class="dashboardStore.priceChangeColor"
                 class="text-base sm:text-lg font-medium"
@@ -176,24 +181,38 @@ watch(
             v-else-if="dashboardStore.loading || dashboardStore.etfLoading"
             class="text-center py-8"
           >
-            <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-gold-500 mx-auto"></div>
-            <p class="text-gray-400 mt-2">載入中...</p>
+            <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-gold-500 mx-auto" />
+            <p class="text-gray-400 mt-2">
+              載入中...
+            </p>
           </div>
-          <div v-else class="text-center py-8">
-            <p class="text-gray-400">無法載入股價資料</p>
+          <div
+            v-else
+            class="text-center py-8"
+          >
+            <p class="text-gray-400">
+              無法載入股價資料
+            </p>
           </div>
         </div>
 
         <!-- 交易時段建議 -->
         <div class="card">
-          <h2 class="text-xl font-semibold text-white mb-4">交易時段建議</h2>
-          <div v-if="dashboardStore.integratedFortune" class="space-y-4">
+          <h2 class="text-xl font-semibold text-white mb-4">
+            交易時段建議
+          </h2>
+          <div
+            v-if="dashboardStore.integratedFortune"
+            class="space-y-4"
+          >
             <!-- 推薦交易時段 -->
             <div
               v-if="dashboardStore.integratedFortune.bestTradingHours.length > 0"
               class="bg-green-500/20 p-3 rounded-lg border border-green-500/30"
             >
-              <h3 class="text-green-400 font-medium mb-2">推薦交易時段 (今日)</h3>
+              <h3 class="text-green-400 font-medium mb-2">
+                推薦交易時段 (今日)
+              </h3>
               <div class="space-y-1">
                 <div
                   v-for="period in dashboardStore.integratedFortune.bestTradingHours"
@@ -204,7 +223,9 @@ watch(
                   <span class="text-green-300">{{ period.reason }}</span>
                 </div>
               </div>
-              <p class="text-sm text-gray-300 mt-2">今日適合買入或加碼的時段</p>
+              <p class="text-sm text-gray-300 mt-2">
+                今日適合買入或加碼的時段
+              </p>
             </div>
 
             <!-- 避免交易時段 -->
@@ -212,7 +233,9 @@ watch(
               v-if="dashboardStore.integratedFortune.avoidTradingHours.length > 0"
               class="bg-red-500/20 p-3 rounded-lg border border-red-500/30"
             >
-              <h3 class="text-red-400 font-medium mb-2">避免交易時段 (今日)</h3>
+              <h3 class="text-red-400 font-medium mb-2">
+                避免交易時段 (今日)
+              </h3>
               <div class="space-y-1">
                 <div
                   v-for="period in dashboardStore.integratedFortune.avoidTradingHours"
@@ -223,20 +246,28 @@ watch(
                   <span class="text-red-300">{{ period.reason }}</span>
                 </div>
               </div>
-              <p class="text-sm text-gray-300 mt-2">今日不宜進場操作的時段</p>
+              <p class="text-sm text-gray-300 mt-2">
+                今日不宜進場操作的時段
+              </p>
             </div>
 
             <!-- 如果當天沒有特別推薦時段，顯示傳統吉時參考 -->
             <div
               v-if="
                 dashboardStore.integratedFortune.bestTradingHours.length === 0 &&
-                dashboardStore.integratedFortune.stockTradingStatus.isOpen
+                  dashboardStore.integratedFortune.stockTradingStatus.isOpen
               "
               class="bg-blue-500/20 p-3 rounded-lg border border-blue-500/30"
             >
-              <h3 class="text-blue-400 font-medium mb-1">傳統吉時參考</h3>
-              <p class="text-white">{{ dashboardStore.integratedFortune.luckyTime }}</p>
-              <p class="text-sm text-gray-300">可參考的吉時，但需注意個人運勢狀況</p>
+              <h3 class="text-blue-400 font-medium mb-1">
+                傳統吉時參考
+              </h3>
+              <p class="text-white">
+                {{ dashboardStore.integratedFortune.luckyTime }}
+              </p>
+              <p class="text-sm text-gray-300">
+                可參考的吉時，但需注意個人運勢狀況
+              </p>
             </div>
 
             <!-- 交易日提醒 (只在非交易日或假日顯示) -->
@@ -244,7 +275,9 @@ watch(
               v-if="!dashboardStore.integratedFortune.tradingDayInfo.isToday"
               class="bg-yellow-500/20 p-3 rounded-lg border border-yellow-500/30"
             >
-              <h3 class="text-yellow-400 font-medium mb-1">📅 下個交易日</h3>
+              <h3 class="text-yellow-400 font-medium mb-1">
+                📅 下個交易日
+              </h3>
               <p class="text-white text-sm">
                 {{
                   dashboardStore.formatDate(
@@ -252,25 +285,34 @@ watch(
                   )
                 }}
               </p>
-              <p class="text-sm text-gray-300">今日為假日或國定假日，股市休市</p>
+              <p class="text-sm text-gray-300">
+                今日為假日或國定假日，股市休市
+              </p>
             </div>
           </div>
-          <div v-else class="text-center py-8">
-            <p class="text-gray-400">請先設定個人資料</p>
+          <div
+            v-else
+            class="text-center py-8"
+          >
+            <p class="text-gray-400">
+              請先設定個人資料
+            </p>
           </div>
         </div>
       </div>
 
       <!-- 農民曆區域 -->
       <div class="mb-8">
-        <LunarCalendarCard :fortuneData="dashboardStore.integratedFortune" />
+        <LunarCalendarCard :fortune-data="dashboardStore.integratedFortune" />
       </div>
 
       <!-- 圖表區域 -->
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <!-- 價格走勢圖 -->
         <div class="card">
-          <h2 class="text-xl font-semibold text-white mb-4">價格走勢</h2>
+          <h2 class="text-xl font-semibold text-white mb-4">
+            價格走勢
+          </h2>
           <div
             v-if="dashboardStore.etfData.length === 0"
             class="h-64 bg-gray-800/50 rounded-lg flex items-center justify-center"
@@ -281,24 +323,35 @@ watch(
                   ? '載入圖表中...'
                   : '無數據可顯示'
               }}
-              <br />
+              <br>
               <small class="text-xs">數據數量: {{ dashboardStore.etfData.length }}</small>
             </p>
           </div>
-          <PriceChart v-else :etfData="dashboardStore.etfData" :isDark="isDark" />
+          <PriceChart
+            v-else
+            :etf-data="dashboardStore.etfData"
+            :is-dark="isDark"
+          />
         </div>
 
         <!-- 五行能量圖 -->
         <div class="card">
-          <h2 class="text-xl font-semibold text-white mb-4">五行能量分析</h2>
+          <h2 class="text-xl font-semibold text-white mb-4">
+            五行能量分析
+          </h2>
           <ElementRadarChart
             v-if="dashboardStore.integratedFortune && dashboardStore.integratedFortune.elements"
             :elements="dashboardStore.integratedFortune.elements"
-            :userElement="userStore.profile?.element"
-            :isDark="isDark"
+            :user-element="userStore.profile?.element"
+            :is-dark="isDark"
           />
-          <div v-else class="h-64 bg-gray-800/50 rounded-lg flex items-center justify-center">
-            <p class="text-gray-400">請先設定個人資料</p>
+          <div
+            v-else
+            class="h-64 bg-gray-800/50 rounded-lg flex items-center justify-center"
+          >
+            <p class="text-gray-400">
+              請先設定個人資料
+            </p>
           </div>
 
           <!-- 個人五行屬性說明 -->

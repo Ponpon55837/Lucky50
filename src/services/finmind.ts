@@ -215,7 +215,7 @@ export class FinMindService {
         },
       })
       return response.data.status === 200
-    } catch (error) {
+    } catch {
       console.warn('FinMind API 無法連接，將使用備用數據')
       return false
     }

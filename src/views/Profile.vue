@@ -191,7 +191,7 @@ const saveProfile = async () => {
     setTimeout(() => {
       startRedirect()
     }, 1000)
-  } catch (error) {
+  } catch {
     saving.value = false
     showError('保存失敗', '無法保存您的設定，請檢查資料後重試')
   }
@@ -234,15 +234,22 @@ const clearForm = () => {
   <div class="min-h-screen py-12">
     <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
       <div class="text-center mb-8 sm:mb-12">
-        <h1 class="text-2xl sm:text-3xl md:text-4xl font-bold text-white mb-4">個人設定</h1>
+        <h1 class="text-2xl sm:text-3xl md:text-4xl font-bold text-white mb-4">
+          個人設定
+        </h1>
         <p class="text-base sm:text-xl text-gray-300 px-4">
           設定您的個人資料以獲得精準的投資運勢分析
         </p>
       </div>
 
       <!-- 已儲存的資料預覽 -->
-      <div v-if="userStore.profile" class="card max-w-2xl mx-auto my-6 sm:my-8">
-        <h3 class="text-lg sm:text-xl font-semibold text-white mb-4">當前設定</h3>
+      <div
+        v-if="userStore.profile"
+        class="card max-w-2xl mx-auto my-6 sm:my-8"
+      >
+        <h3 class="text-lg sm:text-xl font-semibold text-white mb-4">
+          當前設定
+        </h3>
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 text-sm">
           <div class="flex flex-col sm:block">
             <span class="text-gray-400">姓名：</span>
@@ -264,23 +271,32 @@ const clearForm = () => {
       </div>
 
       <div class="card max-w-2xl mx-auto">
-        <form @submit.prevent="saveProfile" class="space-y-4 sm:space-y-6">
+        <form
+          class="space-y-4 sm:space-y-6"
+          @submit.prevent="saveProfile"
+        >
           <!-- 姓名 -->
           <div>
-            <label for="name" class="block text-sm font-medium text-white mb-2"> 姓名 </label>
+            <label
+              for="name"
+              class="block text-sm font-medium text-white mb-2"
+            > 姓名 </label>
             <input
+              id="name"
               v-model="form.name"
               type="text"
-              id="name"
               required
               class="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-gold-500 focus:ring-1 focus:ring-gold-500 text-sm sm:text-base"
               placeholder="請輸入您的姓名"
-            />
+            >
           </div>
 
           <!-- 出生日期 -->
           <div>
-            <label for="birthDate" class="block text-sm font-medium text-white mb-2">
+            <label
+              for="birthDate"
+              class="block text-sm font-medium text-white mb-2"
+            >
               出生日期
             </label>
             <div class="date-picker-wrapper">
@@ -302,7 +318,11 @@ const clearForm = () => {
                 @update:model-value="onDateChange"
               >
                 <template #input-icon>
-                  <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                  <svg
+                    class="w-5 h-5"
+                    fill="currentColor"
+                    viewBox="0 0 20 20"
+                  >
                     <path
                       fill-rule="evenodd"
                       d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z"
@@ -312,12 +332,17 @@ const clearForm = () => {
                 </template>
               </VueDatePicker>
             </div>
-            <p class="text-sm text-gray-400 mt-1">請選擇您的出生日期 (西元年份)</p>
+            <p class="text-sm text-gray-400 mt-1">
+              請選擇您的出生日期 (西元年份)
+            </p>
           </div>
 
           <!-- 出生時間 -->
           <div>
-            <label for="birthTime" class="block text-sm font-medium text-white mb-2">
+            <label
+              for="birthTime"
+              class="block text-sm font-medium text-white mb-2"
+            >
               出生時間
             </label>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -346,10 +371,15 @@ const clearForm = () => {
                 <label class="block text-xs text-gray-400 mb-1">傳統時辰</label>
                 <select
                   v-model="selectedShichen"
-                  @change="onShichenChange"
                   class="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white focus:outline-none focus:border-gold-500 focus:ring-2 focus:ring-gold-500/20"
+                  @change="onShichenChange"
                 >
-                  <option value="" class="bg-gray-800">選擇時辰</option>
+                  <option
+                    value=""
+                    class="bg-gray-800"
+                  >
+                    選擇時辰
+                  </option>
                   <option
                     v-for="shichen in shichenList"
                     :key="shichen.name"
@@ -374,13 +404,13 @@ const clearForm = () => {
                 v-for="zodiac in zodiacList"
                 :key="zodiac"
                 type="button"
-                @click="form.zodiac = zodiac"
                 :class="[
                   'p-2 rounded-lg text-xs sm:text-sm font-medium transition-all duration-200',
                   form.zodiac === zodiac
                     ? 'bg-gold-500 text-white'
                     : 'bg-white/10 text-gray-300 hover:bg-white/20',
                 ]"
+                @click="form.zodiac = zodiac"
               >
                 {{ zodiac }}
               </button>
@@ -406,7 +436,7 @@ const clearForm = () => {
                 :key="color"
                 :class="`w-8 h-8 rounded-full ${getColorClass(color)}`"
                 :title="color"
-              ></div>
+              />
             </div>
           </div>
 
@@ -415,8 +445,8 @@ const clearForm = () => {
             <div class="flex flex-col sm:flex-row justify-center sm:justify-end gap-4">
               <button
                 type="button"
-                @click="clearForm"
                 class="btn-secondary order-2 sm:order-1 w-full sm:w-auto"
+                @click="clearForm"
               >
                 清除設定
               </button>

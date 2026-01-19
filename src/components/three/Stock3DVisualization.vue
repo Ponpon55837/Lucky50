@@ -438,7 +438,10 @@ onUnmounted(() => {
     class="relative w-full h-full bg-gradient-to-br from-surface-bg/50 via-card-bg to-surface-bg rounded-lg overflow-hidden border border-border-light"
     @mousemove="handleMouseMove"
   >
-    <div ref="threeContainer" class="w-full h-full"></div>
+    <div
+      ref="threeContainer"
+      class="w-full h-full"
+    />
 
     <!-- 動態懸停說明 -->
     <div
@@ -446,7 +449,9 @@ onUnmounted(() => {
       :style="{ left: mousePosition.x + 10 + 'px', top: mousePosition.y - 10 + 'px' }"
       class="absolute z-10 bg-card-bg/90 backdrop-blur-sm border border-border-light rounded-lg p-3 shadow-lg pointer-events-none max-w-xs"
     >
-      <div class="text-sm font-medium text-primary-text mb-1">{{ hoveredElement }}</div>
+      <div class="text-sm font-medium text-primary-text mb-1">
+        {{ hoveredElement }}
+      </div>
       <div class="text-xs text-secondary-text">
         {{ (hoveredElement && elementDescriptions[hoveredElement as ElementType]) || '未知元素' }}
       </div>
@@ -458,10 +463,12 @@ onUnmounted(() => {
       class="absolute top-4 right-4 bg-card-bg/80 backdrop-blur-sm border border-border-light rounded-lg p-3 w-48"
     >
       <div class="flex justify-between items-center mb-2">
-        <h4 class="text-sm font-semibold text-primary-text">元素說明</h4>
+        <h4 class="text-sm font-semibold text-primary-text">
+          元素說明
+        </h4>
         <button
-          @click="showLegend = false"
           class="text-xs text-secondary-text hover:text-primary-text"
+          @click="showLegend = false"
         >
           ×
         </button>
@@ -472,7 +479,7 @@ onUnmounted(() => {
           @mouseenter="handleElementHover('priceSphere')"
           @mouseleave="handleElementLeave"
         >
-          <div class="w-3 h-3 bg-green-400 rounded-full"></div>
+          <div class="w-3 h-3 bg-green-400 rounded-full" />
           <span class="text-secondary-text">價格點</span>
         </div>
         <div
@@ -480,7 +487,7 @@ onUnmounted(() => {
           @mouseenter="handleElementHover('volumeBar')"
           @mouseleave="handleElementLeave"
         >
-          <div class="w-3 h-2 bg-blue-400"></div>
+          <div class="w-3 h-2 bg-blue-400" />
           <span class="text-secondary-text">成交量</span>
         </div>
         <div
@@ -488,7 +495,7 @@ onUnmounted(() => {
           @mouseenter="handleElementHover('priceLine')"
           @mouseleave="handleElementLeave"
         >
-          <div class="w-6 h-0.5 bg-accent-text"></div>
+          <div class="w-6 h-0.5 bg-accent-text" />
           <span class="text-secondary-text">趨勢線</span>
         </div>
         <div
@@ -496,7 +503,7 @@ onUnmounted(() => {
           @mouseenter="handleElementHover('fortuneOrb')"
           @mouseleave="handleElementLeave"
         >
-          <div class="w-3 h-3 bg-yellow-400 rounded-full animate-pulse"></div>
+          <div class="w-3 h-3 bg-yellow-400 rounded-full animate-pulse" />
           <span class="text-secondary-text">運勢球</span>
         </div>
         <div
@@ -505,9 +512,9 @@ onUnmounted(() => {
           @mouseleave="handleElementLeave"
         >
           <div class="flex space-x-1">
-            <div class="w-1 h-1 bg-accent-text rounded-full"></div>
-            <div class="w-1 h-1 bg-accent-text rounded-full"></div>
-            <div class="w-1 h-1 bg-accent-text rounded-full"></div>
+            <div class="w-1 h-1 bg-accent-text rounded-full" />
+            <div class="w-1 h-1 bg-accent-text rounded-full" />
+            <div class="w-1 h-1 bg-accent-text rounded-full" />
           </div>
           <span class="text-secondary-text">市場粒子</span>
         </div>
@@ -517,29 +524,27 @@ onUnmounted(() => {
     <!-- 圖例開關按鈕 -->
     <button
       v-if="!showLegend"
-      @click="showLegend = true"
       class="absolute top-4 right-4 bg-card-bg/80 backdrop-blur-sm border border-border-light rounded-lg p-2 text-xs text-secondary-text hover:text-primary-text"
+      @click="showLegend = true"
     >
       📊 圖例
     </button>
 
     <div class="absolute top-4 left-4 text-primary-text">
-      <h3 class="text-lg font-semibold mb-2 text-primary-text">{{ title }}</h3>
+      <h3 class="text-lg font-semibold mb-2 text-primary-text">
+        {{ title }}
+      </h3>
       <div class="text-sm space-y-1">
         <div>
           最新價格: <span :class="priceChangeColor">{{ latestPrice?.toFixed(2) }}</span>
         </div>
         <div>
           漲跌:
-          <span :class="priceChangeColor"
-            >{{ priceChange >= 0 ? '+' : '' }}{{ priceChange?.toFixed(2) }}</span
-          >
+          <span :class="priceChangeColor">{{ priceChange >= 0 ? '+' : '' }}{{ priceChange?.toFixed(2) }}</span>
         </div>
         <div>
           漲跌幅:
-          <span :class="priceChangeColor"
-            >{{ priceChange >= 0 ? '+' : '' }}{{ priceChangePercent?.toFixed(2) }}%</span
-          >
+          <span :class="priceChangeColor">{{ priceChange >= 0 ? '+' : '' }}{{ priceChangePercent?.toFixed(2) }}%</span>
         </div>
       </div>
     </div>
