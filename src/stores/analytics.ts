@@ -104,13 +104,39 @@ export const useAnalyticsStore = defineStore('analytics', () => {
       }
     }
 
-    const firstPrice = adjustedData[0]?.close || 0
-    const lastPrice = adjustedData[adjustedData.length - 1]?.close || 0
+    const firstItem = adjustedData[0]
+    const lastItem = adjustedData[adjustedData.length - 1]
+
+    if (!firstItem || !lastItem) {
+      return {
+        totalReturn: 0,
+        annualReturn: 0,
+        volatility: 0,
+        sharpeRatio: 0,
+        maxDrawdown: 0,
+      }
+    }
+
+    const firstPrice = firstItem.close || 0
+    const lastPrice = lastItem.close || 0
     const totalReturn = firstPrice > 0 ? ((lastPrice - firstPrice) / firstPrice) * 100 : 0
 
-    // 計算實際的時間跨度（年數）
-    const firstDate = new Date(adjustedData[0]?.date)
-    const lastDate = new Date(adjustedData[adjustedData.length - 1]?.date)
+    // 計算實際的時間跨度（年數）- 添加日期驗證
+    const firstDate = firstItem.date ? new Date(firstItem.date) : new Date()
+    const lastDate = lastItem.date ? new Date(lastItem.date) : new Date()
+
+    // 驗證日期是否有效
+    if (isNaN(firstDate.getTime()) || isNaN(lastDate.getTime())) {
+      console.error('Invalid date in ETF data')
+      return {
+        totalReturn: 0,
+        annualReturn: 0,
+        volatility: 0,
+        sharpeRatio: 0,
+        maxDrawdown: 0,
+      }
+    }
+
     const actualDays = Math.max(
       1,
       Math.ceil((lastDate.getTime() - firstDate.getTime()) / (1000 * 60 * 60 * 24))
@@ -134,11 +160,27 @@ export const useAnalyticsStore = defineStore('analytics', () => {
       annualReturn = 0
     }
 
-    // 計算波動率
-    const returns = adjustedData.slice(1).map((item: any, index: number) => {
-      const prevPrice = adjustedData[index]?.close || 0
-      return prevPrice > 0 ? ((item.close - prevPrice) / prevPrice) * 100 : 0
-    })
+    // 計算波動率 - 改進返回值計算並過濾無效值
+    const returns = adjustedData.slice(1).reduce((acc: number[], item: ETFData, index: number) => {
+      const prevItem = adjustedData[index]
+      if (prevItem && prevItem.close && item.close && prevItem.close > 0) {
+        const returnRate = ((item.close - prevItem.close) / prevItem.close) * 100
+        if (isFinite(returnRate) && !isNaN(returnRate)) {
+          acc.push(returnRate)
+        }
+      }
+      return acc
+    }, [])
+
+    if (returns.length === 0) {
+      return {
+        totalReturn,
+        annualReturn,
+        volatility: 0,
+        sharpeRatio: 0,
+        maxDrawdown: 0,
+      }
+    }
 
     const avgReturn = returns.reduce((sum: number, r: number) => sum + r, 0) / returns.length
     const variance =
@@ -180,10 +222,25 @@ export const useAnalyticsStore = defineStore('analytics', () => {
       }
     }
 
-    const returns = adjustedData.slice(1).map((item: any, index: number) => {
-      const prevPrice = adjustedData[index]?.close || 0
-      return prevPrice > 0 ? ((item.close - prevPrice) / prevPrice) * 100 : 0
-    })
+    const returns = adjustedData.slice(1).reduce((acc: number[], item: ETFData, index: number) => {
+      const prevItem = adjustedData[index]
+      if (prevItem && prevItem.close && item.close && prevItem.close > 0) {
+        const returnRate = ((item.close - prevItem.close) / prevItem.close) * 100
+        if (isFinite(returnRate) && !isNaN(returnRate)) {
+          acc.push(returnRate)
+        }
+      }
+      return acc
+    }, [])
+
+    if (returns.length === 0) {
+      return {
+        excellent: 25,
+        good: 35,
+        average: 30,
+        poor: 10,
+      }
+    }
 
     const positiveReturns = returns.filter((r: number) => r > 0.5).length
     const smallPositive = returns.filter((r: number) => r > 0 && r <= 0.5).length
@@ -213,7 +270,18 @@ export const useAnalyticsStore = defineStore('analytics', () => {
       }
     }
 
-    const prices = adjustedData.map((item: ETFData) => item.close)
+    const prices = adjustedData
+      .map((item: ETFData) => item.close)
+      .filter((price): price is number => typeof price === 'number' && !isNaN(price))
+
+    if (prices.length < 14) {
+      return {
+        rsi: 50,
+        macd: 0,
+        bollingerBand: '中軌',
+        kd: { k: 50, d: 50 },
+      }
+    }
 
     // RSI 簡化計算
     const recentPrices = prices.slice(-14)
@@ -325,16 +393,31 @@ export const useAnalyticsStore = defineStore('analytics', () => {
     const baseSharpe = statistics.sharpeRatio
     const baseDrawdown = statistics.maxDrawdown
 
-    // 計算歷史時間跨度
-    const firstDate = new Date(adjustedData[0]?.date)
-    const lastDate = new Date(adjustedData[adjustedData.length - 1]?.date)
-    const timeSpan = (lastDate.getTime() - firstDate.getTime()) / (1000 * 60 * 60 * 24) / 365
+    // 計算歷史時間跨度 - 添加日期驗證
+    const firstItem = adjustedData[0]
+    const lastItem = adjustedData[adjustedData.length - 1]
+    const firstDate = firstItem?.date ? new Date(firstItem.date) : new Date()
+    const lastDate = lastItem?.date ? new Date(lastItem.date) : new Date()
 
-    // 計算歷史勝率（基於正報酬日數）
-    const dailyReturns = adjustedData.slice(1).map((item: any, index: number) => {
-      const prevPrice = adjustedData[index]?.close || 0
-      return prevPrice > 0 ? ((item.close - prevPrice) / prevPrice) * 100 : 0
-    })
+    // 驗證日期
+    const timeSpan =
+      !isNaN(firstDate.getTime()) && !isNaN(lastDate.getTime())
+        ? (lastDate.getTime() - firstDate.getTime()) / (1000 * 60 * 60 * 24) / 365
+        : 1
+
+    // 計算歷史勝率（基於正報酬日數）- 改進計算
+    const dailyReturns = adjustedData
+      .slice(1)
+      .reduce((acc: number[], item: ETFData, index: number) => {
+        const prevItem = adjustedData[index]
+        if (prevItem && prevItem.close && item.close && prevItem.close > 0) {
+          const returnRate = ((item.close - prevItem.close) / prevItem.close) * 100
+          if (isFinite(returnRate) && !isNaN(returnRate)) {
+            acc.push(returnRate)
+          }
+        }
+        return acc
+      }, [])
     const positiveReturnDays = dailyReturns.filter(r => r > 0).length
     const baseWinRate =
       dailyReturns.length > 0 ? (positiveReturnDays / dailyReturns.length) * 100 : 60

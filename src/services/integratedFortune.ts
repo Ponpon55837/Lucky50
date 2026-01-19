@@ -242,7 +242,23 @@ export class IntegratedFortuneService {
    * 計算個人八字
    */
   private static calculatePersonalBaZi(profile: UserProfileCompat, _date: Date) {
+    if (!profile.birthDate) {
+      throw new Error('出生日期不能為空')
+    }
+
     const birthDate = new Date(profile.birthDate)
+
+    // 驗證日期是否有效
+    if (isNaN(birthDate.getTime())) {
+      throw new Error(`無效的出生日期: ${profile.birthDate}`)
+    }
+
+    // 驗證年份是否在合理範圍內 (1900-2100)
+    const year = birthDate.getFullYear()
+    if (year < 1900 || year > 2100) {
+      throw new Error(`出生年份超出範圍 (1900-2100): ${year}`)
+    }
+
     const solar = Solar.fromDate(birthDate)
     const lunar = solar.getLunar()
 
@@ -613,7 +629,10 @@ export class IntegratedFortuneService {
 
     const timeMatch = birthTime.match(/(\d{1,2}):?(\d{0,2})/)
     if (timeMatch) {
-      return parseInt(timeMatch[1]) + parseInt(timeMatch[2] || '0') / 60
+      const hour = timeMatch[1] ? parseInt(timeMatch[1], 10) : 0
+      const minute = timeMatch[2] ? parseInt(timeMatch[2], 10) : 0
+      if (isNaN(hour) || isNaN(minute)) return 12
+      return hour + minute / 60
     }
 
     return 12

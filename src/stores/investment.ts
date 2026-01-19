@@ -22,12 +22,12 @@ export const useInvestmentStore = defineStore('investment', () => {
     if (data.length < 2) {
       return { change: 0, changePercent: 0 }
     }
-    
+
     const latest = data[data.length - 1]
     const previous = data[data.length - 2]
     const change = latest.close - previous.close
     const changePercent = (change / previous.close) * 100
-    
+
     return { change, changePercent }
   })
 
@@ -86,10 +86,21 @@ export const useInvestmentStore = defineStore('investment', () => {
       totalRecords: etfData.value.length,
       hasData: etfData.value.length > 0,
       latestDate: latestPrice.value?.date || null,
-      priceRange: etfData.value.length > 0 ? {
-        min: Math.min(...etfData.value.map(d => d.low)),
-        max: Math.max(...etfData.value.map(d => d.high))
-      } : null
+      priceRange:
+        etfData.value.length > 0
+          ? {
+              min: Math.min(
+                ...etfData.value
+                  .map(d => d.low)
+                  .filter((v): v is number => typeof v === 'number' && !isNaN(v))
+              ),
+              max: Math.max(
+                ...etfData.value
+                  .map(d => d.high)
+                  .filter((v): v is number => typeof v === 'number' && !isNaN(v))
+              ),
+            }
+          : null,
     }
   }
 
@@ -100,12 +111,12 @@ export const useInvestmentStore = defineStore('investment', () => {
     recommendation,
     loading,
     error,
-    
+
     // Computed
     latestPrice,
     priceChange,
     priceChangePercent,
-    
+
     // Actions
     setETFData,
     addETFData,
@@ -116,6 +127,6 @@ export const useInvestmentStore = defineStore('investment', () => {
     setLoading,
     setError,
     clearData,
-    getDataStats
+    getDataStats,
   }
 })

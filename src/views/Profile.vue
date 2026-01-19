@@ -90,7 +90,11 @@ watch(
 )
 
 const calculateElement = (birthDate: string): string => {
-  const year = parseInt(birthDate.split('-')[0])
+  if (!birthDate) return '土'
+  const parts = birthDate.split('-')
+  if (parts.length === 0 || !parts[0]) return '土'
+  const year = parseInt(parts[0], 10)
+  if (isNaN(year)) return '土'
   const elements = ['金', '水', '木', '木', '土', '火', '火', '土', '金', '金']
   return elements[year % 10] || '土'
 }

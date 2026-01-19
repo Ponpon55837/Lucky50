@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { computed, readonly, shallowRef, watch } from 'vue'
+import { computed, shallowRef, watch } from 'vue'
 import type { UserProfile } from '@/types'
 
 export const useUserStore = defineStore(
@@ -114,15 +114,16 @@ export const useUserStore = defineStore(
             profile.value = { ...parsed }
           }
         }
-      } catch (error) {
-        console.error('UserStore - 從localStorage恢復失敗:', error)
+      } catch (error: unknown) {
+        const errorMessage = error instanceof Error ? error.message : String(error)
+        console.error('UserStore - 從localStorage恢復失敗:', errorMessage)
       }
     }
 
     initializeFromStorage()
 
     return {
-      profile: readonly(profile),
+      profile,
       isProfileComplete,
       userBasicInfo,
       setProfile,

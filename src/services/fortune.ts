@@ -3,6 +3,14 @@ import { Solar } from 'lunar-javascript'
 import { perfMonitor } from '@/utils/performance'
 import type { UserProfile, FortuneData, LunarObject } from '@/types'
 
+// 安全的時間解析函數
+const parseHourSafe = (timeString: string | undefined): number => {
+  if (!timeString) return 0
+  const parts = timeString.split(':')
+  const hour = parts[0] ? parseInt(parts[0], 10) : 0
+  return isNaN(hour) ? 0 : hour
+}
+
 // 天干地支修正值映射表 - 提取為常數以提高性能
 const GAN_MODIFIERS = Object.freeze({
   甲: { wood: 20 },
@@ -145,6 +153,11 @@ export class FortuneService {
    */
   static calculateDailyFortune(profile: UserProfile, date: Date): FortuneData {
     return perfMonitor.measureSync('calculateDailyFortune', () => {
+      // 驗證日期
+      if (!date || isNaN(date.getTime())) {
+        throw new Error('無效的日期')
+      }
+
       // 檢查緩存
       const cacheKey = this.getCacheKey(profile, date)
       const cached = this.fortuneCache.get(cacheKey)
@@ -192,7 +205,7 @@ export class FortuneService {
    * 優化的五行能量計算
    */
   private static calculateElements(
-    lunar: any,
+    lunar: LunarObject,
     seed: number
   ): { metal: number; wood: number; water: number; fire: number; earth: number } {
     const dayGan = lunar.getDayGan()
@@ -264,7 +277,7 @@ export class FortuneService {
    * 優化的投資運勢計算
    */
   private static calculateInvestmentScore(
-    elements: any,
+    elements: { metal: number; wood: number; water: number; fire: number; earth: number },
     profile: UserProfile,
     seed: number
   ): number {
@@ -335,12 +348,17 @@ export class FortuneService {
       if (tradingTime) {
         // 根據地支對應的時間找出相關的交易時段
         TRADING_PERIODS.forEach(period => {
-          const [startHour] = period.time.split('-')[0].split(':').map(Number)
-          const zhiHour = tradingTime.hour
+          const timeParts = period.time.split('-')
+          const startTimePart = timeParts[0]
+          if (startTimePart) {
+            const startHourStr = startTimePart.split(':')[0]
+            const startHour = startHourStr ? parseInt(startHourStr, 10) : 9
+            const zhiHour = tradingTime.hour
 
-          // 如果交易時段在吉利時辰範圍內，加入候選
-          if (Math.abs(startHour - zhiHour) <= 1) {
-            availablePeriods.push(period)
+            // 如果交易時段在吉利時辰範圍內，加入候選
+            if (!isNaN(startHour) && Math.abs(startHour - zhiHour) <= 1) {
+              availablePeriods.push(period)
+            }
           }
         })
       }
@@ -358,7 +376,7 @@ export class FortuneService {
     if (dayGan === '甲' || dayGan === '乙' || dayZhi === '寅' || dayZhi === '卯') {
       // 木旺日，選擇上午時段
       const morningPeriods = targetPeriods.filter(p => {
-        const hour = parseInt(p.time.split(':')[0])
+        const hour = parseHourSafe(p.time)
         return hour >= 9 && hour <= 11
       })
       selectedPeriod =
@@ -366,7 +384,7 @@ export class FortuneService {
     } else if (dayGan === '丙' || dayGan === '丁' || dayZhi === '巳' || dayZhi === '午') {
       // 火旺日，選擇中午時段
       const noonPeriods = targetPeriods.filter(p => {
-        const hour = parseInt(p.time.split(':')[0])
+        const hour = parseHourSafe(p.time)
         return hour >= 11 && hour <= 13
       })
       selectedPeriod = noonPeriods[Math.floor(random() * noonPeriods.length)] || targetPeriods[0]
@@ -399,12 +417,17 @@ export class FortuneService {
       if (tradingTime) {
         // 根據地支對應的時間找出相關的避開時段
         AVOID_PERIODS.forEach(period => {
-          const [startHour] = period.time.split('-')[0].split(':').map(Number)
-          const zhiHour = tradingTime.hour
+          const timeParts = period.time.split('-')
+          const startTimePart = timeParts[0]
+          if (startTimePart) {
+            const startHourStr = startTimePart.split(':')[0]
+            const startHour = startHourStr ? parseInt(startHourStr, 10) : 9
+            const zhiHour = tradingTime.hour
 
-          // 如果避開時段在相沖時辰範圍內，加入候選
-          if (Math.abs(startHour - zhiHour) <= 1) {
-            avoidPeriods.push(period)
+            // 如果避開時段在相沖時辰範圍內，加入候選
+            if (!isNaN(startHour) && Math.abs(startHour - zhiHour) <= 1) {
+              avoidPeriods.push(period)
+            }
           }
         })
       }
@@ -420,9 +443,9 @@ export class FortuneService {
     // 根據天干地支調整避開時段
     let selectedPeriod
     if (dayGan === '庚' || dayGan === '辛' || dayZhi === '申' || dayZhi === '酉') {
-      // 金旺日，避開下午時段
+      // 金旺日,避開下午時段
       const afternoonPeriods = targetPeriods.filter(p => {
-        const hour = parseInt(p.time.split(':')[0])
+        const hour = parseHourSafe(p.time)
         return hour >= 12
       })
       selectedPeriod =
@@ -430,7 +453,7 @@ export class FortuneService {
     } else if (dayGan === '壬' || dayGan === '癸' || dayZhi === '子' || dayZhi === '亥') {
       // 水旺日，避開早盤時段
       const earlyPeriods = targetPeriods.filter(p => {
-        const hour = parseInt(p.time.split(':')[0])
+        const hour = parseHourSafe(p.time)
         return hour <= 10
       })
       selectedPeriod = earlyPeriods[Math.floor(random() * earlyPeriods.length)] || targetPeriods[0]

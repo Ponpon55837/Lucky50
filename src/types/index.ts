@@ -77,12 +77,21 @@ export interface LunarObject {
   getFestivals(): string[]
   getJieQi?(): string
   getJieQiName?(): string
+  getDayGan(): string
+  getDayZhi(): string
+  getMonthGan(): string
+  getMonthZhi(): string
+  getYearGan(): string
+  getYearZhi(): string
+  getHourGan?(): string
+  getHourZhi?(): string
   [key: string]: unknown
 }
 
 export interface SolarObject {
   getFestivals(): string[]
   getXingZuo(): string
+  getLunar(): LunarObject
   [key: string]: unknown
 }
 
