@@ -10,9 +10,9 @@ export default defineConfig({
       template: {
         compilerOptions: {
           // 移除 production 模式下的註解
-          comments: false
-        }
-      }
+          comments: false,
+        },
+      },
     }),
     VitePWA({
       registerType: 'autoUpdate',
@@ -26,11 +26,11 @@ export default defineConfig({
               cacheName: 'finmind-api',
               expiration: {
                 maxEntries: 100,
-                maxAgeSeconds: 60 * 60 * 24 * 7 // 7 days
-              }
-            }
-          }
-        ]
+                maxAgeSeconds: 60 * 60 * 24 * 7, // 7 days
+              },
+            },
+          },
+        ],
       },
       manifest: {
         name: '農民曆智慧投資',
@@ -43,16 +43,16 @@ export default defineConfig({
           {
             src: 'pwa-192x192.png',
             sizes: '192x192',
-            type: 'image/png'
+            type: 'image/png',
           },
           {
             src: 'pwa-512x512.png',
             sizes: '512x512',
-            type: 'image/png'
-          }
-        ]
-      }
-    })
+            type: 'image/png',
+          },
+        ],
+      },
+    }),
   ],
   resolve: {
     alias: {
@@ -62,11 +62,25 @@ export default defineConfig({
   server: {
     port: 3000,
     open: true,
+    headers: {
+      'Content-Type': 'application/javascript; charset=utf-8',
+    },
+    middlewareMode: false,
+  },
+  preview: {
+    port: 3000,
+    headers: {
+      'Content-Type': 'application/javascript; charset=utf-8',
+    },
   },
   build: {
     target: 'es2015',
     outDir: 'dist',
     assetsDir: 'assets',
+    // 確保正確的模組格式
+    modulePreload: {
+      polyfill: true,
+    },
     // 啟用資源分割
     rollupOptions: {
       output: {
@@ -78,13 +92,13 @@ export default defineConfig({
           // 圖表相關
           'chart-vendor': ['chart.js', 'vue-chartjs'],
           // 其他第三方套件
-          'vendor': ['axios', 'chinese-s2t', 'lunar-javascript']
+          vendor: ['axios', 'chinese-s2t', 'lunar-javascript'],
         },
         // 資源檔名優化
         chunkFileNames: 'assets/js/[name]-[hash].js',
         entryFileNames: 'assets/js/[name]-[hash].js',
-        assetFileNames: 'assets/[ext]/[name]-[hash].[ext]'
-      }
+        assetFileNames: 'assets/[ext]/[name]-[hash].[ext]',
+      },
     },
     // 啟用壓縮
     minify: 'terser',
@@ -115,14 +129,6 @@ export default defineConfig({
   },
   // 優化相依性
   optimizeDeps: {
-    include: [
-      'vue',
-      'vue-router', 
-      'pinia',
-      'axios',
-      'three',
-      '@tweenjs/tween.js',
-      'chinese-s2t'
-    ]
-  }
+    include: ['vue', 'vue-router', 'pinia', 'axios', 'three', '@tweenjs/tween.js', 'chinese-s2t'],
+  },
 })
