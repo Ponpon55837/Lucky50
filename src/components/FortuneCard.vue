@@ -108,8 +108,8 @@ const getRiskLevelText = (riskLevel: string): string => {
 
 <template>
   <div class="fortune-card card">
-    <div class="flex items-center justify-between mb-4">
-      <h3 class="text-lg font-bold text-white flex items-center">
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4 gap-2">
+      <h3 class="text-lg sm:text-xl font-bold text-white flex items-center">
         <span class="text-gold-400 mr-2">{{ icon }}</span>
         {{ title }}
       </h3>
@@ -200,7 +200,7 @@ const getRiskLevelText = (riskLevel: string): string => {
 
       <!-- 時間建議區域 -->
       <div v-if="showTimeAdvice" class="pt-4 border-t border-white/10">
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div class="bg-green-500/20 p-3 rounded-lg border border-green-500/30">
             <h4 class="text-green-400 font-medium text-sm mb-1">推薦時段</h4>
             <p class="text-white text-sm">{{ fortuneData.luckyTime }}</p>
@@ -214,7 +214,7 @@ const getRiskLevelText = (riskLevel: string): string => {
 
       <!-- 方位建議區域 -->
       <div v-if="showDirectionAdvice" class="pt-4 border-t border-white/10">
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div class="bg-blue-500/20 p-3 rounded-lg border border-blue-500/30">
             <h4 class="text-blue-400 font-medium text-sm mb-1">吉方</h4>
             <p class="text-white text-sm">{{ fortuneData.luckyDirection }}</p>
@@ -226,9 +226,9 @@ const getRiskLevelText = (riskLevel: string): string => {
         </div>
       </div>
 
-      <!-- 幸運顏色和數字 -->
+      <!-- 幸��顏色和數字 -->
       <div v-if="showLuckyInfo" class="pt-4 border-t border-white/10">
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <h4 class="text-gray-300 text-sm mb-2">幸運顏色</h4>
             <div class="flex flex-wrap gap-1">
