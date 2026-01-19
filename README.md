@@ -18,6 +18,7 @@
 - **實時數據視覺化** - 使用 Three.js 打造沉浸式 3D 投資運勢球體
 - **0050 ETF 專注** - 專門針對台灣最具代表性的 ETF 提供分析
 - **現代化界面** - 響應式設計，支援多裝置使用
+- **統一錯誤處理** - 完整的錯誤處理系統，提供友善的錯誤提示與恢復機制
 
 ## � 快速開始
 
@@ -73,6 +74,41 @@ pnpm preview
 - **Prettier** - 程式碼格式化
 - **TypeScript** - 類型安全
 
+## ⚠️ 錯誤處理系統
+
+本專案實作了完整的統一錯誤處理系統，提供友善的錯誤提示與恢復機制。
+
+### 核心組件
+
+- **錯誤類型定義** (`src/types/error.ts`) - 完整的錯誤分類、嚴重程度與錯誤代碼
+- **錯誤處理 Composable** (`src/composables/useErrorHandler.ts`) - 統一的錯誤處理邏輯
+- **Error Boundary** (`src/components/ErrorBoundary.vue`) - 捕獲組件錯誤的邊界組件
+- **Error Modal** (`src/components/ErrorModal.vue`) - 錯誤提示彈窗組件
+
+### 使用範例
+
+```typescript
+import { useErrorHandler } from '@/composables/useErrorHandler'
+
+// 在 Store 或組件中使用
+const { handleAsyncError, withErrorHandler } = useErrorHandler()
+
+// 方法 1: 使用 withErrorHandler 包裝
+const loadData = withErrorHandler(async () => {
+  const data = await fetchData()
+  return data
+})
+
+// 方法 2: 手動處理錯誤
+try {
+  await fetchData()
+} catch (error) {
+  handleAsyncError(error)
+}
+```
+
+詳細使用說明請參閱 [錯誤處理文檔](docs/ERROR_HANDLING.md)。
+
 ## 📊 資料來源
 
 ### FinMind API
@@ -107,27 +143,45 @@ const fortune = FortuneService.calculateDailyFortune(
 
 ```
 Lucky50/
-├── public/                 # 靜態資源
+├── .opencode/              # OpenCode 配置
+│   └── skills.md          # 專案開發規範與技能指南
+├── docs/                  # 文檔
+│   └── ERROR_HANDLING.md  # 錯誤處理系統文檔
+├── public/                # 靜態資源
 ├── src/
-│   ├── assets/            # 樣式和靜態資源
-│   ├── components/        # Vue 組件
-│   │   ├── layout/       # 佈局組件
-│   │   └── FortuneOrb.vue # 3D 運勢球體
-│   ├── services/         # API 服務層
+│   ├── assets/           # 樣式和靜態資源
+│   ├── components/       # Vue 組件
+│   │   ├── layout/      # 佈局組件
+│   │   ├── charts/      # 圖表組件
+│   │   ├── three/       # Three.js 3D 組件
+│   │   ├── ui/          # UI 組件
+│   │   ├── ErrorBoundary.vue # 錯誤邊界組件
+│   │   ├── ErrorModal.vue    # 錯誤彈窗組件
+│   │   └── FortuneOrb.vue    # 3D 運勢球體
+│   ├── composables/     # Composables
+│   │   ├── useTheme.ts         # 主題切換
+│   │   ├── useToast.ts         # Toast 通知
+│   │   └── useErrorHandler.ts  # 錯誤處理
+│   ├── services/        # API 服務層
 │   │   ├── finmind.ts   # 金融數據服務
-│   │   └── fortune.ts   # 運勢計算服務
+│   │   ├── fortune.ts   # 運勢計算服務
+│   │   └── lunar.ts     # 農曆服務
 │   ├── stores/          # Pinia 狀態管理
 │   │   ├── user.ts      # 用戶狀態
 │   │   └── investment.ts # 投資數據狀態
 │   ├── types/           # TypeScript 類型定義
+│   │   ├── error.ts     # 錯誤類型定義
+│   │   └── index.ts     # 主要類型定義
 │   ├── views/           # 頁面組件
 │   │   ├── Home.vue     # 首頁
 │   │   ├── Dashboard.vue # 投資儀表板
 │   │   ├── Profile.vue   # 個人設定
 │   │   └── Analytics.vue # 數據分析
 │   └── router/          # 路由配置
-├── tailwind.config.js    # TailwindCSS 配置
-├── vite.config.ts       # Vite 配置
+├── .github/
+│   └── copilot-instructions.md # GitHub Copilot 指引
+├── tailwind.config.js   # TailwindCSS 配置
+├── vite.config.ts      # Vite 配置
 └── package.json
 ```
 
