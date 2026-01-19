@@ -45,9 +45,6 @@ export class TaiwanStockService {
     '2025-10-10', // 國慶日
   ])
 
-  // 教師節等特殊假期
-  private static readonly TEACHERS_DAY_2025 = '2025-09-28' // 下週一教師節放假
-
   /**
    * 檢查指定日期是否為台股交易日
    */
