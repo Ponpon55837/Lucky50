@@ -579,8 +579,8 @@ function getClashZhi(zodiac: string): string[] {
 </script>
 <template>
   <div class="card">
-    <div class="flex items-center justify-between mb-4">
-      <h3 class="text-lg font-bold flex items-center" style="color: var(--primary-text)">
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4 gap-2">
+      <h3 class="text-lg sm:text-xl font-bold flex items-center" style="color: var(--primary-text)">
         <span class="mr-2" style="color: var(--accent-text)">📆</span>
         今日農民曆
       </h3>
@@ -591,7 +591,7 @@ function getClashZhi(zodiac: string): string[] {
 
     <div v-if="lunarInfo && !loading" class="space-y-4">
       <!-- 農曆日期 -->
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div class="lunar-card">
           <h4 class="font-semibold text-red-500 mb-2">農曆日期</h4>
           <div class="text-lg font-bold" style="color: var(--primary-text)">
@@ -624,7 +624,7 @@ function getClashZhi(zodiac: string): string[] {
       </div>
 
       <!-- 宜忌事項 -->
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
         <div class="lunar-card">
           <h4 class="font-semibold text-green-500 mb-2">宜</h4>
           <div class="flex flex-wrap gap-1">
@@ -653,7 +653,7 @@ function getClashZhi(zodiac: string): string[] {
         <div class="text-xs mb-3" style="color: var(--secondary-text)">
           基於農民曆 {{ analysisBase.dayGanZhi }} 日和生肖 {{ analysisBase.zodiac }} 推算
         </div>
-        <div class="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
+        <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3 text-xs">
           <div
             v-for="hour in hourAnalysis"
             :key="hour.time"

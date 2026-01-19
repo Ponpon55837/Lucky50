@@ -13,11 +13,11 @@ const showTermsModal = ref(false)
 <template>
   <footer class="bg-black/20 backdrop-blur-md border-t border-white/10 mt-auto">
     <div class="max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+      <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6 sm:gap-8">
         <div>
           <div class="flex items-center space-x-2 mb-4">
             <div class="w-8 h-8 rounded-full bg-gradient-to-r from-gold-500 to-yellow-600"></div>
-            <span class="font-bold text-xl text-white">農民曆智慧投資</span>
+            <span class="font-bold text-lg sm:text-xl text-white">農民曆智慧投資</span>
           </div>
           <p class="text-gray-300 text-sm">
             結合傳統農民曆智慧與現代金融科技，為您的 0050 ETF 投資提供個人化建議。
@@ -34,7 +34,7 @@ const showTermsModal = ref(false)
           </ul>
         </div>
 
-        <div>
+        <div class="sm:col-span-2 md:col-span-1">
           <h3 class="text-white font-semibold mb-4">免責聲明</h3>
           <p class="text-gray-300 text-sm">
             本系統僅供參考，不構成投資建議。投資有風險，請謹慎評估自身財務狀況。
@@ -452,4 +452,3 @@ const showTermsModal = ref(false)
     </Teleport>
   </footer>
 </template>
-
