@@ -1,5 +1,5 @@
 // API 快取服務
-export interface CacheItem<T = any> {
+export interface CacheItem<T = unknown> {
   data: T
   timestamp: number
   expiresAt: number
@@ -30,7 +30,7 @@ export class ApiCacheService {
     this.cache.set(key, {
       data,
       timestamp: now,
-      expiresAt: now + ttl
+      expiresAt: now + ttl,
     })
   }
 
@@ -39,7 +39,7 @@ export class ApiCacheService {
    */
   get<T>(key: string): T | null {
     const item = this.cache.get(key)
-    
+
     if (!item) {
       return null
     }
@@ -96,22 +96,18 @@ export class ApiCacheService {
   } {
     const totalItems = this.cache.size
     const totalSize = new Blob([JSON.stringify(Array.from(this.cache.values()))]).size
-    
+
     return {
       totalItems,
       totalSize: `${(totalSize / 1024).toFixed(2)} KB`,
-      hitRate: 0 // 可以後續加入命中率統計
+      hitRate: 0, // 可以後續加入命中率統計
     }
   }
 
   /**
    * 快取包裝器 - 自動處理快取邏輯
    */
-  async cached<T>(
-    key: string,
-    fetcher: () => Promise<T>,
-    ttl?: number
-  ): Promise<T> {
+  async cached<T>(key: string, fetcher: () => Promise<T>, ttl?: number): Promise<T> {
     // 先檢查快取
     const cached = this.get<T>(key)
     if (cached !== null) {

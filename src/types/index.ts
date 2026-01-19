@@ -51,3 +51,73 @@ export interface InvestmentRecommendation {
   reasoning: string[]
   riskLevel: 'LOW' | 'MEDIUM' | 'HIGH'
 }
+
+// 八字相關型別
+export interface PersonalBaZi {
+  yearGanZhi: string
+  monthGanZhi: string
+  dayGanZhi: string
+  hourGanZhi: string
+  zodiac: string
+  element: string
+  naYin: string
+}
+
+// 五行能量型別
+export interface ElementsEnergy {
+  metal: number
+  wood: number
+  water: number
+  fire: number
+  earth: number
+}
+
+// lunar-javascript 庫的型別定義
+export interface LunarObject {
+  getFestivals(): string[]
+  getJieQi?(): string
+  getJieQiName?(): string
+  [key: string]: unknown
+}
+
+export interface SolarObject {
+  getFestivals(): string[]
+  getXingZuo(): string
+  [key: string]: unknown
+}
+
+// 回測結果型別
+export interface StrategyResult {
+  totalReturn: number
+  annualReturn: number
+  maxDrawdown: number
+  sharpeRatio: number
+  winRate: number
+  trades?: number
+  avgReturn?: number
+}
+
+export interface BacktestResults {
+  lunar: StrategyResult
+  buyHold: StrategyResult
+  dca: StrategyResult
+}
+
+// FinMind API 相關型別
+export interface FinMindDataItem {
+  date: string
+  open: string
+  max?: string
+  high?: string
+  min?: string
+  low?: string
+  close: string
+  Trading_Volume?: string
+  volume?: string
+}
+
+export interface FinMindAPIResponse {
+  status: number
+  data: FinMindDataItem[]
+  msg?: string
+}

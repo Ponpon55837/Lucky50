@@ -164,9 +164,31 @@ onMounted(() => {
 
 **檔案結構原則**：
 
-1. **`<style scoped>`** - 樣式定義永遠放在最前面
+1. **`<style scoped>`** - 樣式定義永遠放在最前面（如果有需要樣式）
 2. **`<script setup lang="ts">`** - TypeScript 邏輯放在中間
 3. **`<template>`** - HTML 模板放在最後
+
+**重要說明**：
+
+- ✅ **有樣式的元件**：必須遵循 `<style>` → `<script>` → `<template>` 順序
+- ✅ **沒有樣式的元件**：直接使用 `<script>` → `<template>` 順序，**不需要**加入空的 `<style>` 標籤
+- ❌ **不要**為了符合順序而加入空的或無意義的 `<style>` 區塊
+
+**範例（沒有樣式的元件）**：
+
+```vue
+<script setup lang="ts">
+import { ref } from 'vue'
+
+const count = ref(0)
+</script>
+
+<template>
+  <div class="p-4">
+    <p>Count: {{ count }}</p>
+  </div>
+</template>
+```
 
 ### 2. Vue 3 Composition API 規則
 

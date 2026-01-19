@@ -1,4 +1,6 @@
 // Resource preloading strategy
+import type { Component } from 'vue'
+
 export class ResourcePreloader {
   private static preloadedResources = new Set<string>()
 
@@ -25,14 +27,14 @@ export class ResourcePreloader {
     link.rel = 'prefetch'
     link.href = route
     document.head.appendChild(link)
-    
+
     this.preloadedResources.add(route)
   }
 
   /**
    * Preload component module
    */
-  private static async preloadComponent(importFunc: () => Promise<any>) {
+  private static async preloadComponent(importFunc: () => Promise<{ default: Component }>) {
     try {
       await importFunc()
     } catch (error) {
@@ -44,8 +46,9 @@ export class ResourcePreloader {
    * Preload fonts
    */
   static preloadFonts() {
-    const fontUrl = 'https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700&display=swap'
-    
+    const fontUrl =
+      'https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700&display=swap'
+
     if (this.preloadedResources.has(fontUrl)) return
 
     const link = document.createElement('link')
@@ -54,7 +57,7 @@ export class ResourcePreloader {
     link.as = 'style'
     link.crossOrigin = 'anonymous'
     document.head.appendChild(link)
-    
+
     this.preloadedResources.add(fontUrl)
   }
 

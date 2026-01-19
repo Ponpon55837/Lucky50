@@ -1,11 +1,11 @@
 import { defineStore } from 'pinia'
 import { shallowRef } from 'vue'
-import type { ETFData } from '@/types'
+import type { ETFData, BacktestResults } from '@/types'
 
 // 回測結果緩存類型
 interface BacktestCache {
   dataHash: string
-  results: any
+  results: BacktestResults
   timestamp: number
 }
 
@@ -13,7 +13,7 @@ export const useAnalyticsStore = defineStore('analytics', () => {
   // 分析相關的狀態
   const selectedPeriod = shallowRef('1個月')
   const periods = ['1個月', '3個月', '6個月', '1年', '3年', '5年']
-  
+
   // 回測結果緩存
   const backtestCache = new Map<string, BacktestCache>()
 
@@ -29,38 +29,38 @@ export const useAnalyticsStore = defineStore('analytics', () => {
     }
     return periodMap[period] || 30
   }
-  
+
   // 生成數據哈希值（用於緩存鍵）
   const generateDataHash = (etfData: ETFData[]): string => {
     if (etfData.length === 0) return 'empty'
-    
+
     // 使用數據長度、第一條和最後一條數據的關鍵資訊來生成hash
     const first = etfData[0]
     const last = etfData[etfData.length - 1]
     const hashSource = `${etfData.length}-${first.date}-${first.close}-${last.date}-${last.close}`
-    
+
     // 簡單的hash函數
     let hash = 0
     for (let i = 0; i < hashSource.length; i++) {
       const char = hashSource.charCodeAt(i)
-      hash = ((hash << 5) - hash) + char
+      hash = (hash << 5) - hash + char
       hash = hash & hash // Convert to 32-bit integer
     }
     return hash.toString()
   }
-  
+
   // 清理過期緩存
   const cleanExpiredCache = () => {
     const now = Date.now()
     const expiredKeys: string[] = []
-    
+
     backtestCache.forEach((cache, key) => {
       // 緩存 1 小時過期
       if (now - cache.timestamp > 60 * 60 * 1000) {
         expiredKeys.push(key)
       }
     })
-    
+
     expiredKeys.forEach(key => backtestCache.delete(key))
   }
 
@@ -68,15 +68,13 @@ export const useAnalyticsStore = defineStore('analytics', () => {
   const getAdjustedEtfData = (etfData: ETFData[]) => {
     if (!etfData.length) return []
 
-    const data = etfData.sort(
-      (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
-    )
+    const data = etfData.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
 
     // 2025/6/18 0050 進行 1 拆 4，調整歷史價格以保持連續性
     const splitDate = new Date('2025-06-18')
     const splitRatio = 4
 
-    return data.map((item: any) => {
+    return data.map((item: ETFData) => {
       const itemDate = new Date(item.date)
       if (itemDate < splitDate) {
         // 分拆前的價格需要除以分拆比例來調整
@@ -96,7 +94,7 @@ export const useAnalyticsStore = defineStore('analytics', () => {
   // 計算統計數據
   const calculateStatistics = (etfData: ETFData[]) => {
     const adjustedData = getAdjustedEtfData(etfData)
-    
+
     if (adjustedData.length === 0) {
       return {
         annualReturn: 0,
@@ -144,7 +142,8 @@ export const useAnalyticsStore = defineStore('analytics', () => {
 
     const avgReturn = returns.reduce((sum: number, r: number) => sum + r, 0) / returns.length
     const variance =
-      returns.reduce((sum: number, r: number) => sum + Math.pow(r - avgReturn, 2), 0) / returns.length
+      returns.reduce((sum: number, r: number) => sum + Math.pow(r - avgReturn, 2), 0) /
+      returns.length
     const volatility = Math.sqrt(variance) * Math.sqrt(252) // 年化波動率
 
     // 夏普比率（假設無風險利率為 2%）
@@ -154,7 +153,7 @@ export const useAnalyticsStore = defineStore('analytics', () => {
     // 最大回撤
     let maxDrawdown = 0
     let peak = adjustedData[0]?.close || 0
-    adjustedData.forEach((item: any) => {
+    adjustedData.forEach((item: ETFData) => {
       if (item.close > peak) peak = item.close
       const drawdown = peak > 0 ? ((peak - item.close) / peak) * 100 : 0
       if (drawdown > maxDrawdown) maxDrawdown = drawdown
@@ -171,7 +170,7 @@ export const useAnalyticsStore = defineStore('analytics', () => {
   // 計算運勢分佈數據
   const calculateFortuneDistribution = (etfData: ETFData[]) => {
     const adjustedData = getAdjustedEtfData(etfData)
-    
+
     if (adjustedData.length === 0) {
       return {
         excellent: 25,
@@ -204,7 +203,7 @@ export const useAnalyticsStore = defineStore('analytics', () => {
   // 計算技術指標
   const calculateTechnicalIndicators = (etfData: ETFData[]) => {
     const adjustedData = getAdjustedEtfData(etfData)
-    
+
     if (adjustedData.length === 0) {
       return {
         rsi: 50,
@@ -214,7 +213,7 @@ export const useAnalyticsStore = defineStore('analytics', () => {
       }
     }
 
-    const prices = adjustedData.map((item: any) => item.close)
+    const prices = adjustedData.map((item: ETFData) => item.close)
 
     // RSI 簡化計算
     const recentPrices = prices.slice(-14)
@@ -236,9 +235,8 @@ export const useAnalyticsStore = defineStore('analytics', () => {
     // 布林通道
     const ma20 = prices.slice(-20).reduce((sum: number, price: number) => sum + price, 0) / 20
     const std = Math.sqrt(
-      prices
-        .slice(-20)
-        .reduce((sum: number, price: number) => sum + Math.pow(price - ma20, 2), 0) / 20
+      prices.slice(-20).reduce((sum: number, price: number) => sum + Math.pow(price - ma20, 2), 0) /
+        20
     )
     const upperBand = ma20 + 2 * std
     const lowerBand = ma20 - 2 * std
@@ -249,9 +247,9 @@ export const useAnalyticsStore = defineStore('analytics', () => {
 
     // KD 簡化計算
     const recentData = adjustedData.slice(-9)
-    const highs = recentData.map((item: any) => item.high)
-    const lows = recentData.map((item: any) => item.low)
-    const closes = recentData.map((item: any) => item.close)
+    const highs = recentData.map((item: ETFData) => item.high)
+    const lows = recentData.map((item: ETFData) => item.low)
+    const closes = recentData.map((item: ETFData) => item.close)
 
     const highestHigh = Math.max(...highs)
     const lowestLow = Math.min(...lows)
@@ -267,11 +265,14 @@ export const useAnalyticsStore = defineStore('analytics', () => {
   }
 
   // 計算策略回測數據 - 基於真實歷史數據的穩定計算（帶緩存）
-  const calculateBacktestResults = (statistics: ReturnType<typeof calculateStatistics>, etfData: ETFData[]) => {
+  const calculateBacktestResults = (
+    statistics: ReturnType<typeof calculateStatistics>,
+    etfData: ETFData[]
+  ) => {
     // 生成數據哈希作為緩存鍵
     const dataHash = generateDataHash(etfData)
     const cacheKey = `backtest-${dataHash}`
-    
+
     // 檢查緩存
     cleanExpiredCache()
     const cached = backtestCache.get(cacheKey)
@@ -279,11 +280,11 @@ export const useAnalyticsStore = defineStore('analytics', () => {
       console.log('Analytics Store - 使用緩存的回測結果')
       return cached.results
     }
-    
+
     console.log('Analytics Store - 計算新的回測結果')
-    
+
     const adjustedData = getAdjustedEtfData(etfData)
-    
+
     if (adjustedData.length === 0) {
       // 當無數據時返回預設值
       const defaultResults = {
@@ -309,13 +310,13 @@ export const useAnalyticsStore = defineStore('analytics', () => {
           winRate: 70,
         },
       }
-      
+
       backtestCache.set(cacheKey, {
         dataHash,
         results: defaultResults,
-        timestamp: Date.now()
+        timestamp: Date.now(),
       })
-      
+
       return defaultResults
     }
 
@@ -323,19 +324,20 @@ export const useAnalyticsStore = defineStore('analytics', () => {
     const baseReturn = statistics.annualReturn
     const baseSharpe = statistics.sharpeRatio
     const baseDrawdown = statistics.maxDrawdown
-    
+
     // 計算歷史時間跨度
     const firstDate = new Date(adjustedData[0]?.date)
     const lastDate = new Date(adjustedData[adjustedData.length - 1]?.date)
     const timeSpan = (lastDate.getTime() - firstDate.getTime()) / (1000 * 60 * 60 * 24) / 365
-    
+
     // 計算歷史勝率（基於正報酬日數）
     const dailyReturns = adjustedData.slice(1).map((item: any, index: number) => {
       const prevPrice = adjustedData[index]?.close || 0
       return prevPrice > 0 ? ((item.close - prevPrice) / prevPrice) * 100 : 0
     })
     const positiveReturnDays = dailyReturns.filter(r => r > 0).length
-    const baseWinRate = dailyReturns.length > 0 ? (positiveReturnDays / dailyReturns.length) * 100 : 60
+    const baseWinRate =
+      dailyReturns.length > 0 ? (positiveReturnDays / dailyReturns.length) * 100 : 60
 
     // 農民曆智慧策略（基於運勢指示優化）
     const lunarStrategy = {
@@ -388,14 +390,14 @@ export const useAnalyticsStore = defineStore('analytics', () => {
         winRate: Number(dcaStrategy.winRate.toFixed(0)),
       },
     }
-    
+
     // 儲存緩存
     backtestCache.set(cacheKey, {
       dataHash,
       results,
-      timestamp: Date.now()
+      timestamp: Date.now(),
     })
-    
+
     return results
   }
 

@@ -1,4 +1,14 @@
 // 性能監控工具
+
+// 擴展 Performance 介面以支援 memory 屬性
+interface PerformanceWithMemory extends Performance {
+  memory?: {
+    usedJSHeapSize: number
+    totalJSHeapSize: number
+    jsHeapSizeLimit: number
+  }
+}
+
 export class PerformanceMonitor {
   private static instance: PerformanceMonitor
   private metrics = new Map<string, number[]>()
@@ -20,7 +30,7 @@ export class PerformanceMonitor {
   endMeasure(name: string): number {
     performance.mark(`${name}-end`)
     performance.measure(name, `${name}-start`, `${name}-end`)
-    
+
     const measure = performance.getEntriesByName(name, 'measure')[0]
     const duration = measure.duration
 
@@ -30,7 +40,7 @@ export class PerformanceMonitor {
     }
     const history = this.metrics.get(name)!
     history.push(duration)
-    
+
     // 保持最近100次記錄
     if (history.length > 100) {
       history.shift()
@@ -85,21 +95,22 @@ export class PerformanceMonitor {
       min: sorted[0],
       max: sorted[sorted.length - 1],
       median: sorted[Math.floor(sorted.length / 2)],
-      p95: sorted[Math.floor(sorted.length * 0.95)]
+      p95: sorted[Math.floor(sorted.length * 0.95)],
     }
   }
 
   // 監控長任務
   observeLongTasks(): void {
     if ('PerformanceObserver' in window) {
-      const observer = new PerformanceObserver((list) => {
+      const observer = new PerformanceObserver(list => {
         for (const entry of list.getEntries()) {
-          if (entry.duration > 50) { // 超過50ms的任務
+          if (entry.duration > 50) {
+            // 超過50ms的任務
             console.warn(`長任務檢測: ${entry.name} 耗時 ${entry.duration.toFixed(2)}ms`)
           }
         }
       })
-      
+
       try {
         observer.observe({ entryTypes: ['longtask'] })
         this.observers.set('longtask', observer)
@@ -112,11 +123,11 @@ export class PerformanceMonitor {
   // 監控內存使用
   getMemoryUsage() {
     if ('memory' in performance) {
-      const memory = (performance as any).memory
+      const memory = (performance as PerformanceWithMemory).memory
       return {
         used: Math.round(memory.usedJSHeapSize / 1048576), // MB
         total: Math.round(memory.totalJSHeapSize / 1048576), // MB
-        limit: Math.round(memory.jsHeapSizeLimit / 1048576) // MB
+        limit: Math.round(memory.jsHeapSizeLimit / 1048576), // MB
       }
     }
     return null
@@ -127,7 +138,7 @@ export class PerformanceMonitor {
     const report = {
       timestamp: new Date().toISOString(),
       memory: this.getMemoryUsage(),
-      metrics: {} as any
+      metrics: {} as Record<string, { count: number; avg: number; min: number; max: number; median: number; p95: number }>,
     }
 
     for (const [name] of this.metrics) {
