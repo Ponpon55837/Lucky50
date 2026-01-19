@@ -156,10 +156,10 @@ const onTimeFocus = () => {
   selectedShichen.value = '' // 清除時辰選擇
 }
 
-const onTimeChange = (time: any) => {
+const onTimeChange = (time: { hours?: number; minutes?: number } | string | null) => {
   if (time) {
     // 處理時間對象，轉換為 HH:MM 格式
-    if (time.hours !== undefined && time.minutes !== undefined) {
+    if (typeof time === 'object' && time.hours !== undefined && time.minutes !== undefined) {
       const hours = String(time.hours).padStart(2, '0')
       const minutes = String(time.minutes).padStart(2, '0')
       form.value.birthTime = `${hours}:${minutes}`

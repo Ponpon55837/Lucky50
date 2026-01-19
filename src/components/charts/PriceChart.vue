@@ -10,6 +10,7 @@ import {
   Tooltip,
   Legend,
   Filler,
+  type TooltipItem,
 } from 'chart.js'
 import { Line } from 'vue-chartjs'
 import type { ETFData } from '@/types'
@@ -115,7 +116,7 @@ const chartOptions = computed(() => {
         padding: 12,
         displayColors: false,
         callbacks: {
-          label: function (context: any) {
+          label: function (context: TooltipItem<'line'>) {
             return `收盤價: $${context.parsed.y.toFixed(2)}`
           },
         },
@@ -144,7 +145,7 @@ const chartOptions = computed(() => {
           font: {
             size: 12,
           },
-          callback: function (value: any) {
+          callback: function (value: string | number) {
             return `$${value}`
           },
         },

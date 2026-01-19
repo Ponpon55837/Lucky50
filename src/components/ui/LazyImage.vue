@@ -12,6 +12,7 @@ interface Props {
 }
 
 const props = withDefaults(defineProps<Props>(), {
+  className: undefined,
   loading: 'lazy',
   decoding: 'async',
   placeholderClass: 'w-full h-48 flex items-center justify-center',
@@ -85,4 +86,3 @@ const onError = () => {
     <div class="animate-pulse bg-gray-300 dark:bg-gray-700 w-full h-full rounded" />
   </div>
 </template>
-

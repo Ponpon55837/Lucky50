@@ -8,6 +8,7 @@ import {
   Filler,
   Tooltip,
   Legend,
+  type TooltipItem,
 } from 'chart.js'
 import { Radar } from 'vue-chartjs'
 
@@ -21,6 +22,7 @@ interface Props {
 }
 
 const props = withDefaults(defineProps<Props>(), {
+  userElement: undefined,
   isDark: true,
 })
 
@@ -126,7 +128,7 @@ const chartOptions = computed(() => {
         cornerRadius: 8,
         padding: 12,
         callbacks: {
-          label: function (context: any) {
+          label: function (context: TooltipItem<'radar'>) {
             const elementName = getElementName(context.label.toLowerCase())
             const isUserElement =
               props.userElement &&

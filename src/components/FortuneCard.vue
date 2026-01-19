@@ -18,6 +18,7 @@ interface Props {
 
 withDefaults(defineProps<Props>(), {
   loading: false,
+  errorMessage: undefined,
   title: '今日運勢',
   icon: '🔮',
   date: () => new Date(),
