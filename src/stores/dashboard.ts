@@ -25,26 +25,26 @@ const formatVolume = (volume: number): string => {
 
 export const useDashboardStore = defineStore('dashboard', () => {
   // ===== 狀態 =====
-  
+
   // 農民曆相關狀態
   const lunarData = shallowRef<LunarData | null>(null)
   const investmentAdvice = shallowRef<InvestmentAdvice | null>(null)
-  
+
   // 整合運勢狀態
   const integratedFortune = shallowRef<IntegratedFortuneData | null>(null)
-  
+
   // ETF資料狀態
   const etfData = shallowRef<ETFData[]>([])
-  
+
   // 日期狀態
   const currentDate = ref(new Date())
-  
+
   // 載入狀態
   const loading = ref(false)
   const lunarLoading = ref(false)
   const fortuneLoading = ref(false)
   const etfLoading = ref(false)
-  
+
   // 錯誤狀態
   const lunarError = ref<string | null>(null)
   const fortuneError = ref<string | null>(null)
@@ -106,15 +106,15 @@ export const useDashboardStore = defineStore('dashboard', () => {
       lunarLoading.value = true
       lunarError.value = null
       currentDate.value = date
-      
+
       // 載入農民曆資料
       lunarData.value = lunarService.getLunarData(date)
-      
+
       // 載入投資建議
       investmentAdvice.value = lunarService.getInvestmentAdvice(date)
-
-    } catch (error) {
-      console.error('載入農民曆資料失敗:', error)
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : String(error)
+      console.error('載入農民曆資料失敗:', errorMessage)
       lunarError.value = '載入農民曆資料失敗'
       throw error
     } finally {
@@ -123,10 +123,34 @@ export const useDashboardStore = defineStore('dashboard', () => {
   }
 
   // 載入整合運勢資料
-  const loadIntegratedFortune = async (userProfile: UserProfileCompat | null, date: Date = new Date()) => {
+  const loadIntegratedFortune = async (
+    userProfile: UserProfileCompat | null,
+    date: Date = new Date()
+  ) => {
     if (!userProfile) {
       fortuneError.value = '請先設定個人資料'
       throw new Error('使用者資料不存在')
+    }
+
+    // 驗證 userProfile 必要欄位
+    if (!userProfile.name || !userProfile.birthDate || !userProfile.birthTime) {
+      const missingFields = []
+      if (!userProfile.name) missingFields.push('姓名')
+      if (!userProfile.birthDate) missingFields.push('出生日期')
+      if (!userProfile.birthTime) missingFields.push('出生時間')
+      const errorMsg = `用戶資料不完整，缺少: ${missingFields.join(', ')}`
+      console.error('DashboardStore - ' + errorMsg, userProfile)
+      fortuneError.value = errorMsg
+      throw new Error(errorMsg)
+    }
+
+    // 驗證出生日期是否有效
+    const birthDate = new Date(userProfile.birthDate)
+    if (isNaN(birthDate.getTime())) {
+      const errorMsg = `無效的出生日期: ${userProfile.birthDate}`
+      console.error('DashboardStore - ' + errorMsg)
+      fortuneError.value = errorMsg
+      throw new Error(errorMsg)
     }
 
     try {
@@ -135,15 +159,24 @@ export const useDashboardStore = defineStore('dashboard', () => {
       currentDate.value = date
 
       console.log('DashboardStore - 載入整合運勢資料，日期:', date.toLocaleDateString('zh-TW'))
+      console.log('DashboardStore - 用戶資料:', {
+        name: userProfile.name,
+        birthDate: userProfile.birthDate,
+        birthTime: userProfile.birthTime,
+      })
 
       integratedFortune.value = await IntegratedFortuneService.calculateIntegratedFortune(
         userProfile,
         date
       )
 
-      console.log('DashboardStore - 整合運勢資料載入完成，投資分數:', integratedFortune.value.investmentScore)
-    } catch (error) {
-      console.error('載入整合運勢資料失敗:', error)
+      console.log(
+        'DashboardStore - 整合運勢資料載入完成，投資分數:',
+        integratedFortune.value.investmentScore
+      )
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : String(error)
+      console.error('載入整合運勢資料失敗:', errorMessage)
       fortuneError.value = '載入運勢資料失敗'
       throw error
     } finally {
@@ -169,7 +202,7 @@ export const useDashboardStore = defineStore('dashboard', () => {
 
       try {
         const data = await FinMindService.getETFData(startDate, endDate)
-        
+
         if (data.length > 0) {
           etfData.value = data
         } else {
@@ -178,7 +211,7 @@ export const useDashboardStore = defineStore('dashboard', () => {
       } catch (apiError) {
         console.error('ETF 數據載入失敗:', apiError)
         etfError.value = '無法載入ETF資料，使用測試數據'
-        
+
         // 使用測試數據
         const testData: ETFData[] = [
           {
@@ -215,9 +248,9 @@ export const useDashboardStore = defineStore('dashboard', () => {
         console.log('DashboardStore - 使用測試數據:', testData)
         etfData.value = testData
       }
-
-    } catch (error) {
-      console.error('載入ETF資料失敗:', error)
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : String(error)
+      console.error('載入ETF資料失敗:', errorMessage)
       etfError.value = '載入ETF資料失敗'
       throw error
     } finally {
@@ -226,11 +259,14 @@ export const useDashboardStore = defineStore('dashboard', () => {
   }
 
   // 載入所有資料
-  const loadAllData = async (userProfile: UserProfileCompat | null = null, date: Date = new Date()) => {
+  const loadAllData = async (
+    userProfile: UserProfileCompat | null = null,
+    date: Date = new Date()
+  ) => {
     try {
       loading.value = true
       currentDate.value = date
-      
+
       // 清除快取
       lunarService.clearCache()
       IntegratedFortuneService.clearCache()
@@ -238,17 +274,22 @@ export const useDashboardStore = defineStore('dashboard', () => {
       // 並行載入所有資料
       await Promise.allSettled([
         loadLunarData(date),
-        userProfile ? loadIntegratedFortune(userProfile, date).catch(error => {
-          // 如果整合運勢載入失敗，不影響其他資料的使用
-          console.warn('整合運勢載入失敗，將僅使用農民曆資料:', error)
-        }) : Promise.resolve(),
-        loadETFData().catch(error => {
+        userProfile
+          ? loadIntegratedFortune(userProfile, date).catch((error: unknown) => {
+              // 如果整合運勢載入失敗，不影響其他資料的使用
+              const errorMessage = error instanceof Error ? error.message : String(error)
+              console.warn('整合運勢載入失敗，將僅使用農民曆資料:', errorMessage)
+            })
+          : Promise.resolve(),
+        loadETFData().catch((error: unknown) => {
           // ETF資料載入失敗也不影響其他功能
-          console.warn('ETF資料載入失敗:', error)
-        })
+          const errorMessage = error instanceof Error ? error.message : String(error)
+          console.warn('ETF資料載入失敗:', errorMessage)
+        }),
       ])
-    } catch (error) {
-      console.error('載入資料失敗:', error)
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : String(error)
+      console.error('載入資料失敗:', errorMessage)
       throw error
     } finally {
       loading.value = false
@@ -289,9 +330,11 @@ export const useDashboardStore = defineStore('dashboard', () => {
 
   // 重試載入整合運勢
   const retryIntegratedFortune = (userProfile: UserProfileCompat | null) => {
-    return userProfile ? loadIntegratedFortune(userProfile, currentDate.value) : Promise.reject('無用戶資料')
+    return userProfile
+      ? loadIntegratedFortune(userProfile, currentDate.value)
+      : Promise.reject('無用戶資料')
   }
-lunarData
+
   // 重試載入ETF資料
   const retryETFData = () => {
     return loadETFData()

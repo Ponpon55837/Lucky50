@@ -22,6 +22,19 @@ finmindAPI.interceptors.request.use(config => {
   return config
 })
 
+// 安全的數字解析函數
+const parseFloatSafe = (value: string | undefined, fallback: number = 0): number => {
+  if (!value) return fallback
+  const parsed = parseFloat(value)
+  return isNaN(parsed) ? fallback : parsed
+}
+
+const parseIntSafe = (value: string | undefined, fallback: number = 0): number => {
+  if (!value) return fallback
+  const parsed = parseInt(value, 10)
+  return isNaN(parsed) ? fallback : parsed
+}
+
 export class FinMindService {
   // 備用模擬數據
   private static getMockETFData(startDate: string, endDate: string): ETFData[] {
@@ -102,14 +115,16 @@ export class FinMindService {
 
           const formattedData = response.data.data.map((item: FinMindDataItem) => ({
             date: item.date,
-            open: parseFloat(item.open),
-            high: parseFloat(item.max || item.high),
-            low: parseFloat(item.min || item.low),
-            close: parseFloat(item.close),
-            volume: parseInt(item.Trading_Volume || item.volume || '0'),
-            change: parseFloat(item.close) - parseFloat(item.open),
+            open: parseFloatSafe(item.open),
+            high: parseFloatSafe(item.max || item.high || item.close),
+            low: parseFloatSafe(item.min || item.low || item.close),
+            close: parseFloatSafe(item.close),
+            volume: parseIntSafe(item.Trading_Volume || item.volume),
+            change: parseFloatSafe(item.close) - parseFloatSafe(item.open),
             changePercent:
-              ((parseFloat(item.close) - parseFloat(item.open)) / parseFloat(item.open)) * 100,
+              ((parseFloatSafe(item.close) - parseFloatSafe(item.open)) /
+                parseFloatSafe(item.open, 1)) *
+              100,
           }))
 
           console.log('FinMind - 格式化數據:', formattedData.length, '筆')
@@ -118,7 +133,7 @@ export class FinMindService {
         10 * 60 * 1000
       ) // 10分鐘快取
     } catch (error: unknown) {
-      console.error('FinMind API 請求失敗:', error.message)
+      console.error('FinMind API 請求失敗:', error instanceof Error ? error.message : String(error))
 
       // 無論什麼錯誤都使用備用數據
       console.warn('使用備用模擬數據替代')
@@ -215,7 +230,7 @@ export class FinMindService {
         },
       })
       return response.data.status === 200
-    } catch (error) {
+    } catch {
       console.warn('FinMind API 無法連接，將使用備用數據')
       return false
     }

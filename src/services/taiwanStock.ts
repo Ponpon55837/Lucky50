@@ -54,13 +54,14 @@ export class TaiwanStockService {
   static isTradingDay(date: Date): boolean {
     // 檢查是否為週末
     const dayOfWeek = date.getDay()
-    if (dayOfWeek === 0 || dayOfWeek === 6) { // 週日或週六
+    if (dayOfWeek === 0 || dayOfWeek === 6) {
+      // 週日或週六
       return false
     }
 
     // 格式化日期為 YYYY-MM-DD
     const dateStr = this.formatDateISO(date)
-    
+
     // 檢查是否為2024年政府假期
     if (this.GOVERNMENT_HOLIDAYS_2024.has(dateStr)) {
       return false
@@ -97,7 +98,7 @@ export class TaiwanStockService {
     const currentTime = hour * 100 + minute
 
     const startTime = this.TRADING_START_HOUR * 100 + this.TRADING_START_MINUTE // 900
-    const endTime = this.TRADING_END_HOUR * 100 + this.TRADING_END_MINUTE     // 1330
+    const endTime = this.TRADING_END_HOUR * 100 + this.TRADING_END_MINUTE // 1330
 
     return currentTime >= startTime && currentTime <= endTime
   }
@@ -107,11 +108,11 @@ export class TaiwanStockService {
    */
   static getNextTradingDay(date: Date): Date {
     const nextDay = new Date(date)
-    
+
     do {
       nextDay.setDate(nextDay.getDate() + 1)
     } while (!this.isTradingDay(nextDay))
-    
+
     return nextDay
   }
 
@@ -131,50 +132,50 @@ export class TaiwanStockService {
         start: '09:00',
         end: '09:05',
         description: '開盤集合競價時段',
-        type: 'opening'
+        type: 'opening',
       },
       {
         name: '早盤交易',
         start: '09:05',
         end: '10:00',
         description: '早盤活躍交易時段',
-        type: 'morning'
+        type: 'morning',
       },
       {
         name: '上午盤中',
         start: '10:00',
         end: '11:00',
         description: '上午盤中交易',
-        type: 'morning'
+        type: 'morning',
       },
       {
         name: '午前交易',
         start: '11:00',
         end: '12:00',
         description: '午前交易時段',
-        type: 'midday'
+        type: 'midday',
       },
       {
         name: '午後開盤',
         start: '12:00',
         end: '13:00',
         description: '午後開盤交易',
-        type: 'midday'
+        type: 'midday',
       },
       {
         name: '收盤前段',
         start: '13:00',
         end: '13:25',
         description: '收盤前交易',
-        type: 'closing'
+        type: 'closing',
       },
       {
         name: '收盤競價',
         start: '13:25',
         end: '13:30',
         description: '收盤集合競價',
-        type: 'closing'
-      }
+        type: 'closing',
+      },
     ]
   }
 
@@ -188,14 +189,14 @@ export class TaiwanStockService {
     nextTradingDay?: Date
   } {
     const now = new Date(date)
-    
+
     if (!this.isTradingDay(now)) {
       const nextTradingDay = this.getNextTradingDay(now)
       return {
         isOpen: false,
         status: 'closed',
         message: `今日休市，下個交易日為 ${this.formatDate(nextTradingDay)}`,
-        nextTradingDay
+        nextTradingDay,
       }
     }
 
@@ -207,13 +208,13 @@ export class TaiwanStockService {
       return {
         isOpen: false,
         status: 'pre_market',
-        message: '尚未開盤，交易時間 09:00-13:30'
+        message: '尚未開盤，交易時間 09:00-13:30',
       }
     } else if (currentTime >= 900 && currentTime <= 1330) {
       return {
         isOpen: true,
         status: 'trading',
-        message: '交易時間中'
+        message: '交易時間中',
       }
     } else {
       const nextTradingDay = this.getNextTradingDay(now)
@@ -221,7 +222,7 @@ export class TaiwanStockService {
         isOpen: false,
         status: 'post_market',
         message: `今日交易結束，下個交易日為 ${this.formatDate(nextTradingDay)}`,
-        nextTradingDay
+        nextTradingDay,
       }
     }
   }
@@ -233,7 +234,7 @@ export class TaiwanStockService {
     return new Intl.DateTimeFormat('zh-TW', {
       month: 'numeric',
       day: 'numeric',
-      weekday: 'short'
+      weekday: 'short',
     }).format(date)
   }
 
@@ -242,8 +243,8 @@ export class TaiwanStockService {
    * 只返回當天的時段建議
    */
   static getRecommendedTradingPeriods(
-    luckyHours: string[], 
-    avoidHours: string[], 
+    luckyHours: string[],
+    avoidHours: string[],
     date: Date = new Date()
   ): {
     recommended: Array<{ time: string; reason: string }>
@@ -253,11 +254,11 @@ export class TaiwanStockService {
   } {
     const now = new Date()
     const isToday = this.isSameDay(date, now)
-    
+
     // 只有當天才計算推薦和避免時段
     const recommended: Array<{ time: string; reason: string }> = []
     const avoid: Array<{ time: string; reason: string }> = []
-    
+
     // 只在當天且為交易日時計算時段建議
     if (isToday && this.isTradingDay(date)) {
       // 台股交易時段
@@ -266,7 +267,7 @@ export class TaiwanStockService {
         { time: '10:00-11:00', name: '上午盤中' },
         { time: '11:00-12:00', name: '午前交易' },
         { time: '12:00-13:00', name: '午後開盤' },
-        { time: '13:00-13:30', name: '收盤交易' }
+        { time: '13:00-13:30', name: '收盤交易' },
       ]
 
       for (const period of tradingPeriods) {
@@ -276,22 +277,22 @@ export class TaiwanStockService {
         if (isLucky && !isAvoid) {
           recommended.push({
             time: period.time,
-            reason: `${period.name} - 吉時交易`
+            reason: `${period.name} - 吉時交易`,
           })
         } else if (isAvoid) {
           avoid.push({
             time: period.time,
-            reason: `${period.name} - 兇時避免`
+            reason: `${period.name} - 兇時避免`,
           })
         }
       }
     }
 
-    return { 
-      recommended, 
-      avoid, 
-      isToday, 
-      tradingDay: date 
+    return {
+      recommended,
+      avoid,
+      isToday,
+      tradingDay: date,
     }
   }
 
@@ -303,11 +304,13 @@ export class TaiwanStockService {
       const [start, end] = timeRange.split('-')
       const parseHour = (time: string) => {
         const [hour, minute = '0'] = time.split(':')
-        return parseInt(hour) * 60 + parseInt(minute)
+        const h = parseInt(hour, 10)
+        const m = parseInt(minute, 10)
+        return (isNaN(h) ? 0 : h) * 60 + (isNaN(m) ? 0 : m)
       }
       return {
         start: parseHour(start),
-        end: parseHour(end)
+        end: parseHour(end),
       }
     }
 
@@ -321,8 +324,10 @@ export class TaiwanStockService {
    * 檢查兩個日期是否為同一天
    */
   private static isSameDay(date1: Date, date2: Date): boolean {
-    return date1.getFullYear() === date2.getFullYear() &&
-           date1.getMonth() === date2.getMonth() &&
-           date1.getDate() === date2.getDate()
+    return (
+      date1.getFullYear() === date2.getFullYear() &&
+      date1.getMonth() === date2.getMonth() &&
+      date1.getDate() === date2.getDate()
+    )
   }
 }

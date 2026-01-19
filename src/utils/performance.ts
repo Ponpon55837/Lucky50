@@ -62,8 +62,10 @@ export class PerformanceMonitor {
       const duration = this.endMeasure(name)
       console.log(`${name} 執行時間: ${duration.toFixed(2)}ms`)
       return result
-    } catch (error) {
+    } catch (error: unknown) {
       this.endMeasure(name)
+      const errorMessage = error instanceof Error ? error.message : String(error)
+      console.error(`${name} 執行錯誤:`, errorMessage)
       throw error
     }
   }
@@ -75,8 +77,10 @@ export class PerformanceMonitor {
       const duration = this.endMeasure(name)
       console.log(`${name} 執行時間: ${duration.toFixed(2)}ms`)
       return result
-    } catch (error) {
+    } catch (error: unknown) {
       this.endMeasure(name)
+      const errorMessage = error instanceof Error ? error.message : String(error)
+      console.error(`${name} 執行錯誤:`, errorMessage)
       throw error
     }
   }
@@ -114,7 +118,7 @@ export class PerformanceMonitor {
       try {
         observer.observe({ entryTypes: ['longtask'] })
         this.observers.set('longtask', observer)
-      } catch (e) {
+      } catch {
         console.warn('長任務監控不支持')
       }
     }
@@ -124,10 +128,12 @@ export class PerformanceMonitor {
   getMemoryUsage() {
     if ('memory' in performance) {
       const memory = (performance as PerformanceWithMemory).memory
-      return {
-        used: Math.round(memory.usedJSHeapSize / 1048576), // MB
-        total: Math.round(memory.totalJSHeapSize / 1048576), // MB
-        limit: Math.round(memory.jsHeapSizeLimit / 1048576), // MB
+      if (memory) {
+        return {
+          used: Math.round(memory.usedJSHeapSize / 1048576), // MB
+          total: Math.round(memory.totalJSHeapSize / 1048576), // MB
+          limit: Math.round(memory.jsHeapSizeLimit / 1048576), // MB
+        }
       }
     }
     return null
@@ -138,7 +144,10 @@ export class PerformanceMonitor {
     const report = {
       timestamp: new Date().toISOString(),
       memory: this.getMemoryUsage(),
-      metrics: {} as Record<string, { count: number; avg: number; min: number; max: number; median: number; p95: number }>,
+      metrics: {} as Record<
+        string,
+        { count: number; avg: number; min: number; max: number; median: number; p95: number } | null
+      >,
     }
 
     for (const [name] of this.metrics) {

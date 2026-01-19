@@ -145,12 +145,17 @@ const chartOptions = computed(() => {
       :options="chartOptions"
       class="w-full h-full"
     />
-    <div v-else class="h-full bg-gray-800/50 rounded-lg flex items-center justify-center">
+    <div
+      v-else
+      class="h-full bg-gray-800/50 rounded-lg flex items-center justify-center"
+    >
       <div class="text-center">
         <p class="text-gray-400 mb-2">
           {{ props.etfData.length === 0 ? '無成交量數據' : '載入圖表中...' }}
         </p>
-        <p class="text-gray-500 text-sm">數據筆數: {{ props.etfData.length }}</p>
+        <p class="text-gray-500 text-sm">
+          數據筆數: {{ props.etfData.length }}
+        </p>
       </div>
     </div>
   </div>

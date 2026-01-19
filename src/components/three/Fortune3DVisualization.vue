@@ -1,9 +1,3 @@
-<style scoped>
-.relative {
-  position: relative;
-}
-</style>
-
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, watch, computed, nextTick } from 'vue'
 import * as THREE from 'three'
@@ -456,7 +450,10 @@ watch(
     class="relative w-full h-full bg-gradient-to-br from-surface-bg/50 via-card-bg to-surface-bg rounded-lg overflow-hidden border border-border-light"
     @mousemove="handleMouseMove"
   >
-    <div ref="threeContainer" class="w-full h-full"></div>
+    <div
+      ref="threeContainer"
+      class="w-full h-full"
+    />
 
     <!-- 動態懸停說明 -->
     <div
@@ -488,10 +485,12 @@ watch(
       class="absolute top-4 right-4 bg-card-bg/80 backdrop-blur-sm border border-border-light rounded-lg p-3 w-52"
     >
       <div class="flex justify-between items-center mb-2">
-        <h4 class="text-sm font-semibold text-primary-text">運勢分析</h4>
+        <h4 class="text-sm font-semibold text-primary-text">
+          運勢分析
+        </h4>
         <button
-          @click="showLegend = false"
           class="text-xs text-secondary-text hover:text-primary-text"
+          @click="showLegend = false"
         >
           ×
         </button>
@@ -505,10 +504,13 @@ watch(
           <div class="flex items-center space-x-2">
             <div
               class="w-3 h-3 bg-gradient-to-r from-purple-400 to-pink-400 rounded-full animate-pulse"
-            ></div>
+            />
             <span class="text-secondary-text">{{ zodiac }}生肖</span>
           </div>
-          <span :class="fortuneScoreColor" class="font-mono text-xs">{{ fortuneScore }}</span>
+          <span
+            :class="fortuneScoreColor"
+            class="font-mono text-xs"
+          >{{ fortuneScore }}</span>
         </div>
         <div
           class="flex items-center justify-between cursor-pointer hover:bg-surface-bg/50 p-1 rounded"
@@ -516,7 +518,7 @@ watch(
           @mouseleave="handleElementLeave"
         >
           <div class="flex items-center space-x-2">
-            <div class="w-3 h-0.5 bg-gradient-to-r from-green-400 to-blue-400 rounded"></div>
+            <div class="w-3 h-0.5 bg-gradient-to-r from-green-400 to-blue-400 rounded" />
             <span class="text-secondary-text">{{ element }}五行</span>
           </div>
           <span class="text-info-text text-xs">強化</span>
@@ -528,20 +530,23 @@ watch(
         >
           <div class="flex items-center space-x-2">
             <div class="flex space-x-0.5">
-              <div class="w-0.5 h-3 bg-green-400"></div>
-              <div class="w-0.5 h-2 bg-yellow-400"></div>
-              <div class="w-0.5 h-4 bg-green-400"></div>
+              <div class="w-0.5 h-3 bg-green-400" />
+              <div class="w-0.5 h-2 bg-yellow-400" />
+              <div class="w-0.5 h-4 bg-green-400" />
             </div>
             <span class="text-secondary-text">投資建議</span>
           </div>
-          <span :class="investmentAdviceColor" class="text-xs">{{ investmentAdvice }}</span>
+          <span
+            :class="investmentAdviceColor"
+            class="text-xs"
+          >{{ investmentAdvice }}</span>
         </div>
         <div
           class="flex items-center space-x-2 cursor-pointer hover:bg-surface-bg/50 p-1 rounded"
           @mouseenter="handleElementHover('lunarData')"
           @mouseleave="handleElementLeave"
         >
-          <div class="w-3 h-3 bg-yellow-300 rounded-full"></div>
+          <div class="w-3 h-3 bg-yellow-300 rounded-full" />
           <span class="text-secondary-text">農曆</span>
           <span class="text-xs text-accent-text ml-auto">{{ lunarDate.slice(-4) }}</span>
         </div>
@@ -551,14 +556,16 @@ watch(
     <!-- 圖例開關 -->
     <button
       v-if="!showLegend"
-      @click="showLegend = true"
       class="absolute top-4 right-4 bg-card-bg/80 backdrop-blur-sm border border-border-light rounded-lg p-2 text-xs text-secondary-text hover:text-primary-text"
+      @click="showLegend = true"
     >
       🔮 運勢
     </button>
 
     <div class="absolute top-4 left-4 text-primary-text">
-      <h3 class="text-lg font-semibold mb-2 text-primary-text">{{ title }}</h3>
+      <h3 class="text-lg font-semibold mb-2 text-primary-text">
+        {{ title }}
+      </h3>
       <div class="text-sm space-y-1">
         <div>
           生肖: <span class="text-accent-text">{{ zodiac }}</span>
@@ -579,3 +586,9 @@ watch(
     </div>
   </div>
 </template>
+
+<style scoped>
+.relative {
+  position: relative;
+}
+</style>

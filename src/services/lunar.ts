@@ -1,5 +1,5 @@
-// @ts-ignore
-import { Solar, Lunar } from 'lunar-javascript'
+// @ts-expect-error - lunar-javascript doesn't have TypeScript definitions
+import { Solar } from 'lunar-javascript'
 import { s2t } from 'chinese-s2t'
 import { apiCache, CacheKeyGenerator } from './apiCache'
 import type { LunarObject, SolarObject } from '@/types'
@@ -76,11 +76,20 @@ class LunarService {
     }
 
     try {
-      const solar = Solar.fromYmd(
-        targetDate.getFullYear(),
-        targetDate.getMonth() + 1,
-        targetDate.getDate()
-      )
+      const year = targetDate.getFullYear()
+      const month = targetDate.getMonth() + 1
+      const day = targetDate.getDate()
+
+      // 驗證日期參數
+      if (isNaN(year) || isNaN(month) || isNaN(day)) {
+        throw new Error(`無效的日期參數: year=${year}, month=${month}, day=${day}`)
+      }
+
+      if (year < 1900 || year > 2100) {
+        throw new Error(`年份超出範圍 (1900-2100): ${year}`)
+      }
+
+      const solar = Solar.fromYmd(year, month, day)
       const lunar = solar.getLunar()
 
       const lunarData: LunarData = {

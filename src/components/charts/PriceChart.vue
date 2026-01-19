@@ -167,10 +167,15 @@ const chartOptions = computed(() => {
     >
       <p class="text-gray-400">
         {{ props.etfData?.length === 0 ? '無數據可顯示' : '載入圖表中...' }}
-        <br />
+        <br>
         <small class="text-xs">數據數量: {{ props.etfData?.length || 0 }}</small>
       </p>
     </div>
-    <Line v-else :data="chartData" :options="chartOptions" class="w-full h-full" />
+    <Line
+      v-else
+      :data="chartData"
+      :options="chartOptions"
+      class="w-full h-full"
+    />
   </div>
 </template>

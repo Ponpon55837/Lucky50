@@ -16,7 +16,7 @@ const showTermsModal = ref(false)
       <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6 sm:gap-8">
         <div>
           <div class="flex items-center space-x-2 mb-4">
-            <div class="w-8 h-8 rounded-full bg-gradient-to-r from-gold-500 to-yellow-600"></div>
+            <div class="w-8 h-8 rounded-full bg-gradient-to-r from-gold-500 to-yellow-600" />
             <span class="font-bold text-lg sm:text-xl text-white">農民曆智慧投資</span>
           </div>
           <p class="text-gray-300 text-sm">
@@ -25,7 +25,9 @@ const showTermsModal = ref(false)
         </div>
 
         <div>
-          <h3 class="text-white font-semibold mb-4">功能特色</h3>
+          <h3 class="text-white font-semibold mb-4">
+            功能特色
+          </h3>
           <ul class="space-y-2 text-gray-300 text-sm">
             <li>• 個人化運勢分析</li>
             <li>• 農民曆整合</li>
@@ -35,7 +37,9 @@ const showTermsModal = ref(false)
         </div>
 
         <div class="sm:col-span-2 md:col-span-1">
-          <h3 class="text-white font-semibold mb-4">免責聲明</h3>
+          <h3 class="text-white font-semibold mb-4">
+            免責聲明
+          </h3>
           <p class="text-gray-300 text-sm">
             本系統僅供參考，不構成投資建議。投資有風險，請謹慎評估自身財務狀況。
           </p>
@@ -45,17 +49,19 @@ const showTermsModal = ref(false)
       <div
         class="border-t border-white/10 mt-8 pt-8 flex flex-col sm:flex-row justify-between items-center"
       >
-        <p class="text-gray-400 text-sm">© 2025 農民曆智慧投資系統. All rights reserved.</p>
+        <p class="text-gray-400 text-sm">
+          © 2025 農民曆智慧投資系統. All rights reserved.
+        </p>
         <div class="flex space-x-4 mt-4 sm:mt-0">
           <button
-            @click="showPrivacyModal = true"
             class="text-gray-400 hover:text-gold-400 text-sm transition-colors focus:outline-none focus:text-gold-400"
+            @click="showPrivacyModal = true"
           >
             隱私政策
           </button>
           <button
-            @click="showTermsModal = true"
             class="text-gray-400 hover:text-gold-400 text-sm transition-colors focus:outline-none focus:text-gold-400"
+            @click="showTermsModal = true"
           >
             使用條款
           </button>
@@ -85,16 +91,16 @@ const showTermsModal = ref(false)
               class="text-lg sm:text-xl font-bold flex items-center gap-2"
               :class="isDark ? 'text-white' : 'text-gray-900'"
             >
-              <div class="w-3 h-3 bg-gold-500 rounded-full flex-shrink-0"></div>
+              <div class="w-3 h-3 bg-gold-500 rounded-full flex-shrink-0" />
               <span class="truncate">隱私政策</span>
             </h2>
             <button
-              @click="showPrivacyModal = false"
               class="transition-colors p-1 flex-shrink-0 ml-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded"
               :class="
                 isDark ? 'text-gray-400 hover:text-white' : 'text-gray-500 hover:text-gray-700'
               "
               aria-label="關閉"
+              @click="showPrivacyModal = false"
             >
               <svg
                 class="w-5 h-5 sm:w-6 sm:h-6"
@@ -107,7 +113,7 @@ const showTermsModal = ref(false)
                   stroke-linejoin="round"
                   stroke-width="2"
                   d="M6 18L18 6M6 6l12 12"
-                ></path>
+                />
               </svg>
             </button>
           </div>
@@ -124,7 +130,9 @@ const showTermsModal = ref(false)
                 >
                   1. 資料收集與使用
                 </h3>
-                <p class="mb-3">我們收集您的個人資訊以提供個人化的投資運勢分析服務：</p>
+                <p class="mb-3">
+                  我們收集您的個人資訊以提供個人化的投資運勢分析服務：
+                </p>
                 <ul class="list-disc list-inside space-y-1 ml-4">
                   <li>生辰八字資訊（出生日期、時間、地點）</li>
                   <li>投資偏好與風險承受度</li>
@@ -140,7 +148,9 @@ const showTermsModal = ref(false)
                 >
                   2. 資料保護措施
                 </h3>
-                <p class="mb-3">我們採用業界標準的安全措施保護您的個人資料：</p>
+                <p class="mb-3">
+                  我們採用業界標準的安全措施保護您的個人資料：
+                </p>
                 <ul class="list-disc list-inside space-y-1 ml-4">
                   <li>SSL/TLS 加密傳輸</li>
                   <li>資料庫加密存儲</li>
@@ -172,7 +182,9 @@ const showTermsModal = ref(false)
                 >
                   4. 資料分享政策
                 </h3>
-                <p class="mb-3">我們不會將您的個人資料出售、租借或與第三方分享，除非：</p>
+                <p class="mb-3">
+                  我們不會將您的個人資料出售、租借或與第三方分享，除非：
+                </p>
                 <ul class="list-disc list-inside space-y-1 ml-4">
                   <li>獲得您的明確同意</li>
                   <li>法律法規要求</li>
@@ -188,7 +200,9 @@ const showTermsModal = ref(false)
                 >
                   5. Cookie 使用
                 </h3>
-                <p class="mb-3">我們使用 Cookie 來改善用戶體驗：</p>
+                <p class="mb-3">
+                  我們使用 Cookie 來改善用戶體驗：
+                </p>
                 <ul class="list-disc list-inside space-y-1 ml-4">
                   <li>記住您的登入狀態</li>
                   <li>保存個人偏好設定</li>
@@ -221,7 +235,9 @@ const showTermsModal = ref(false)
                   7. 聯絡我們
                 </h3>
                 <p>如有任何隱私權相關問題，請聯絡我們：</p>
-                <p class="mt-2">電子郵件：privacy@lucky50.com</p>
+                <p class="mt-2">
+                  電子郵件：privacy@lucky50.com
+                </p>
                 <p>最後更新日期：2025年9月30日</p>
               </div>
             </div>
@@ -252,16 +268,16 @@ const showTermsModal = ref(false)
               class="text-lg sm:text-xl font-bold flex items-center gap-2"
               :class="isDark ? 'text-white' : 'text-gray-900'"
             >
-              <div class="w-3 h-3 bg-gold-500 rounded-full flex-shrink-0"></div>
+              <div class="w-3 h-3 bg-gold-500 rounded-full flex-shrink-0" />
               <span class="truncate">使用條款</span>
             </h2>
             <button
-              @click="showTermsModal = false"
               class="transition-colors p-1 flex-shrink-0 ml-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded"
               :class="
                 isDark ? 'text-gray-400 hover:text-white' : 'text-gray-500 hover:text-gray-700'
               "
               aria-label="關閉"
+              @click="showTermsModal = false"
             >
               <svg
                 class="w-5 h-5 sm:w-6 sm:h-6"
@@ -274,7 +290,7 @@ const showTermsModal = ref(false)
                   stroke-linejoin="round"
                   stroke-width="2"
                   d="M6 18L18 6M6 6l12 12"
-                ></path>
+                />
               </svg>
             </button>
           </div>
@@ -314,7 +330,10 @@ const showTermsModal = ref(false)
                   class="rounded-lg p-4 mb-3 border"
                   :class="isDark ? 'bg-red-900/20 border-red-500/30' : 'bg-red-50 border-red-200'"
                 >
-                  <p class="font-semibold mb-2" :class="isDark ? 'text-red-400' : 'text-red-700'">
+                  <p
+                    class="font-semibold mb-2"
+                    :class="isDark ? 'text-red-400' : 'text-red-700'"
+                  >
                     重要聲明：
                   </p>
                   <ul class="list-disc list-inside space-y-1">
@@ -334,7 +353,9 @@ const showTermsModal = ref(false)
                 >
                   3. 使用規範
                 </h3>
-                <p class="mb-3">使用本系統時，您同意遵守以下規範：</p>
+                <p class="mb-3">
+                  使用本系統時，您同意遵守以下規範：
+                </p>
                 <ul class="list-disc list-inside space-y-1 ml-4">
                   <li>不得進行任何非法或有害活動</li>
                   <li>不得嘗試破壞系統安全或獲取未授權資料</li>
@@ -411,13 +432,17 @@ const showTermsModal = ref(false)
                 >
                   8. 條款變更
                 </h3>
-                <p class="mb-3">我們保留隨時修改本使用條款的權利。重大變更將透過以下方式通知：</p>
+                <p class="mb-3">
+                  我們保留隨時修改本使用條款的權利。重大變更將透過以下方式通知：
+                </p>
                 <ul class="list-disc list-inside space-y-1 ml-4">
                   <li>網站公告</li>
                   <li>電子郵件通知</li>
                   <li>系統內訊息</li>
                 </ul>
-                <p class="mt-3">繼續使用服務即表示同意修改後的條款。</p>
+                <p class="mt-3">
+                  繼續使用服務即表示同意修改後的條款。
+                </p>
               </div>
 
               <div>
@@ -442,7 +467,9 @@ const showTermsModal = ref(false)
                   10. 聯絡資訊
                 </h3>
                 <p>如有任何疑問，請聯絡我們：</p>
-                <p class="mt-2">電子郵件：support@lucky50.com</p>
+                <p class="mt-2">
+                  電子郵件：support@lucky50.com
+                </p>
                 <p>最後更新日期：2025年9月30日</p>
               </div>
             </div>
