@@ -5,6 +5,7 @@ import { ThreeJSScene, createThemeGlowMaterial, getThemeColor } from '@/utils/th
 import { useTheme } from '@/composables/useTheme'
 import { useDashboardStore } from '@/stores/dashboard'
 import { useAnalyticsStore } from '@/stores/analytics'
+import type { ETFData } from '@/types'
 
 interface Props {
   title?: string
@@ -155,8 +156,8 @@ const createPriceSphere = (
 }
 
 // 創建成交量柱狀圖
-const createVolumeBar = (x: number, data: any, index: number): THREE.Mesh => {
-  const maxVolume = Math.max(...etfData.value.map((d: any) => d.volume))
+const createVolumeBar = (x: number, data: ETFData, index: number): THREE.Mesh => {
+  const maxVolume = Math.max(...etfData.value.map((d: ETFData) => d.volume))
   const volumeHeight = (data.volume / maxVolume) * 1.2
 
   const geometry = new THREE.CylinderGeometry(0.02, 0.04, volumeHeight, 8)
@@ -281,7 +282,7 @@ const createPriceLine = () => {
   priceLineGroup = new THREE.Group()
 
   // 計算價格範圍
-  const prices = etfData.value.map((d: any) => d.close)
+  const prices = etfData.value.map((d: ETFData) => d.close)
   const minPrice = Math.min(...prices)
   const maxPrice = Math.max(...prices)
   const priceRange = maxPrice - minPrice
@@ -289,7 +290,7 @@ const createPriceLine = () => {
   // 創建價格點和連線
   const points: THREE.Vector3[] = []
 
-  etfData.value.forEach((data: any, index: number) => {
+  etfData.value.forEach((data: ETFData, index: number) => {
     const x =
       (index / (etfData.value.length - 1)) * ANIMATION_CONFIG.priceRange.width -
       ANIMATION_CONFIG.priceRange.width / 2

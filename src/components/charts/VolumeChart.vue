@@ -8,6 +8,7 @@ import {
   Title,
   Tooltip,
   Legend,
+  type TooltipItem,
 } from 'chart.js'
 import { Bar } from 'vue-chartjs'
 import type { ETFData } from '@/types'
@@ -99,7 +100,7 @@ const chartOptions = computed(() => {
         padding: 12,
         displayColors: false,
         callbacks: {
-          label: function (context: any) {
+          label: function (context: TooltipItem<'bar'>) {
             return `成交量: ${context.parsed.y.toFixed(1)}M`
           },
         },
@@ -127,7 +128,7 @@ const chartOptions = computed(() => {
           font: {
             size: 12,
           },
-          callback: function (value: any) {
+          callback: function (value: string | number) {
             return `${value}M`
           },
         },
