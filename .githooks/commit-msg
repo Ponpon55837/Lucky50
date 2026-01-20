@@ -1,0 +1,201 @@
+#!/bin/bash
+
+# Lucky50 專案 - Commit-msg Hook
+# 驗證提交訊息格式是否符合專案規範
+
+# ============================================
+# 配置區
+# ============================================
+
+# 允許的提交類型
+ALLOWED_TYPES=("feat" "fix" "docs" "style" "refactor" "perf" "test" "chore" "ci" "build" "revert")
+
+# 是否強制執行（設為 false 時僅警告，不阻止提交）
+ENFORCE=false
+
+# 最小訊息長度（不含類型前綴）
+MIN_MESSAGE_LENGTH=5
+
+# 最大訊息長度（第一行）
+MAX_MESSAGE_LENGTH=100
+
+# ============================================
+# 函數定義
+# ============================================
+
+# 顏色定義
+RED='\033[0;31m'
+YELLOW='\033[1;33m'
+GREEN='\033[0;32m'
+BLUE='\033[0;34m'
+NC='\033[0m' # No Color
+
+# 讀取提交訊息
+COMMIT_MSG_FILE=$1
+COMMIT_MSG=$(cat "$COMMIT_MSG_FILE")
+FIRST_LINE=$(echo "$COMMIT_MSG" | head -n1)
+
+# 驗證提交訊息格式
+validate_commit_message() {
+    local message=$1
+    local errors=()
+    
+    # 檢查是否為空
+    if [ -z "$message" ]; then
+        errors+=("提交訊息不能為空")
+        echo "${errors[@]}"
+        return 1
+    fi
+    
+    # 檢查是否符合格式：<type>: <description>
+    # 支援格式：
+    # 1. feat: 新增功能
+    # 2. feat(scope): 新增功能
+    # 3. feat!: 破壞性變更
+    # 4. feat(scope)!: 破壞性變更
+    
+    if [[ ! "$message" =~ ^[a-z]+(\([a-z0-9_-]+\))?!?:\ .+ ]]; then
+        errors+=("格式不符：應為 '<type>: <description>' 或 '<type>(scope): <description>'")
+    fi
+    
+    # 提取類型
+    local type=$(echo "$message" | sed -E 's/^([a-z]+)(\([a-z0-9_-]+\))?!?:.*/\1/')
+    
+    # 檢查類型是否有效
+    local valid_type=false
+    for allowed_type in "${ALLOWED_TYPES[@]}"; do
+        if [ "$type" = "$allowed_type" ]; then
+            valid_type=true
+            break
+        fi
+    done
+    
+    if [ "$valid_type" = false ]; then
+        errors+=("不支援的提交類型 '${type}'")
+    fi
+    
+    # 提取描述部分
+    local description=$(echo "$message" | sed -E 's/^[a-z]+(\([a-z0-9_-]+\))?!?:\ //')
+    
+    # 檢查描述長度
+    local desc_length=${#description}
+    if [ $desc_length -lt $MIN_MESSAGE_LENGTH ]; then
+        errors+=("描述太短（${desc_length} 字元），至少需要 ${MIN_MESSAGE_LENGTH} 字元")
+    fi
+    
+    # 檢查第一行長度
+    local msg_length=${#message}
+    if [ $msg_length -gt $MAX_MESSAGE_LENGTH ]; then
+        errors+=("第一行太長（${msg_length} 字元），建議不超過 ${MAX_MESSAGE_LENGTH} 字元")
+    fi
+    
+    # 檢查描述首字母（建議小寫，但不強制）
+    if [[ "$description" =~ ^[A-Z] ]]; then
+        errors+=("建議：描述首字母使用小寫")
+    fi
+    
+    # 檢查是否以句號結尾（不應該）
+    if [[ "$description" =~ \.$ ]]; then
+        errors+=("建議：描述不應以句號結尾")
+    fi
+    
+    # 返回錯誤
+    if [ ${#errors[@]} -gt 0 ]; then
+        echo "${errors[@]}"
+        return 1
+    fi
+    
+    return 0
+}
+
+# 顯示錯誤訊息
+show_commit_msg_error() {
+    local message=$1
+    shift
+    local errors=("$@")
+    
+    echo ""
+    if [ "$ENFORCE" = true ]; then
+        echo -e "${RED}🚫 =============================================${NC}"
+        echo -e "${RED}🚫  錯誤：提交訊息格式不符合規範${NC}"
+        echo -e "${RED}🚫 =============================================${NC}"
+    else
+        echo -e "${YELLOW}⚠️  =============================================${NC}"
+        echo -e "${YELLOW}⚠️   警告：提交訊息格式建議改進${NC}"
+        echo -e "${YELLOW}⚠️  =============================================${NC}"
+    fi
+    echo ""
+    echo -e "${RED}當前訊息：${NC}"
+    echo "  $message"
+    echo ""
+    echo -e "${RED}發現的問題：${NC}"
+    for error in "${errors[@]}"; do
+        echo "  ❌ $error"
+    done
+    echo ""
+    echo "📋 提交訊息格式規範："
+    echo ""
+    echo "  基本格式："
+    echo -e "    ${BLUE}<type>: <description>${NC}"
+    echo ""
+    echo "  完整格式："
+    echo -e "    ${BLUE}<type>(scope): <description>${NC}"
+    echo ""
+    echo "  破壞性變更："
+    echo -e "    ${BLUE}<type>!: <description>${NC}"
+    echo -e "    ${BLUE}<type>(scope)!: <description>${NC}"
+    echo ""
+    echo "✅ 允許的類型："
+    echo "  ${ALLOWED_TYPES[*]}"
+    echo ""
+    echo "📝 範例："
+    echo -e "  ${GREEN}feat: 新增使用者登入功能${NC}"
+    echo -e "  ${GREEN}fix: 修復登入頁面顯示錯誤${NC}"
+    echo -e "  ${GREEN}docs: 更新 README 安裝說明${NC}"
+    echo -e "  ${GREEN}feat(api): 新增使用者 API 端點${NC}"
+    echo -e "  ${GREEN}fix(auth): 修正 JWT 驗證邏輯${NC}"
+    echo -e "  ${GREEN}feat!: 重構 API 接口（破壞性變更）${NC}"
+    echo ""
+    echo "💡 提示："
+    echo "  • 描述使用繁體中文（優先）或英文"
+    echo "  • 描述首字母小寫"
+    echo "  • 描述不要以句號結尾"
+    echo "  • 描述應簡潔明確，說明「做了什麼」"
+    echo "  • 長度：5-100 字元"
+    echo ""
+    echo "📚 參考："
+    echo "  - .opencode/skills/git-workflow/SKILL.md"
+    echo "  - Conventional Commits: https://www.conventionalcommits.org/"
+    echo ""
+    
+    if [ "$ENFORCE" = false ]; then
+        echo "💡 注意：這是警告訊息，不會阻止提交。"
+        echo "   但強烈建議遵循規範以保持專案一致性。"
+        echo ""
+        echo "🔧 如需啟用強制檢查，編輯 .githooks/commit-msg："
+        echo "   將 ENFORCE=false 改為 ENFORCE=true"
+        echo ""
+    fi
+}
+
+# ============================================
+# 主要邏輯
+# ============================================
+
+# 驗證提交訊息
+VALIDATION_ERRORS=$(validate_commit_message "$FIRST_LINE")
+VALIDATION_RESULT=$?
+
+if [ $VALIDATION_RESULT -ne 0 ]; then
+    # 將錯誤字串轉換為陣列
+    IFS=$'\n' read -rd '' -a errors_array <<< "$VALIDATION_ERRORS"
+    
+    show_commit_msg_error "$FIRST_LINE" "${errors_array[@]}"
+    
+    if [ "$ENFORCE" = true ]; then
+        exit 1
+    fi
+fi
+
+# 驗證通過或僅警告
+exit 0
