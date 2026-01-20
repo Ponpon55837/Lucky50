@@ -9,8 +9,15 @@
 ├── README.md
 ├── lucky50-dev/
 │   └── SKILL.md
-└── git-workflow/
-    └── SKILL.md
+├── git-workflow/
+│   └── SKILL.md
+└── vue/
+    ├── SKILL.md
+    └── references/
+        ├── components.md
+        ├── composables.md
+        ├── utils-client.md
+        └── testing.md
 ```
 
 ## 可用的 Skills
@@ -90,6 +97,77 @@
 ```
 請檢查我的 Commit 訊息是否符合 git-workflow 規範
 ```
+
+---
+
+### `vue`
+
+**版本**: 1.0.0  
+**來源**: [onmax/nuxt-skills](https://github.com/onmax/nuxt-skills)  
+**更新日期**: 2026-01-20  
+**描述**: Vue 3 Composition API 開發指南與最佳實踐
+
+**使用時機**:
+
+- 編輯 `.vue` 組件檔案
+- 建立或修改 composables（`use*` 函數）
+- 開發 client-side utilities
+- 撰寫 Vue 組件/composables 測試
+- 需要 Vue 3.5+ 新特性指引（reactive destructuring、useTemplateRef 等）
+- 需要 TypeScript 型別安全的 props/emits 模式
+
+**主要內容**:
+
+- 🧩 Vue 3 組件開發模式（Composition API）
+  - Props reactive destructuring (Vue 3.5+)
+  - Type-safe emits 和 defineModel
+  - Template refs 和 slots 最佳實踐
+- 🔄 Composables 開發指引
+  - VueUse 整合建議
+  - Lifecycle hooks 和 async patterns
+  - Singleton composables 和 cleanup patterns
+- 🛠️ Client utilities 規範
+  - Pure functions（formatters, validators, transformers）
+  - 何時使用 utils vs composables
+- 🧪 測試模式
+  - Vitest + @vue/test-utils 測試範例
+  - Component、composable、utils 測試策略
+  - Mocking patterns
+
+**與 `lucky50-dev` 的關係**:
+
+- `vue` skill：提供**通用** Vue 3 開發模式和最佳實踐
+- `lucky50-dev` skill：提供 **Lucky50 專案特定**的開發規範（Tailwind CSS、Pinia、Three.js 等）
+- **建議**：兩個 skill 搭配使用以獲得最佳開發體驗
+
+**如何使用**:
+
+```
+請載入 vue skill 幫我重構這個組件
+```
+
+```
+載入 vue skill 的 references/components.md
+```
+
+**Modular Loading**:
+
+vue skill 支援模組化載入，根據當前工作選擇性載入相關文件：
+
+| 工作內容         | 載入檔案                     |
+| ---------------- | ---------------------------- |
+| 編輯 `.vue` 組件 | `references/components.md`   |
+| 開發 composables | `references/composables.md`  |
+| 開發 utils       | `references/utils-client.md` |
+| 撰寫測試         | `references/testing.md`      |
+
+**特色**:
+
+- ✅ 基於 Vue 3.5+ 最新特性
+- ✅ 模組化設計，節省 context tokens
+- ✅ 來自 Nuxt 社群的最佳實踐
+- ✅ 完整的 TypeScript 支援
+- ✅ 包含測試指引
 
 ---
 
