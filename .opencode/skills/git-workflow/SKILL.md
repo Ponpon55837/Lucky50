@@ -4,7 +4,7 @@ description: Git 分支命名與工作流程規範
 license: MIT
 compatibility: opencode
 metadata:
-  version: '1.1.0'
+  version: '1.2.0'
   updated: '2026-01-20'
   audience: developers
   workflow: git
@@ -17,12 +17,36 @@ metadata:
 - 確保分支類型、開發者名稱和功能描述的一致性
 - 協助團隊遵循最佳的 Git 工作流程
 
+## ⚠️ 開始前必讀
+
+**🔴 在任何程式碼修改前，必須先執行以下步驟：**
+
+```bash
+# 1. 確認當前在 main 分支
+git branch
+
+# 2. 如果不在 main，切換到 main
+git checkout main
+
+# 3. 拉取最新代碼
+git pull origin main
+
+# 4. 建立新的功能分支
+git checkout -b <type>/<developer-name>/<feature-description>
+```
+
+**❌ 絕對禁止**：直接在 main 分支上進行任何修改！
+
+**✅ 正確流程**：永遠從 main 建立新分支 → 在新分支上開發 → 提交 → 推送 → 建立 PR
+
 ## 何時使用我
 
 在以下情況下使用此技能：
 
+- **🔴 任何程式碼修改前**（檢查是否已建立分支）
 - 建立新的 Git 分支時
 - 需要確認分支命名是否符合規範
+- 撰寫 Commit 訊息時
 - 團隊協作需要統一的分支管理策略
 - 進行 code review 時檢查分支命名
 

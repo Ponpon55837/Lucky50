@@ -4,7 +4,7 @@ description: Lucky50 專案開發規範與最佳實踐指南
 license: MIT
 compatibility: opencode
 metadata:
-  version: '1.1.0'
+  version: '1.2.0'
   updated: '2026-01-20'
   language: zh-TW
   project: Lucky50
@@ -12,16 +12,56 @@ metadata:
 
 # Lucky50 專案開發規範與技能指南
 
+## ⚠️ 開始前必讀
+
+**在開始任何程式碼修改之前，必須先完成以下檢查：**
+
+### 1. 🔴 確認分支狀態（最重要！）
+
+```bash
+# 檢查當前分支
+git branch
+
+# 如果在 main 分支，必須立即建立新分支
+git checkout -b <type>/<developer-name>/<feature-description>
+```
+
+**❌ 絕對禁止直接在 main 分支修改代碼！**
+
+**✅ 正確流程**：
+
+1. 從 main 建立新分支
+2. 在新分支上進行修改
+3. 提交並推送
+4. 建立 Pull Request
+5. 等待 code review 和合併
+
+### 2. 📖 載入相關 skills
+
+在開始開發前，確認你已經載入並理解以下 skills：
+
+- **git-workflow**：分支命名和 Git 工作流程
+- **lucky50-dev**：本文件，開發規範
+
+### 3. 💡 規劃變更
+
+- 明確知道要修改什麼
+- 了解修改的影響範圍
+- 確認不會引入新的依賴
+
 ## 何時使用我
 
 當你需要在 Lucky50 專案中進行以下操作時使用此 skill：
 
+- **🔴 任何程式碼修改前**（必讀核心原則和檔案結構規範）
 - 新增或修改 Vue 3 組件
 - 開發 Pinia Store 或 Composables
 - 整合 Three.js 或 Chart.js 視覺化功能
 - 處理 API 服務層開發
 - 實作錯誤處理機制
 - 確認代碼是否符合專案規範
+- 執行開發測試流程
+- 提交代碼前的檢查
 
 **重要**：所有代碼修改前必須閱讀此規範，確保符合專案的技術棧和風格要求。
 

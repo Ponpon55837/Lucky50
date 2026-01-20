@@ -185,6 +185,110 @@ Lucky50/
 └── package.json
 ```
 
+## 🔧 開發設置
+
+### Git Hooks 安裝
+
+本專案使用 Git Hooks 來確保代碼品質和工作流程規範。在開始開發前，請先安裝 Git hooks：
+
+```bash
+# 安裝 Git hooks
+./.githooks/install.sh
+```
+
+### Git Hooks 說明
+
+本專案包含以下 Git hooks：
+
+#### 1. Pre-commit Hook
+
+- **功能**：防止在受保護分支（main, master, develop等）直接提交
+- **功能**：驗證分支命名規範（警告模式）
+- **格式**：`<type>/<developer-name>/<feature-description>`
+- **範例**：
+  - ✅ `feat/lip/add-user-auth`
+  - ✅ `fix/lip/resolve-bug-123`
+  - ❌ `my-feature`（格式不正確）
+
+#### 2. Commit-msg Hook
+
+- **功能**：驗證提交訊息格式是否符合 Conventional Commits 規範
+- **模式**：警告模式（不會阻止提交，但會顯示建議）
+- **格式**：`<type>: <description>` 或 `<type>(scope): <description>`
+- **範例**：
+  - ✅ `feat: 新增使用者登入功能`
+  - ✅ `fix: 修復登入頁面顯示錯誤`
+  - ✅ `docs: 更新 README 安裝說明`
+  - ✅ `feat(api): 新增使用者 API 端點`
+  - ❌ `Add login feature`（缺少類型）
+
+#### 允許的提交類型
+
+- `feat` - 新功能
+- `fix` - 錯誤修復
+- `docs` - 文件更新
+- `style` - 代碼格式調整
+- `refactor` - 代碼重構
+- `perf` - 性能優化
+- `test` - 測試相關
+- `chore` - 雜項工作
+- `ci` - CI/CD 相關
+- `build` - 建置系統變更
+- `revert` - 回退變更
+
+### 測試 Git Hooks
+
+安裝完成後，可以運行自動化測試來驗證：
+
+```bash
+# 運行 Git hooks 測試腳本
+./.githooks/test-hooks.sh
+```
+
+### 開發工作流程
+
+1. **檢查當前分支**：
+
+   ```bash
+   git status
+   ```
+
+2. **建立功能分支**（如果在 main）：
+
+   ```bash
+   git checkout -b <type>/<your-name>/<feature-description>
+   # 例如：git checkout -b feat/lip/add-new-feature
+   ```
+
+3. **進行開發並測試**：
+
+   ```bash
+   pnpm dev  # 啟動開發伺服器
+   # 進行代碼修改...
+   ```
+
+4. **提交變更**：
+
+   ```bash
+   git add .
+   git commit -m "feat: 你的提交訊息"
+   ```
+
+5. **推送到遠端**：
+
+   ```bash
+   git push -u origin <your-branch-name>
+   ```
+
+6. **建立 Pull Request** 在 GitHub 上
+
+### 相關文檔
+
+- **開發規範**：`.opencode/skills/lucky50-dev/SKILL.md`
+- **Git 工作流程**：`.opencode/skills/git-workflow/SKILL.md`
+- **AI 助手規則**：`AGENTS.md`
+- **Git Hooks 詳細說明**：`.githooks/README.md`
+
 ## ⚠️ 免責聲明
 
 - 本系統僅供參考，不構成投資建議
@@ -194,13 +298,18 @@ Lucky50/
 
 ## 🤝 貢獻指南
 
-歡迎提交 Issue 和 Pull Request！
+歡迎提交 Issue 和 Pull Request！在開始貢獻前，請詳細閱讀我們的 [貢獻指南](CONTRIBUTING.md)。
+
+### 快速開始
 
 1. Fork 本專案
-2. 創建功能分支: `git checkout -b feature/AmazingFeature`
-3. 提交變更: `git commit -m 'Add some AmazingFeature'`
-4. 推送到分支: `git push origin feature/AmazingFeature`
-5. 提交 Pull Request
+2. 安裝 Git hooks: `./.githooks/install.sh`
+3. 建立功能分支: `git checkout -b <type>/<your-name>/<feature-description>`
+4. 提交變更: `git commit -m '<type>: <description>'`
+5. 推送到分支: `git push origin <your-branch>`
+6. 提交 Pull Request
+
+詳細步驟請參閱 [CONTRIBUTING.md](CONTRIBUTING.md)。
 
 ## 📄 授權條款
 
