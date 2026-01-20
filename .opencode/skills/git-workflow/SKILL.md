@@ -4,8 +4,11 @@ description: Git 分支命名與工作流程規範
 license: MIT
 compatibility: opencode
 metadata:
+  version: '1.1.0'
+  updated: '2026-01-20'
   audience: developers
   workflow: git
+  language: zh-TW
 ---
 
 ## 我的功能
@@ -144,13 +147,31 @@ git push origin --delete <branch-name>
 
 與分支類型相同: `feat`, `fix`, `refactor`, `docs`, `style`, `test`, `chore`
 
+### 語言規範
+
+**🔴 重要：Lucky50 專案使用繁體中文作為 Commit 訊息的預設語言**
+
+- **優先使用繁體中文**：除非特別要求或有特殊情況，Commit 訊息應使用繁體中文書寫
+- **標題 (subject)**：使用中文簡潔描述
+- **內文 (body)**：使用中文詳細說明變更內容
+- **註解 (footer)**：使用中文標註相關 issue 或參考資料
+
 ### 範例
 
 ```bash
-# 簡單提交
-git commit -m "feat: add language selector component"
+# ✅ 正確：使用繁體中文（推薦）
+git commit -m "feat: 新增語言選擇器組件"
 
-# 詳細提交
+# ✅ 正確：詳細的中文提交訊息
+git commit -m "feat: 新增語言選擇器組件
+
+- 實作包含 5 種語言選項的下拉選單
+- 新增語言偏好設定到 localStorage
+- 更新 i18n 配置
+
+關聯 issue #123"
+
+# ⚠️ 可接受：英文提交（特殊情況或國際協作）
 git commit -m "feat: add language selector component
 
 - Implement dropdown with 5 language options
@@ -158,7 +179,18 @@ git commit -m "feat: add language selector component
 - Update i18n configuration
 
 Closes #123"
+
+# ❌ 錯誤：混用中英文
+git commit -m "feat: 新增 language selector component"
 ```
+
+### 提交訊息最佳實踐
+
+1. **使用繁體中文為主**：確保團隊成員都能快速理解
+2. **標題簡潔明確**：50 字以內，說明「做了什麼」
+3. **內文詳細說明**：解釋「為什麼」和「怎麼做」
+4. **使用條列式**：清楚列出所有變更項目
+5. **關聯相關 issue**：在 footer 標註相關的 issue 編號
 
 ## 注意事項
 
@@ -167,6 +199,7 @@ Closes #123"
 3. **定期同步主分支**: 避免合併衝突
 4. **使用有意義的名稱**: 讓他人能理解分支目的
 5. **一個分支一個功能**: 避免在單一分支混合多個不相關的變更
+6. **🔴 Commit 訊息使用繁體中文**: Lucky50 專案預設使用中文撰寫 Commit 訊息
 
 ## 常見問題
 
