@@ -1,0 +1,39 @@
+#!/bin/bash
+
+# Lucky50 專案 - Pre-commit Hook
+# 防止在 main 分支直接提交代碼
+
+# 獲取當前分支名稱
+BRANCH=$(git symbolic-ref --short HEAD 2>/dev/null)
+
+# 檢查是否在 main 分支
+if [ "$BRANCH" = "main" ]; then
+    echo ""
+    echo "🚫 ============================================="
+    echo "🚫  錯誤：禁止在 main 分支直接提交代碼！"
+    echo "🚫 ============================================="
+    echo ""
+    echo "根據專案規範，所有代碼修改必須在功能分支上進行。"
+    echo ""
+    echo "請執行以下步驟："
+    echo ""
+    echo "  1. 建立新的功能分支："
+    echo "     git checkout -b <type>/<developer-name>/<feature-description>"
+    echo ""
+    echo "  範例："
+    echo "     git checkout -b feat/lip/add-new-feature"
+    echo "     git checkout -b fix/lip/fix-bug"
+    echo ""
+    echo "  2. 重新提交："
+    echo "     git add ."
+    echo "     git commit -m \"你的提交訊息\""
+    echo ""
+    echo "參考："
+    echo "  - AGENTS.md - 專案規則"
+    echo "  - .opencode/skills/git-workflow/SKILL.md - Git 工作流程"
+    echo ""
+    exit 1
+fi
+
+# 如果不在 main 分支，允許提交
+exit 0
