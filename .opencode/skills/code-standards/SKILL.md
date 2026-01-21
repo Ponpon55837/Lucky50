@@ -109,6 +109,196 @@ export function useCounter(initial = 0) {
 }
 ```
 
+## 📁 參考文檔結構
+
+### 專門規範文檔
+
+- **[API 服務層規範](references/api.md)** - API 架構設計、錯誤處理、快取策略
+- **[Vue 組件開發規範](references/components.md)** - 組件架構、Props/Slots、事件處理
+- **[Composables 開發規範](references/composables.md)** - 狀態管理、實用工具、業務邏輯
+- **[錯誤處理規範](references/error-handling.md)** - 統一錯誤處理、日誌記錄
+- **[Chart.js 整合規範](references/chartjs.md)** - 圖表配置、數據可視化
+- **[Three.js 規範](references/threejs.md)** - 3D 圖形渲染、WebGL 整合
+
+## 🔧 開發工具配置
+
+### VSCode 擴展推薦
+
+```json
+{
+  "recommendations": [
+    "vue.volar",
+    "bradlc.vscode-tailwindcss",
+    "esbenp.prettier-vscode",
+    "dbaeumer.vscode-eslint",
+    "ms-vscode.vscode-typescript-next"
+  ]
+}
+```
+
+### Prettier 配置
+
+```json
+{
+  "semi": false,
+  "singleQuote": true,
+  "tabWidth": 2,
+  "trailingComma": "es5",
+  "printWidth": 100,
+  "endOfLine": "lf",
+  "arrowParens": "avoid"
+}
+```
+
+### ESLint 配置
+
+```javascript
+module.exports = {
+  extends: [
+    'plugin:vue/vue3-essential',
+    'eslint:recommended',
+    '@vue/typescript/recommended',
+    '@vue/prettier',
+    '@vue/prettier/@typescript-eslint',
+  ],
+  rules: {
+    'no-console': process.env.NODE_ENV === 'production' ? 'warn' : 'off',
+    'no-debugger': process.env.NODE_ENV === 'production' ? 'warn' : 'off',
+    'vue/multi-word-component-names': 'off',
+    '@typescript-eslint/no-explicit-any': 'warn',
+    '@typescript-eslint/no-unused-vars': 'error',
+  },
+}
+```
+
+## 🎯 程式碼品質檢查
+
+### 提交前檢查
+
+```bash
+# 類型檢查
+npm run type-check
+
+# ESLint 檢查
+npm run lint
+
+# 格式化檢查
+npm run format:check
+
+# 單元測試
+npm run test:unit
+
+# 端到端測試
+npm run test:e2e
+```
+
+### 效能監控
+
+```typescript
+// Vue 效能監控
+import { onMounted } from 'vue'
+
+onMounted(() => {
+  if (process.env.NODE_ENV === 'development') {
+    // 開發模式效能監控
+    const perfObserver = new PerformanceObserver(list => {
+      for (const entry of list.getEntries()) {
+        console.log(`${entry.name}: ${entry.duration}ms`)
+      }
+    })
+    perfObserver.observe({ entryTypes: ['measure'] })
+  }
+})
+```
+
+## 🔒 安全規範
+
+### 資料處理
+
+- 所有使用者輸入必須驗證
+- 敏感資料不得存放在 localStorage
+- API 金鑰使用環境變數
+- 實施 CSRF 防護
+
+### 程式碼安全
+
+```typescript
+// XSS 防護
+import { DOMPurify } from 'dompurify'
+
+const sanitizeHtml = (html: string): string => {
+  return DOMPurify.sanitize(html)
+}
+
+// 內容安全政策
+const CSP_HEADERS = {
+  'Content-Security-Policy': "default-src 'self'; script-src 'self' 'unsafe-inline'",
+}
+```
+
+## 🌐 國際化規範
+
+### 語言檔案結構
+
+```typescript
+// locales/zh-TW.json
+{
+  "common": {
+    "save": "儲存",
+    "cancel": "取消",
+    "delete": "刪除"
+  },
+  "lunar": {
+    "solar_date": "西元日期",
+    "lunar_date": "農曆日期",
+    "auspicious": "吉日"
+  }
+}
+```
+
+### i18n 整合
+
+```typescript
+import { useI18n } from 'vue-i18n'
+
+export function useI18nComposable() {
+  const { t, locale } = useI18n()
+
+  return {
+    t,
+    locale,
+    setLanguage: (lang: string) => {
+      locale.value = lang
+      localStorage.setItem('language', lang)
+    },
+  }
+}
+```
+
+## 📋 發布流程
+
+### 版本管理
+
+```bash
+# 版本號格式：MAJOR.MINOR.PATCH
+npm version patch  # 修復錯誤
+npm version minor  # 新功能
+npm version major  # 破壞性變更
+```
+
+### 建置部署
+
+```bash
+# 建置生產版本
+npm run build
+
+# 檢查建置大小
+npm run build:analyze
+
+# 部署前測試
+npm run test:ci
+```
+
 ---
 
-_詳細規範請參考 code-standards/references/ 目錄下的專門文檔_
+**詳細規範請參考 [code-standards/references/](references/) 目錄下的專門文檔**
