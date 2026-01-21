@@ -1,0 +1,1 @@
+../../.opencode/skills/github/SKILL.md

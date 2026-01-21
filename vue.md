@@ -1,0 +1,1 @@
+../../.opencode/skills/vue/SKILL.md
