@@ -4,9 +4,15 @@
 
 ## 📋 Skills 列表
 
-| Skill               | 描述                      | 主要功能                                     |
-| ------------------- | ------------------------- | -------------------------------------------- |
-| **soft-routing.md** | GitHub Copilot 軟路由機制 | 智慧技能載入、觸發關鍵詞映射、多技能組合邏輯 |
+| Skill                     | 描述                              | 主要功能                      | 實作位置                                   |
+| ------------------------- | --------------------------------- | ----------------------------- | ------------------------------------------ |
+| **agent.md**              | AI 智慧助理功能說明               | AI 功能總覽、技能整合指引     | `.opencode/skills/agent.md`                |
+| **code-standards.md**     | 程式碼規範與開發最佳實踐          | Vue 3、TypeScript、技術棧標準 | `.opencode/skills/code-standards/SKILL.md` |
+| **git-workflow.md**       | Git 分支命名與工作流程規範        | Git 管理、Commit 規範         | `.opencode/skills/git-workflow/SKILL.md`   |
+| **vue.md**                | Vue 3 Composition API 開發指南    | Vue 開發模式、測試實踐        | `.opencode/skills/vue/SKILL.md`            |
+| **github-integration.md** | GitHub Copilot 整合與 README 維護 | GitHub 整合、文檔維護機制     | `.opencode/skills/github/`                 |
+| **CONFIG.md**             | 技能配置說明                      | GitHub ↔ OpenCode 對應關係   | 本檔案                                     |
+| **soft-routing.md**       | 詳細軟路由機制                    | 智慧載入決策樹、效能最佳化    | `.opencode/skills/github/soft-routing.md`  |
 
 ## 🔧 配置方式
 
