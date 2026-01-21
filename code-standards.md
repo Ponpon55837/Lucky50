@@ -1,1 +1,0 @@
-../../.opencode/skills/code-standards/SKILL.md
