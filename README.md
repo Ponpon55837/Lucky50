@@ -9,7 +9,7 @@
 
 ## 📋 專案概述
 
-**農民曆智慧投資** 是一個創新的投資決策輔助平台，它將傳統中華文化中的農民曆、八字命理與生肖運勢，結合現代金融數據分析，為投資者提供個人化的元大台灣 50(0050) ETF 投資建議。
+**農民曆智慧投資** 是一個結合傳統智慧與現代金融的投資決策平台，它將農民曆、八字命理與生肖運勢等中華文化元素，整合現代金融數據分析技術，為投資者提供個人化的元大台灣 50(0050) ETF 投資參考。
 
 ### 🎯 專案特色
 
@@ -143,8 +143,14 @@ const fortune = FortuneService.calculateDailyFortune(
 
 ```
 Lucky50/
-├── .opencode/              # OpenCode 配置
-│   └── skills.md          # 專案開發規範與技能指南
+├── .opencode/              # OpenCode 配置與 Skills
+│   └── skills/            # AI 開發技能指引
+│       ├── README.md       # Skills 總覽
+│       ├── agent/          # AI 智慧助理功能說明
+│       ├── code-standards/  # 程式碼規範與開發最佳實踐
+│       ├── git-workflow/   # Git 工作流程規範
+│       ├── vue/           # Vue 3 開發指南
+│       └── github/        # GitHub Copilot 整合指南
 ├── docs/                  # 文檔
 │   └── ERROR_HANDLING.md  # 錯誤處理系統文檔
 ├── public/                # 靜態資源
@@ -187,9 +193,43 @@ Lucky50/
 
 ## 🔧 開發設置
 
+### 🤖 GitHub Copilot Skills 整合
+
+本專案支援 **GitHub Copilot 自動技能載入**，提供智慧化開發輔助：
+
+#### 自動載入的 Skills
+
+| Skill            | 觸發關鍵詞                                                | 功能說明                                                  |
+| ---------------- | --------------------------------------------------------- | --------------------------------------------------------- |
+| `agent`          | agent, AI, 智慧助理, 功能說明                             | AI 智慧助理功能說明與技能整合指南                         |
+| `code-standards` | code-standards, coding, development, 規範, 開發, 最佳實踐 | 程式碼規範與開發最佳實踐（Vue 3、TypeScript、技術棧標準） |
+| `git-workflow`   | git, commit, branch, pr, 工作流程                         | Git 分支管理與工作流程規範                                |
+| `vue`            | vue, component, composable, 響應式                        | Vue 3 Composition API 開發指南                            |
+| `github`         | github, copilot, skill, README, 整合                      | GitHub Copilot 整合與 README 強制維護                     |
+
+#### 使用方式
+
+**在 GitHub Copilot 中，AI 會自動根據您的請求載入對應技能：**
+
+```bash
+# 範例 1：建立組件
+「幫我建立一個使用者認證組件」
+# 自動載入：code-standards + vue
+
+# 範例 2：提交代碼
+「幫我提交這次的變更」
+# 自動載入：git-workflow + github/README.md
+
+# 範例 3：更新文檔
+「更新 README.md 說明」
+# 自動載入：github/README.md 強制維護機制
+```
+
+**詳細說明請參考：[`.opencode/skills/`](.opencode/skills/) 目錄**
+
 ### Git Hooks 安裝
 
-本專案使用 Git Hooks 來確保代碼品質和工作流程規範。在開始開發前，請先安裝 Git hooks：
+本專案使用 Git Hooks來確保代碼品質和工作流程規範。在開始開發前，請先安裝 Git hooks：
 
 ```bash
 # 安裝 Git hooks

@@ -1,6 +1,6 @@
 ---
-name: lucky50-dev
-description: Lucky50 專案開發規範與最佳實踐指南
+name: code-standards
+description: 程式碼規範與開發最佳實踐 - Vue 3、TypeScript、Git 工作流程、專案架構標準
 license: MIT
 compatibility: opencode
 metadata:
@@ -10,7 +10,7 @@ metadata:
   project: Lucky50
 ---
 
-# Lucky50 專案開發規範與技能指南
+# 程式碼規範與開發最佳實踐指南
 
 ## ⚠️ 開始前必讀
 
@@ -49,9 +49,9 @@ git checkout -b <type>/<developer-name>/<feature-description>
 - 了解修改的影響範圍
 - 確認不會引入新的依賴
 
-## 何時使用我
+## 何時使用此 code-standards skill
 
-當你需要在 Lucky50 專案中進行以下操作時使用此 skill：
+當您需要進行以下操作時，GitHub Copilot 會自動載入此技能：
 
 - **🔴 任何程式碼修改前**（必讀核心原則和檔案結構規範）
 - 新增或修改 Vue 3 組件
@@ -62,6 +62,8 @@ git checkout -b <type>/<developer-name>/<feature-description>
 - 確認代碼是否符合專案規範
 - 執行開發測試流程
 - 提交代碼前的檢查
+
+**AI 觸發關鍵詞**：`code-standards`、`coding`、`development`、`規範`、`開發`、`最佳實踐`、`程式碼品質`
 
 **重要**：所有代碼修改前必須閱讀此規範，確保符合專案的技術棧和風格要求。
 
@@ -184,7 +186,7 @@ docs: 更新 README 安裝說明
 
 **範例：**
 
-````markdown
+```markdown
 ## 如何開始使用
 
 我們使用 pnpm 作為套件管理工具。如果您還沒有安裝，請先執行：
@@ -201,7 +203,7 @@ pnpm dev      # 啟動開發模式
 ​`
 
 開發伺服器會在 `http://localhost:5173` 啟動，您可以在瀏覽器中開啟這個網址查看專案。
-````
+```
 
 #### AI 助手特別注意事項
 
@@ -816,16 +818,28 @@ pnpm dev
 
 **⚠️ 絕不直接推送到遠端！**
 
+**🔥 重要：任何變更都必須包含 README.md 更新！**（參考 `.opencode/skills/github/README.md`）
+
 完成所有修改和測試後：
 
 1. ✅ 確認所有功能測試通過
 2. ✅ 確認無編譯錯誤
 3. ✅ 確認無執行錯誤
-4. ✅ 運行 ESLint 檢查：`pnpm lint`
-5. ✅ 運行 TypeScript 檢查：`pnpm type-check`（如果有配置）
-6. 📝 準備變更說明
-7. ⏸️ **等待使用者檢查**
-8. ✅ 使用者確認後才能推送
+4. ✅ **執行 README.md 強制維護流程：**
+   - 🔍 檢查受影響的 README 檔案
+   - 📝 立即更新對應區段
+   - ✅ 完整驗證更新內容
+   - 🚨 **絕不單獨提交 README.md！**
+5. ✅ 運行 ESLint 檢查：`pnpm lint`
+6. ✅ 運行 TypeScript 檢查：`pnpm type-check`（如果有配置）
+7. ✅ **驗證 README.md 更新內容：**
+   - 檢查所有新增功能都有說明
+   - 確認安裝/運行指令正確
+   - 驗證目錄結構是最新的
+   - 測試所有連結有效性
+8. 📝 準備變更說明（包含 README.md 更新）
+9. ⏸️ **等待使用者檢查**
+10. ✅ 使用者確認後才能推送
 
 ```bash
 # ❌ 錯誤：直接推送
