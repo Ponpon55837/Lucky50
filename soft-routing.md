@@ -1,0 +1,1 @@
+../../.opencode/skills/github/soft-routing.md

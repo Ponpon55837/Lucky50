@@ -7,10 +7,15 @@
 ```
 .opencode/skills/
 ├── README.md
-├── lucky50-dev/
+├── agent.md
+├── code-standards/
 │   └── SKILL.md
 ├── git-workflow/
 │   └── SKILL.md
+├── github/
+│   ├── SKILL.md
+│   ├── README.md
+│   └── soft-routing.md
 └── vue/
     ├── SKILL.md
     └── references/
@@ -22,11 +27,39 @@
 
 ## 可用的 Skills
 
-### `lucky50-dev`
+### `agent` - AI 智慧助理功能說明
 
-**版本**: 1.1.0  
+**版本**: 1.0.0  
 **更新日期**: 2026-01-20  
-**描述**: Lucky50 專案開發規範與最佳實踐指南
+**描述**: GitHub Copilot、OpenCode Agent 技能整合與使用指南
+
+**使用時機**:
+
+- 了解 AI 智慧助理的完整功能
+- 學習技能觸發機制和載入邏輯
+- 掌握軟路由和智慧化開發流程
+- 配置自定義技能
+- 整合外部技能資源
+
+**主要內容**:
+
+- 🤖 AI Agent 技能架構概覽
+- 🎯 智慧化程式碼生成
+- 🔴 強制性品質檢查
+- ⚡ 軟路由載入機制
+- 🔄 Cross-Platform 支援
+- 🛠️ 進階設定與自定義技能
+- 📚 參考資源與社群整合
+
+---
+
+### `code-standards` - 程式碼規範與開發最佳實踐
+
+**版本**: 1.2.0  
+**更新日期**: 2026-01-20  
+**描述**: Vue 3、TypeScript、Git 工作流程、專案架構標準
+
+**AI 觸發關鍵詞**: `code-standards`、`coding`、`development`、`規範`、`開發`、`最佳實踐`、`程式碼品質`
 
 **使用時機**:
 
@@ -41,7 +74,7 @@
 
 **主要內容**:
 
-- 🎯 核心原則（技術棧、中文優先、類型安全、代碼品質）
+- 🎯 核心原則（技術棧、繁體中文語境、類型安全、代碼品質）
 - 📁 Vue 組件開發規範（檔案結構順序）
 - 🎨 Tailwind CSS 開發規範
 - 🗂️ TypeScript 型別定義規範
@@ -51,7 +84,7 @@
 - ⚠️ 錯誤處理規範
 - 🎭 Three.js 3D 開發規範
 - 📊 Chart.js 圖表開發規範
-- 🧪 **開發測試流程** ⭐ 新增
+- 🧪 **開發測試流程**
 - 📝 Git Commit 規範
 - 🚫 禁止事項清單
 - ✅ 開發前/提交前檢查清單
@@ -59,7 +92,7 @@
 **如何使用**:
 
 ```
-請載入 lucky50-dev skill 並檢查我的組件是否符合規範
+請載入 code-standards skill 並檢查我的組件是否符合規範
 ```
 
 ---

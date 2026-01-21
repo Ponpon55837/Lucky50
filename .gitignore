@@ -1,13 +1,23 @@
+# 依賴套件
 node_modules
+
+# OpenCode 相關（忽略 .opencode 內的 node_modules）
+.opencode/node_modules
+
+# 開發工具
 .next/
-*.DS_Store
 .vscode/
+*.DS_Store
 *.log
+
+# 環境變數
 *.env
 *.env.local
 *.env.development.local
 *.env.test.local
 *.env.production.local
+
+# 建置輸出
 coverage/
 dist/
 build/
