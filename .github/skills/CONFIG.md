@@ -1,9 +1,5 @@
 # GitHub Copilot Skills 雙向映射配置
 
-## 🎯 MarioKartWorldParams 風格的雙向映射
-
-採用 MarioKartWorldParams 專案的先進軟路由機制，實現 GitHub Copilot ↔ OpenCode 的完美整合。
-
 ## 🔗 雙向映射系統
 
 ### 結構對應

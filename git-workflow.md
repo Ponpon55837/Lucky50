@@ -1,1 +1,0 @@
-../../.opencode/skills/git-workflow/SKILL.md
