@@ -1,0 +1,8 @@
+# 忽略第三方套件
+node_modules
+
+# 忽略鎖定檔案（保留 bun.lock 是為了與現有專案保持一致）
+bun.lock
+
+# 不要忽略必要的配置檔案
+# package.json 是需要的 OpenCode 配置
