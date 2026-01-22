@@ -170,6 +170,7 @@ export interface UserFeedback {
   fortuneDate: string
   predictionAccuracy: number // 1-5 scale
   adviceHelpfulness: number // 1-5 scale
+  educationalValue: number // 1-5 scale
   comments?: string
   timestamp: string
 }
