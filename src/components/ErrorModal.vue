@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { ExclamationTriangleIcon } from '@heroicons/vue/24/outline'
+import type { ErrorAction } from '@/composables/useErrorHandler'
 
 interface Props {
   modelValue: boolean
@@ -36,7 +37,7 @@ const isDetailsVisible = ref(props.showDetails)
 const defaultActions = computed<ErrorAction[]>(() => [
   {
     label: '確定',
-    type: 'primary',
+    variant: 'primary',
     action: closeModal,
   },
 ])
@@ -64,16 +65,17 @@ function toggleDetails() {
   isDetailsVisible.value = !isDetailsVisible.value
 }
 
-function getButtonClass(type?: string) {
+function getButtonClass(variant?: string) {
   const baseClass = 'action-button'
-  switch (type) {
+  switch (variant) {
     case 'primary':
       return `${baseClass} action-button-primary`
     case 'danger':
       return `${baseClass} action-button-danger`
     case 'secondary':
-    default:
       return `${baseClass} action-button-secondary`
+    default:
+      return `${baseClass} action-button-default`
   }
 }
 </script>
@@ -132,7 +134,7 @@ function getButtonClass(type?: string) {
             <button
               v-for="(action, index) in finalActions"
               :key="index"
-              :class="getButtonClass(action.type)"
+              :class="getButtonClass(action.variant)"
               @click="handleAction(action)"
             >
               {{ action.label }}

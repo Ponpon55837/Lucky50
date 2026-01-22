@@ -1,8 +1,14 @@
 // @ts-expect-error - lunar-javascript doesn't have TypeScript definitions
 import { Solar } from 'lunar-javascript'
 import { perfMonitor } from '@/utils/performance'
-import { DisclaimerService } from '@/services/disclaimer'
-import type { UserProfile, FortuneData, EnhancedFortuneData, LunarObject } from '@/types'
+
+import type {
+  UserProfile,
+  FortuneData,
+  EnhancedFortuneData,
+  LunarObject,
+  DisclaimerLevel,
+} from '@/types'
 
 // 安全的時間解析函數
 const parseHourSafe = (timeString: string | undefined): number => {
@@ -531,10 +537,15 @@ export class FortuneService {
     }
 
     // 添加免責聲明
-    const disclaimer = DisclaimerService.createDisclaimer(
-      baseFortune.investmentScore,
-      baseFortune.recommendation
-    )
+    const disclaimer: DisclaimerLevel = {
+      level: baseFortune.investmentScore > 60 ? 'medium' : 'high',
+      messages: [
+        '本投資建議僅供參考，不構成投資建議',
+        '投資有風險，請謹慎評估自身財務狀況',
+        '建議諮詢專業理財顧問',
+      ],
+      requiresAcknowledgment: baseFortune.investmentScore < 40,
+    }
 
     // 添加教育內容
     const educationalContent = this.generateEducationalContent(baseFortune)
