@@ -7,15 +7,18 @@
     "dev": "vite",
     "build": "vite build",
     "build:tsc": "vue-tsc --noEmit && vite build",
+    "build:analyze": "vite build --mode analyze",
     "preview": "vite preview",
     "lint": "eslint . --fix",
     "format": "prettier --write src/",
     "test": "vitest",
     "test:ui": "vitest --ui",
     "test:run": "vitest run",
-    "test:coverage": "vitest run --coverage"
+    "test:coverage": "vitest run --coverage",
+    "test:ci": "vitest run --coverage --reporter=verbose"
   },
   "dependencies": {
+    "@heroicons/vue": "^2.2.0",
     "@tweenjs/tween.js": "^25.0.0",
     "@vuepic/vue-datepicker": "^11.0.2",
     "axios": "^1.6.0",

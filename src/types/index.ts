@@ -130,3 +130,53 @@ export interface FinMindAPIResponse {
   data: FinMindDataItem[]
   msg?: string
 }
+
+// Claude 憲法應用相關型別
+export interface DisclaimerLevel {
+  level: 'low' | 'medium' | 'high' | 'critical'
+  messages: string[]
+  requiresAcknowledgment: boolean
+}
+
+export interface EthicsTransparency {
+  algorithmExplanation: string
+  dataSourceDisclosure: string[]
+  limitations: string[]
+  confidenceLevel: number
+  lastUpdated: string
+}
+
+export interface EducationalContent {
+  category: 'lunar-calendar' | 'investment' | 'risk-management'
+  title: string
+  content: string
+  difficulty: 'beginner' | 'intermediate' | 'advanced'
+  relatedTopics: string[]
+}
+
+export interface UserEmpowerment {
+  adjustableWeights: {
+    [key: string]: number // 例如: { zodiacWeight: 0.3, lunarWeight: 0.5, marketWeight: 0.2 }
+  }
+  riskTolerance: 'conservative' | 'moderate' | 'aggressive'
+  customSettings: {
+    [key: string]: boolean | string | number
+  }
+}
+
+export interface UserFeedback {
+  id: string
+  userId: string
+  fortuneDate: string
+  predictionAccuracy: number // 1-5 scale
+  adviceHelpfulness: number // 1-5 scale
+  comments?: string
+  timestamp: string
+}
+
+// 擴展的 FortuneData 接口
+export interface EnhancedFortuneData extends FortuneData {
+  disclaimer: DisclaimerLevel
+  transparency: EthicsTransparency
+  educationalContent?: EducationalContent[]
+}
