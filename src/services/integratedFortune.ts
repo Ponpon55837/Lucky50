@@ -125,7 +125,8 @@ const ZHI_ELEMENTS = Object.freeze({
 } as const)
 
 // 五行相生相剋關係 (保留供未來使用)
-const _ELEMENT_RELATIONS = Object.freeze({
+/* eslint-disable @typescript-eslint/no-unused-vars */
+const ELEMENT_RELATIONS = Object.freeze({
   wood: { generates: 'fire', destroys: 'earth', generatedBy: 'water', destroyedBy: 'metal' },
   fire: { generates: 'earth', destroys: 'metal', generatedBy: 'wood', destroyedBy: 'water' },
   earth: { generates: 'metal', destroys: 'water', generatedBy: 'fire', destroyedBy: 'wood' },
@@ -134,7 +135,8 @@ const _ELEMENT_RELATIONS = Object.freeze({
 } as const)
 
 // 生肖配對關係 (保留供未來使用)
-const _ZODIAC_COMPATIBILITY = {
+/* eslint-disable @typescript-eslint/no-unused-vars */
+const ZODIAC_COMPATIBILITY = {
   鼠: { best: ['龍', '猴'], good: ['牛'], avoid: ['馬', '羊'] },
   牛: { best: ['蛇', '雞'], good: ['鼠'], avoid: ['羊', '馬'] },
   虎: { best: ['馬', '狗'], good: ['豬'], avoid: ['猴', '蛇'] },
@@ -377,6 +379,7 @@ export class IntegratedFortuneService {
 
     // 生肖年運影響 (簡化版本，避免 TypeScript 複雜類型問題)
     const currentYearZodiac = lunarData.zodiac
+     
     const _personalZodiac = personalBaZi.zodiac // 保留供未來使用
 
     // 簡化的生肖配對邏輯

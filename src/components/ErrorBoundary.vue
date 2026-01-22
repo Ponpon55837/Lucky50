@@ -64,7 +64,7 @@ onErrorCaptured((err: Error) => {
   hasError.value = true
   error.value = err
   appError.value = handleError(err, {
-    showToUser: false, // 不自動顯示 toast，由 ErrorBoundary 處理
+    showToast: false, // 不自動顯示 toast，由 ErrorBoundary 處理
   })
 
   emit('error', err)
@@ -79,7 +79,7 @@ onMounted(() => {
     hasError.value = true
     error.value = event.error
     appError.value = handleError(event.error, {
-      showToUser: false,
+      showToast: false,
     })
     emit('error', event.error)
   }
@@ -89,7 +89,7 @@ onMounted(() => {
     const err = event.reason instanceof Error ? event.reason : new Error(String(event.reason))
     error.value = err
     appError.value = handleError(err, {
-      showToUser: false,
+      showToast: false,
     })
     emit('error', err)
   }
