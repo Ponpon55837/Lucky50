@@ -198,16 +198,17 @@ const showTermsModal = ref(false)
                   class="font-semibold mb-3"
                   :class="isDark ? 'text-gold-400' : 'text-orange-600'"
                 >
-                  5. Cookie 使用
+                  5. 數據儲存方式
                 </h3>
                 <p class="mb-3">
-                  我們使用 Cookie 來改善用戶體驗：
+                  我們使用以下方式來改善用戶體驗：
                 </p>
                 <ul class="list-disc list-inside space-y-1 ml-4">
-                  <li>記住您的登入狀態</li>
-                  <li>保存個人偏好設定</li>
-                  <li>分析網站使用情況</li>
-                  <li>您可以透過瀏覽器設定管理 Cookie</li>
+                  <li>使用瀏覽器本地儲存（localStorage）保存個人設定</li>
+                  <li>透過全域狀態管理器管理應用程式狀態</li>
+                  <li>不使用 Cookie 追蹤用戶行為</li>
+                  <li>所有數據僅儲存在您的本地裝置中</li>
+                  <li>您可以隨時清除瀏覽器資料來移除所有設定</li>
                 </ul>
               </div>
 
@@ -236,7 +237,15 @@ const showTermsModal = ref(false)
                 </h3>
                 <p>如有任何隱私權相關問題，請聯絡我們：</p>
                 <p class="mt-2">
-                  電子郵件：privacy@lucky50.com
+                  聯絡方式：
+                  <a
+                    href="https://github.com/Ponpon55837/Lucky50/issues"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    class="text-blue-500 hover:text-blue-600 underline"
+                  >
+                    GitHub Issues
+                  </a>
                 </p>
                 <p>最後更新日期：2025年9月30日</p>
               </div>
@@ -373,9 +382,7 @@ const showTermsModal = ref(false)
                   4. 智慧財產權
                 </h3>
                 <ul class="list-disc list-inside space-y-1 ml-4">
-                  <li>本系統的所有內容、設計、程式碼均受智慧財產權保護</li>
-                  <li>農民曆智慧投資演算法為我們的專有技術</li>
-                  <li>未經授權不得複製、分發或商業使用</li>
+                  <li>本系統的所有內容、設計均受智慧財產權保護</li>
                   <li>用戶保留其輸入資料的所有權</li>
                 </ul>
               </div>
@@ -419,7 +426,6 @@ const showTermsModal = ref(false)
                 </h3>
                 <ul class="list-disc list-inside space-y-1 ml-4">
                   <li>您有責任保護帳戶安全</li>
-                  <li>不得與他人共享帳戶資訊</li>
                   <li>發現異常活動應立即通知我們</li>
                   <li>您需對帳戶下的所有活動負責</li>
                 </ul>
@@ -450,25 +456,11 @@ const showTermsModal = ref(false)
                   class="font-semibold mb-3"
                   :class="isDark ? 'text-gold-400' : 'text-orange-600'"
                 >
-                  9. 爭議解決
-                </h3>
-                <ul class="list-disc list-inside space-y-1 ml-4">
-                  <li>本條款適用中華民國法律</li>
-                  <li>爭議應優先透過協商解決</li>
-                  <li>如無法協商解決，提交台灣地區有管轄權的法院</li>
-                </ul>
-              </div>
-
-              <div>
-                <h3
-                  class="font-semibold mb-3"
-                  :class="isDark ? 'text-gold-400' : 'text-orange-600'"
-                >
                   10. 聯絡資訊
                 </h3>
                 <p>如有任何疑問，請聯絡我們：</p>
                 <p class="mt-2">
-                  電子郵件：support@lucky50.com
+                  <a href="https://github.com/Ponpon55837/Lucky50/issues">GitHub Issues</a>
                 </p>
                 <p>最後更新日期：2025年9月30日</p>
               </div>

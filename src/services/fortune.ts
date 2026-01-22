@@ -1,7 +1,8 @@
 // @ts-expect-error - lunar-javascript doesn't have TypeScript definitions
 import { Solar } from 'lunar-javascript'
 import { perfMonitor } from '@/utils/performance'
-import type { UserProfile, FortuneData, LunarObject } from '@/types'
+import { DisclaimerService } from '@/services/disclaimer'
+import type { UserProfile, FortuneData, EnhancedFortuneData, LunarObject } from '@/types'
 
 // 安全的時間解析函數
 const parseHourSafe = (timeString: string | undefined): number => {
@@ -502,5 +503,110 @@ export class FortuneService {
       size: this.fortuneCache.size,
       maxSize: 100,
     }
+  }
+
+  /**
+   * 計算增強版運勢數據（包含 Claude 憲法應用）
+   */
+  static calculateEnhancedFortune(profile: UserProfile, date: Date): EnhancedFortuneData {
+    const baseFortune = this.calculateDailyFortune(profile, date)
+
+    // 創建透明度資訊
+    const transparency: EnhancedFortuneData['transparency'] = {
+      algorithmExplanation: this.getAlgorithmExplanation(),
+      dataSourceDisclosure: [
+        'FinMind API - 台灣金融數據開源平台',
+        'lunar-javascript - 農民曆計算函式庫',
+        '傳統八字五行理論',
+        '生肖運勢對照表',
+      ],
+      limitations: [
+        '運勢計算基於傳統文化，缺乏科學驗證',
+        '市場受多種因素影響，歷史表現不保證未來結果',
+        '個人運勢分析不考慮實際財務狀況',
+        '僅適用於台股 0050 ETF，不建議用於其他投資標的',
+      ],
+      confidenceLevel: Math.min(95, 60 + baseFortune.overallScore * 0.3),
+      lastUpdated: new Date().toISOString(),
+    }
+
+    // 添加免責聲明
+    const disclaimer = DisclaimerService.createDisclaimer(
+      baseFortune.investmentScore,
+      baseFortune.recommendation
+    )
+
+    // 添加教育內容
+    const educationalContent = this.generateEducationalContent(baseFortune)
+
+    return {
+      ...baseFortune,
+      disclaimer,
+      transparency,
+      educationalContent,
+    }
+  }
+
+  /**
+   * 獲取演算法說明
+   */
+  private static getAlgorithmExplanation(): string {
+    return `運勢計算演算法結合以下元素：
+1. **農民曆分析**：根據指定日期的天干地支計算五行能量
+2. **個人八字**：結合使用者出生年月日時分析個人特質
+3. **生肖相性**：根據生肖屬性計算吉利時段
+4. **五行平衡**：計算金木水火土五行的平衡度
+5. **加權評分**：綜合各項因素計算總體運勢和投資分數
+
+計算公式：
+總體運勢 = (五行平衡度 + 平均值分數) × 0.5
+投資運勢 = 總體運勢 + 生肖加成 + 隨機波動
+
+注意：此演算法僅供文化娛樂參考，不具備科學預測能力。`
+  }
+
+  /**
+   * 生成教育內容
+   */
+  private static generateEducationalContent(
+    fortune: FortuneData
+  ): EnhancedFortuneData['educationalContent'] {
+    const content: EnhancedFortuneData['educationalContent'] = []
+
+    // 農民曆知識
+    content.push({
+      category: 'lunar-calendar',
+      title: '今日農民曆解讀',
+      content: `今天是 ${fortune.date}，根據農民曆，五行能量分別為：
+金: ${fortune.elements.metal} | 木: ${fortune.elements.wood} | 水: ${fortune.elements.water} | 火: ${fortune.elements.fire} | 土: ${fortune.elements.earth}
+
+五行平衡度影響整體運勢，當各元素數值接近時，代表運勢較為穩定。`,
+      difficulty: 'beginner',
+      relatedTopics: ['五行理論', '農民曆基礎'],
+    })
+
+    // 投資知識
+    content.push({
+      category: 'investment',
+      title: '0050 ETF 基礎認識',
+      content:
+        '元大台灣50ETF(0050)追蹤台灣50指數，包含台灣市值最大的50家公司。是台灣最主流的ETF之一，適合長期投資和定期定額。',
+      difficulty: 'beginner',
+      relatedTopics: ['ETF基礎', '台灣股市'],
+    })
+
+    // 風險管理
+    if (fortune.investmentScore <= 40) {
+      content.push({
+        category: 'risk-management',
+        title: '低運勢日投資策略',
+        content:
+          '運勢較低時建議：1. 避免重大投資決策 2. 專注研究分析 3. 保持現金部位 4. 回顧投資策略。記住，市場機會隨時存在，不急於一時。',
+        difficulty: 'intermediate',
+        relatedTopics: ['風險控制', '情緒管理'],
+      })
+    }
+
+    return content
   }
 }
