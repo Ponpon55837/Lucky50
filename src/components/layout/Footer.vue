@@ -186,14 +186,15 @@ const showTermsModal = ref(false)
                   class="font-semibold mb-3"
                   :class="isDark ? 'text-gold-400' : 'text-orange-600'"
                 >
-                  5. Cookie 使用
+                  5. 數據儲存方式
                 </h3>
-                <p class="mb-3">我們使用 Cookie 來改善用戶體驗：</p>
+                <p class="mb-3">我們使用以下方式來改善用戶體驗：</p>
                 <ul class="list-disc list-inside space-y-1 ml-4">
-                  <li>記住您的登入狀態</li>
-                  <li>保存個人偏好設定</li>
-                  <li>分析網站使用情況</li>
-                  <li>您可以透過瀏覽器設定管理 Cookie</li>
+                  <li>使用瀏覽器本地儲存（localStorage）保存個人設定</li>
+                  <li>透過全域狀態管理器管理應用程式狀態</li>
+                  <li>不使用 Cookie 追蹤用戶行為</li>
+                  <li>所有數據僅儲存在您的本地裝置中</li>
+                  <li>您可以隨時清除瀏覽器資料來移除所有設定</li>
                 </ul>
               </div>
 
