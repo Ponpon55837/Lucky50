@@ -1,7 +1,7 @@
 # components
 
-全站通用或跨頁面可重用的 Vue 3 單文件組件（最小粒度小型元件、按鈕、表單元素等）。
+本目錄僅存放可複用的 Vue 3（.vue）原子及複合 UI 組件（如 input, button, date-picker, modal 等）
 
-- 僅允許 props 收外部狀態與 callback，不可有內部狀態流與自定義業務邏輯。
-- 嚴禁資料請求、API 呼叫、依賴資料庫、呼叫 application/domain 函數。
-- 被呼叫頁面（views）或父元件驅動。
+- 僅負責接收 props 與事件
+- 所有狀態資料請由 store 或父組件傳入
+- 禁止實現商業邏輯
