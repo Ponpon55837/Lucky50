@@ -67,7 +67,7 @@ npx cspell README.md
 
 ```bash
 # 本地預覽（如果有預覽工具）
-npm run docs:dev
+pnpm run docs:dev
 
 # 或使用 VS Code 預覽
 code README.md
