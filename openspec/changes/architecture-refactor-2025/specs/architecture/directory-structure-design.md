@@ -89,7 +89,7 @@
 
 - Components (組件): Vue 組件實現
 - Views (視圖): 頁面級組件
-- Stores (狀態管理): Jotai 狀態管理
+- Stores (狀態管理): Pinia 狀態管理
 - Composables (組合式函數): Vue 3 可重用邏輯
 - Router (路由): 路由配置
 

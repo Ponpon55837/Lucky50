@@ -102,7 +102,7 @@ git checkout -b <type>/<developer-name>/<feature-description>
 # ✅ 正確範例
 git checkout -b feat/lip/add-language-selector
 git checkout -b fix/lip/fix-search-modal-crash
-git checkout -b refactor/lip/improve-jotai-structure
+git checkout -b refactor/lip/improve-pinia-structure
 git checkout -b docs/lip/update-api-documentation
 
 # ❌ 錯誤範例
