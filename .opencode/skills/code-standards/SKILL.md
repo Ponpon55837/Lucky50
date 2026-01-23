@@ -11,7 +11,7 @@
 - **狀態管理**: Pinia
 - **樣式框架**: Tailwind CSS
 - **建置工具**: Vite
-- **套件管理**: pnpm
+- **套件管理**: ppnpm
 - **測試框架**: Vitest + Vue Test Utils
 
 ## 🏗️ 開發規範
@@ -177,19 +177,19 @@ module.exports = {
 
 ```bash
 # 類型檢查
-npm run type-check
+pnpm run type-check
 
 # ESLint 檢查
-npm run lint
+pnpm run lint
 
 # 格式化檢查
-npm run format:check
+pnpm run format:check
 
 # 單元測試
-npm run test:unit
+pnpm run test:unit
 
 # 端到端測試
-npm run test:e2e
+pnpm run test:e2e
 ```
 
 ### 效能監控
@@ -281,22 +281,22 @@ export function useI18nComposable() {
 
 ```bash
 # 版本號格式：MAJOR.MINOR.PATCH
-npm version patch  # 修復錯誤
-npm version minor  # 新功能
-npm version major  # 破壞性變更
+pnpm version patch  # 修復錯誤
+pnpm version minor  # 新功能
+pnpm version major  # 破壞性變更
 ```
 
 ### 建置部署
 
 ```bash
 # 建置生產版本
-npm run build
+pnpm run build
 
 # 檢查建置大小
-npm run build:analyze
+pnpm run build:analyze
 
 # 部署前測試
-npm run test:ci
+pnpm run test:ci
 ```
 
 ---

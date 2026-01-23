@@ -75,7 +75,7 @@ npx markdownlint README.md
 npx markdown-link-check README.md
 
 # 本地預覽
-npm run docs:dev  # 如果有
+pnpm run docs:dev  # 如果有
 ```
 
 **驗證項目清單：**
