@@ -1,3 +1,10 @@
+---
+name: lucky50-code-standards
+description: Lucky50 程式碼規範與開發標準 - 提供完整的技術棧規範、開發流程和最佳實踐指引
+version: 1.0.0
+tags: [vue3, typescript, pinia, tailwindcss, vite, code-standards]
+---
+
 # Lucky50 程式碼規範技能
 
 ## 🎯 技能概述
