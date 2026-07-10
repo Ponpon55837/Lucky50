@@ -77,15 +77,19 @@ export default defineConfig({
     // 啟用資源分割
     rollupOptions: {
       output: {
-        manualChunks: {
-          // 將 Vue 相關套件打包在一起
-          'vue-vendor': ['vue', 'vue-router', 'pinia'],
-          // Three.js 相關
-          'three-vendor': ['three', '@tweenjs/tween.js'],
-          // 圖表相關
-          'chart-vendor': ['chart.js', 'vue-chartjs'],
-          // 其他第三方套件
-          vendor: ['axios', 'chinese-s2t', 'lunar-javascript'],
+        manualChunks(id: string) {
+          if (id.includes('node_modules/vue') || id.includes('node_modules/vue-router') || id.includes('node_modules/pinia')) {
+            return 'vue-vendor'
+          }
+          if (id.includes('node_modules/three') || id.includes('node_modules/@tweenjs')) {
+            return 'three-vendor'
+          }
+          if (id.includes('node_modules/chart.js') || id.includes('node_modules/vue-chartjs')) {
+            return 'chart-vendor'
+          }
+          if (id.includes('node_modules/axios') || id.includes('node_modules/chinese-s2t') || id.includes('node_modules/lunar-javascript')) {
+            return 'vendor'
+          }
         },
         // 資源檔名優化
         chunkFileNames: 'assets/js/[name]-[hash].js',

@@ -4,9 +4,9 @@ import { ExclamationTriangleIcon } from '@heroicons/vue/24/outline'
 import type { ErrorAction } from '@/composables/useErrorHandler'
 
 interface Props {
-  modelValue: boolean
+  modelValue?: boolean
   title?: string
-  message: string
+  message?: string
   details?: string
   showDetails?: boolean
   closable?: boolean

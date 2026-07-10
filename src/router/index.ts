@@ -43,7 +43,7 @@ const router = createRouter({
 })
 
 // 路由守衛 - 更新頁面標題和 meta 標籤
-router.beforeEach((to, _from, next) => {
+router.beforeEach((to) => {
   // 更新頁面標題
   document.title = (to.meta.title as string) || '農民曆智慧投資'
   
@@ -52,8 +52,6 @@ router.beforeEach((to, _from, next) => {
   if (metaDescription && to.meta.description) {
     metaDescription.setAttribute('content', to.meta.description as string)
   }
-  
-  next()
 })
 
 export default router
