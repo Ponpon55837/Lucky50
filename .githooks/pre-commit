@@ -155,8 +155,60 @@ show_branch_name_error() {
 }
 
 # ============================================
-# 函數定義 - 測試相關
+# 函數定義 - 程式碼品質相關
 # ============================================
+
+# 執行 lint & format（只掃暫存區變更的 .ts/.vue 檔案）
+run_lint_format() {
+    local changed_files
+    local file
+    
+    # 獲取暫存區中有變更的 TypeScript/Vue 檔案
+    changed_files=$(git diff --cached --name-only --diff-filter=ACMR | grep -E '\.(ts|vue)$')
+    
+    # 如果沒有 TypeScript/Vue 檔案變更，跳過
+    if [ -z "$changed_files" ]; then
+        echo -e "${BLUE}  沒有 TypeScript/Vue 檔案變更，跳過 lint/format${NC}"
+        return 0
+    fi
+    
+    echo ""
+    echo -e "${BLUE}🔍 執行 lint & format...${NC}"
+    echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo ""
+    
+    # 步驟 1：Prettier 格式化
+    echo -e "${BLUE}🎨 格式化暫存區檔案...${NC}"
+    while IFS= read -r file; do
+        if [ -f "$file" ]; then
+            npx prettier --write "$file" 2>/dev/null
+        fi
+    done <<< "$changed_files"
+    
+    # 步驟 2：ESLint --fix（只處理暫存區檔案，比全專案快很多）
+    echo -e "${BLUE}🔍 檢查暫存區檔案...${NC}"
+    local ts_vue_files=""
+    while IFS= read -r file; do
+        ts_vue_files="$ts_vue_files $file"
+    done <<< "$changed_files"
+    
+    if [ -n "$ts_vue_files" ]; then
+        npx eslint --fix $ts_vue_files 2>&1
+    fi
+    
+    # 步驟 3：將修正後的檔案加回暫存區
+    echo ""
+    echo -e "${BLUE}📦 重新加入修正後的檔案至暫存區...${NC}"
+    while IFS= read -r file; do
+        if [ -f "$file" ]; then
+            git add "$file"
+        fi
+    done <<< "$changed_files"
+    
+    echo -e "${GREEN}✅ Lint & format 完成${NC}"
+    echo ""
+    return 0
+}
 
 # 執行 unit test
 run_unit_tests() {
@@ -222,7 +274,10 @@ if [ "$CHECK_BRANCH_NAME" = true ]; then
     fi
 fi
 
-# 檢查 3: 執行 unit test
+# 檢查 3: 執行 lint & format
+run_lint_format
+
+# 檢查 4: 執行 unit test
 run_unit_tests
 TEST_RESULT=$?
 
