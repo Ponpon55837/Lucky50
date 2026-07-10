@@ -3,6 +3,7 @@ import { ref, computed, shallowRef } from 'vue'
 import { lunarService } from '@/services/lunar'
 import { IntegratedFortuneService } from '@/services/integratedFortune'
 import { FinMindService } from '@/services/finmind'
+import { toLocalDateString } from '@/utils/date'
 import type { LunarData, InvestmentAdvice } from '@/services/lunar'
 import type { IntegratedFortuneData, UserProfileCompat } from '@/services/integratedFortune'
 import type { ETFData } from '@/types'
@@ -197,8 +198,8 @@ export const useDashboardStore = defineStore('dashboard', () => {
       }
 
       // 計算日期範圍
-      const endDate = new Date().toISOString().split('T')[0]
-      const startDate = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+      const endDate = toLocalDateString(new Date())
+      const startDate = toLocalDateString(new Date(Date.now() - 30 * 24 * 60 * 60 * 1000))
 
       try {
         const data = await FinMindService.getETFData(startDate, endDate)
