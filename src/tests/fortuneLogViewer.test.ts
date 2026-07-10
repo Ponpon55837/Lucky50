@@ -77,7 +77,7 @@ describe('FortuneLogViewer', () => {
     const wrapper = mount(FortuneLogViewer)
     await vi.dynamicImportSettled()
 
-    expect(wrapper.find('input[placeholder="搜尋…"]').exists()).toBe(true)
+    expect(wrapper.find('input[placeholder="搜尋"]').exists()).toBe(true)
     expect(wrapper.find('select').exists()).toBe(true)
     expect(wrapper.findAll('input[type="date"]').length).toBe(2)
   })

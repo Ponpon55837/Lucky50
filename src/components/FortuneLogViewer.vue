@@ -45,10 +45,11 @@ const displayRecommendation = (rec: FortuneRecord['recommendation']): { text: st
   return map[rec]
 }
 
-const formatDate = (dateStr: string): string => {
+const formatDate = (dateStr: string, mobile = false): string => {
   const d = new Date(dateStr + 'T00:00:00')
   const mm = String(d.getMonth() + 1).padStart(2, '0')
   const dd = String(d.getDate()).padStart(2, '0')
+  if (mobile) return `${mm}/${dd}`
   const w = ['日', '一', '二', '三', '四', '五', '六'][d.getDay()]
   return `${mm}/${dd} 週${w}`
 }
@@ -177,12 +178,12 @@ onMounted(async () => {
             v-model="searchText"
             @keyup.enter="applyFilters"
             type="text"
-            placeholder="搜尋…"
-            class="flex-1 min-w-0 px-3 py-2 text-sm bg-gray-800/40 border border-gray-700/60 rounded-lg text-white placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-amber-500/50 focus:border-amber-500/50 transition-all"
+            placeholder="搜尋"
+            class="flex-1 min-w-0 px-2 py-1.5 sm:px-3 sm:py-2 text-xs sm:text-sm bg-gray-800/40 border border-gray-700/60 rounded-lg text-white placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-amber-500/50 focus:border-amber-500/50 transition-all"
           />
           <button
             @click="applyFilters"
-            class="px-4 py-2 text-sm font-medium text-white bg-amber-600 hover:bg-amber-500 rounded-lg transition-colors shrink-0"
+            class="px-2.5 py-1.5 sm:px-4 sm:py-2 text-xs sm:text-sm font-medium text-white bg-amber-600 hover:bg-amber-500 rounded-lg transition-colors shrink-0"
           >
             搜尋
           </button>
@@ -192,7 +193,7 @@ onMounted(async () => {
             <select
               v-model="filterRecommendation"
               @change="applyFilters"
-              class="px-2 py-1.5 text-sm bg-gray-800/40 border border-gray-700/60 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-amber-500/50 focus:border-amber-500/50 transition-all"
+              class="px-2 py-1.5 text-xs sm:text-sm bg-gray-800/40 border border-gray-700/60 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-amber-500/50 focus:border-amber-500/50 transition-all"
             >
               <option value="">全部</option>
               <option value="BUY">買入</option>
@@ -207,19 +208,19 @@ onMounted(async () => {
               清除
             </button>
           </div>
-          <div class="flex items-center gap-1">
+           <div class="flex items-center gap-1">
             <input
               v-model="filterDateStart"
               @change="applyFilters"
               type="date"
-              class="flex-1 sm:w-auto px-2 py-1.5 text-sm bg-gray-800/40 border border-gray-700/60 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-amber-500/50 focus:border-amber-500/50 [color-scheme:dark] transition-all"
+              class="flex-1 sm:w-auto px-1.5 sm:px-2 py-1.5 text-xs sm:text-sm bg-gray-800/40 border border-gray-700/60 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-amber-500/50 focus:border-amber-500/50 [color-scheme:dark] transition-all"
             />
-            <span class="text-gray-600 shrink-0">~</span>
+            <span class="text-gray-600 shrink-0 text-xs sm:text-sm">~</span>
             <input
               v-model="filterDateEnd"
               @change="applyFilters"
               type="date"
-              class="flex-1 sm:w-auto px-2 py-1.5 text-sm bg-gray-800/40 border border-gray-700/60 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-amber-500/50 focus:border-amber-500/50 [color-scheme:dark] transition-all"
+              class="flex-1 sm:w-auto px-1.5 sm:px-2 py-1.5 text-xs sm:text-sm bg-gray-800/40 border border-gray-700/60 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-amber-500/50 focus:border-amber-500/50 [color-scheme:dark] transition-all"
             />
           </div>
           <button
@@ -248,9 +249,10 @@ onMounted(async () => {
         :key="record.id"
         class="px-3 sm:px-6 py-2.5 sm:py-4 hover:bg-white/[0.02] transition-colors cursor-default"
       >
-        <div class="flex items-center gap-2 sm:gap-4">
-          <div class="text-[11px] sm:text-sm font-medium text-white/70 shrink-0 w-12 sm:w-20 text-right sm:text-left leading-tight">
-            {{ formatDate(record.date) }}
+        <div class="flex items-center gap-2 sm:gap-4 flex-wrap sm:flex-nowrap">
+          <div class="text-[11px] sm:text-sm font-medium text-white/70 shrink-0 min-w-12 sm:min-w-0 leading-tight">
+            <span class="sm:hidden">{{ formatDate(record.date, true) }}</span>
+            <span class="hidden sm:inline">{{ formatDate(record.date) }}</span>
           </div>
           <div
             class="w-7 h-7 sm:w-9 sm:h-9 rounded-full flex items-center justify-center text-[10px] sm:text-xs font-bold text-white shrink-0"
@@ -282,11 +284,11 @@ onMounted(async () => {
               }"
             />
           </div>
-          <span class="text-[10px] sm:text-xs text-gray-600 ml-auto sm:ml-0 leading-tight">
+          <span class="text-[10px] sm:text-xs text-gray-600 ml-auto leading-tight">
             {{ formatTime(record.timestamp) }}
           </span>
         </div>
-        <p v-if="record.lunarSummary" class="mt-0.5 sm:mt-1 text-[10px] sm:text-xs text-gray-500/70 line-clamp-1 pl-[60px] sm:pl-[88px] leading-relaxed">
+        <p v-if="record.lunarSummary" class="mt-0.5 sm:mt-1 text-[10px] sm:text-xs text-gray-400/70 line-clamp-1 ml-12 sm:ml-0 leading-relaxed">
           {{ record.lunarSummary }}
         </p>
       </div>
