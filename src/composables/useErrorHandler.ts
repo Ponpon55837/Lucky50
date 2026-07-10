@@ -1,6 +1,7 @@
 import { ref, computed } from 'vue'
 import { ErrorCategory, ErrorSeverity } from '@/types/error'
 import type { AppError } from '@/types/error'
+import { useToast } from '@/composables/useToast'
 
 export interface ErrorAction {
   label: string
@@ -209,7 +210,6 @@ function logError(error: AppError) {
 }
 
 function showErrorToast(error: AppError) {
-  // 這裡可以整合 toast 通知庫
-  // 例如：toast.error(error.message)
-  console.warn('Toast:', error.message)
+  const toast = useToast()
+  toast.error(getErrorTitle(error.category), error.message)
 }

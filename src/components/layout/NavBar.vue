@@ -19,21 +19,14 @@ const closeMobile = () => {
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
       <div class="flex justify-between items-center h-16">
         <!-- Logo -->
-        <RouterLink
-          to="/"
-          class="logo-link"
-        >
+        <RouterLink to="/" class="logo-link">
           <div class="logo-icon" />
           <span class="logo-text">Lucky50</span>
         </RouterLink>
 
         <!-- 桌面版導航 -->
         <div class="hidden md:flex items-center space-x-6">
-          <RouterLink
-            to="/"
-            class="nav-link"
-            :class="{ active: $route.name === 'home' }"
-          >
+          <RouterLink to="/" class="nav-link" :class="{ active: $route.name === 'home' }">
             首頁
           </RouterLink>
           <RouterLink
@@ -43,6 +36,9 @@ const closeMobile = () => {
           >
             投資儀表板
           </RouterLink>
+          <RouterLink to="/history" class="nav-link" :class="{ active: $route.name === 'history' }">
+            運勢歷史
+          </RouterLink>
           <RouterLink
             to="/analytics"
             class="nav-link"
@@ -50,11 +46,7 @@ const closeMobile = () => {
           >
             數據分析
           </RouterLink>
-          <RouterLink
-            to="/profile"
-            class="nav-link"
-            :class="{ active: $route.name === 'profile' }"
-          >
+          <RouterLink to="/profile" class="nav-link" :class="{ active: $route.name === 'profile' }">
             個人設定
           </RouterLink>
 
@@ -65,16 +57,8 @@ const closeMobile = () => {
         <!-- 移動版選單按鈕 -->
         <div class="md:hidden flex items-center space-x-2">
           <ThemeToggle />
-          <button
-            class="mobile-menu-btn"
-            @click="toggleMobile"
-          >
-            <svg
-              class="w-6 h-6"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
+          <button class="mobile-menu-btn" @click="toggleMobile">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path
                 v-if="!mobileOpen"
                 stroke-linecap="round"
@@ -96,37 +80,19 @@ const closeMobile = () => {
     </div>
 
     <!-- 移動版選單 -->
-    <div
-      v-show="mobileOpen"
-      class="mobile-menu"
-    >
+    <div v-show="mobileOpen" class="mobile-menu">
       <div class="px-4 pt-2 pb-3 space-y-1">
-        <RouterLink
-          to="/"
-          class="mobile-nav-link"
-          @click="closeMobile"
-        >
-          首頁
-        </RouterLink>
-        <RouterLink
-          to="/dashboard"
-          class="mobile-nav-link"
-          @click="closeMobile"
-        >
+        <RouterLink to="/" class="mobile-nav-link" @click="closeMobile"> 首頁 </RouterLink>
+        <RouterLink to="/dashboard" class="mobile-nav-link" @click="closeMobile">
           投資儀表板
         </RouterLink>
-        <RouterLink
-          to="/analytics"
-          class="mobile-nav-link"
-          @click="closeMobile"
-        >
+        <RouterLink to="/history" class="mobile-nav-link" @click="closeMobile">
+          運勢歷史
+        </RouterLink>
+        <RouterLink to="/analytics" class="mobile-nav-link" @click="closeMobile">
           數據分析
         </RouterLink>
-        <RouterLink
-          to="/profile"
-          class="mobile-nav-link"
-          @click="closeMobile"
-        >
+        <RouterLink to="/profile" class="mobile-nav-link" @click="closeMobile">
           個人設定
         </RouterLink>
       </div>

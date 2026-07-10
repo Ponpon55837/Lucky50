@@ -157,8 +157,8 @@ class LunarService {
         return retryData
       } catch (retryError) {
         console.error('LunarService - 重試也失敗:', retryError)
-        // 拋出錯誤，不返回錯誤的預設值
-        throw new Error(`無法計算農民曆資料: ${error}`)
+        // 拋出錯誤，不返回錯誤的預設值，並保留原始錯誤堆疊供除錯使用
+        throw new Error(`無法計算農民曆資料: ${error}`, { cause: retryError })
       }
     }
   }

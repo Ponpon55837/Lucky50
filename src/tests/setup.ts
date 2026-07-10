@@ -8,7 +8,9 @@ Object.defineProperty(globalThis, 'localStorage', {
     setItem: vi.fn((key: string, value: string) => storageMap.set(key, value)),
     removeItem: vi.fn((key: string) => storageMap.delete(key)),
     clear: vi.fn(() => storageMap.clear()),
-    get length() { return storageMap.size },
+    get length() {
+      return storageMap.size
+    },
     key: vi.fn((index: number) => [...storageMap.keys()][index] ?? null),
   },
   writable: true,

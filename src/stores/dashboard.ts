@@ -265,11 +265,13 @@ export const useDashboardStore = defineStore('dashboard', () => {
   ) => {
     try {
       loading.value = true
-      currentDate.value = date
 
-      // 清除快取
-      lunarService.clearCache()
-      IntegratedFortuneService.clearCache()
+      // 僅在日期改變時才清除快取，避免無謂的重複計算
+      if (date.getTime() !== currentDate.value.getTime()) {
+        lunarService.clearCache()
+        IntegratedFortuneService.clearCache()
+      }
+      currentDate.value = date
 
       // 並行載入所有資料
       await Promise.allSettled([

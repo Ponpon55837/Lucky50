@@ -75,6 +75,16 @@ src/
 
 ## 🎯 開發流程
 
+### 0. 每次任務完成強制自我檢查
+
+**所有變更完成後，必須執行以下三步驟：**
+
+- [ ] **單元測試** - `pnpm vitest run` 確認全部綠燈
+- [ ] **文件更新** - 更新 `CHANGELOG.md` 記錄變更；如有影響 `AGENTS.md` 的專案狀態也要同步
+- [ ] **Skill 同步** - 若變更涉及新的工作流程或規範，更新 `.opencode/skills/` 下對應的 `SKILL.md`
+
+> 此為強制性檢查，不可跳過。
+
 ### 1. 組件開發
 
 - 先定義 TypeScript interface
@@ -141,6 +151,7 @@ export function useCounter(initial = 0) {
 - **[錯誤處理規範](references/error-handling.md)** - 統一錯誤處理、日誌記錄
 - **[Chart.js 整合規範](references/chartjs.md)** - 圖表配置、數據可視化
 - **[Three.js 規範](references/threejs.md)** - 3D 圖形渲染、WebGL 整合
+- **[UI 樣式標準](references/ui-standards.md)** - 頁面佈局、卡片、按鈕、表單、文字系統、響應式中斷點
 
 ## 🔧 開發工具配置
 

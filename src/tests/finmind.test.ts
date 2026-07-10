@@ -9,9 +9,8 @@ vi.mock('axios', () => ({
     create: vi.fn(() => ({
       get: vi.fn(),
       interceptors: {
-        request: {
-          use: vi.fn(),
-        },
+        request: { use: vi.fn() },
+        response: { use: vi.fn() },
       },
     })),
   },
@@ -36,9 +35,8 @@ describe('FinMindService', () => {
     const mockCreate = vi.fn(() => ({
       get: vi.fn(),
       interceptors: {
-        request: {
-          use: vi.fn(),
-        },
+        request: { use: vi.fn() },
+        response: { use: vi.fn() },
       },
     }))
     ;(axios.create as unknown) = mockCreate

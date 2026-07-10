@@ -2,6 +2,7 @@
 import { Solar } from 'lunar-javascript'
 import { lunarService } from '@/services/lunar'
 import { TaiwanStockService } from './taiwanStock'
+import { fortuneHistoryStore } from '@/services/fortuneStore'
 import type { LunarData } from '@/services/lunar'
 import type { PersonalBaZi, ElementsEnergy } from '@/types'
 
@@ -237,6 +238,10 @@ export class IntegratedFortuneService {
     }
 
     this.cache.set(cacheKey, fortuneData)
+
+    // 自動記錄運勢歷史（非阻塞）
+    this.recordFortuneHistory(profile, fortuneData)
+
     return fortuneData
   }
 
@@ -379,7 +384,7 @@ export class IntegratedFortuneService {
 
     // 生肖年運影響 (簡化版本，避免 TypeScript 複雜類型問題)
     const currentYearZodiac = lunarData.zodiac
-     
+
     const _personalZodiac = personalBaZi.zodiac // 保留供未來使用
 
     // 簡化的生肖配對邏輯
@@ -437,9 +442,9 @@ export class IntegratedFortuneService {
     elements: ElementsEnergy,
     scores: FortuneScores
   ) {
-    let recommendation: 'BUY' | 'SELL' | 'HOLD' | 'OBSERVE' = 'HOLD'
-    let advice = ''
-    let riskLevel: 'low' | 'medium' | 'high' = 'medium'
+    let recommendation: 'BUY' | 'SELL' | 'HOLD' | 'OBSERVE'
+    let advice: string
+    let riskLevel: 'low' | 'medium' | 'high'
 
     // 基於投資分數決定建議
     if (scores.investmentScore >= 75) {
@@ -623,6 +628,32 @@ export class IntegratedFortuneService {
     }
 
     return { warnings, opportunities }
+  }
+
+  // ===== 自動歷史記錄 =====
+
+  /**
+   * 自動記錄運勢到 IndexedDB（非阻塞，失敗靜默）
+   */
+  private static recordFortuneHistory(
+    profile: UserProfileCompat,
+    fortune: IntegratedFortuneData
+  ): void {
+    const dateStr = profile.birthDate.replace(/-/g, '')
+    const profileHash = `${profile.name}_${dateStr}`.length.toString(36)
+    fortuneHistoryStore
+      .append({
+        id: Date.now(),
+        date: fortune.date.toISOString().split('T')[0],
+        timestamp: Date.now(),
+        overallScore: fortune.overallScore,
+        investmentScore: fortune.investmentScore,
+        recommendation: fortune.recommendation === 'OBSERVE' ? 'HOLD' : fortune.recommendation,
+        elements: fortune.elements,
+        lunarSummary: fortune.advice,
+        userProfileHash: profileHash,
+      })
+      .catch(() => {})
   }
 
   // 輔助方法們

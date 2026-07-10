@@ -82,16 +82,9 @@ function getButtonClass(variant?: string) {
 
 <template>
   <Transition name="modal-fade">
-    <div
-      v-if="modelValue"
-      class="modal-overlay"
-      @click.self="closable && closeModal()"
-    >
+    <div v-if="modelValue" class="modal-overlay" @click.self="closable && closeModal()">
       <Transition name="modal-scale">
-        <div
-          v-if="modelValue"
-          class="modal-card"
-        >
+        <div v-if="modelValue" class="modal-card">
           <!-- Header -->
           <div class="modal-header">
             <!-- Error Icon -->
@@ -110,20 +103,11 @@ function getButtonClass(variant?: string) {
             </p>
 
             <!-- Details Section -->
-            <div
-              v-if="hasDetails"
-              class="details-section"
-            >
-              <button
-                class="details-toggle"
-                @click="toggleDetails"
-              >
+            <div v-if="hasDetails" class="details-section">
+              <button class="details-toggle" @click="toggleDetails">
                 {{ isDetailsVisible ? '隱藏詳情' : '顯示詳情' }}
               </button>
-              <div
-                v-if="isDetailsVisible"
-                class="error-details"
-              >
+              <div v-if="isDetailsVisible" class="error-details">
                 {{ details }}
               </div>
             </div>
