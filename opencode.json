@@ -12,7 +12,7 @@
       }
     }
   },
-  "instructions": ["AGENTS.md"],
+  "instructions": ["AGENTS.md", "ARCHITECTURE.md"],
   "formatter": {
     "prettier": {}
   },
