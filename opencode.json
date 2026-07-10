@@ -1,18 +1,22 @@
 {
   "$schema": "https://opencode.ai/config.json",
   "lsp": {
-    "typescript": {},
-    "vue": {},
-    "eslint": {}
+    "typescript": {
+      "command": ["typescript-language-server", "--stdio"],
+      "initialization": {
+        "preferences": {
+          "importModuleSpecifierPreference": "non-relative",
+          "includePackageJsonAutoImports": "on",
+          "autoImportFileExcludePatterns": ["node_modules/**"]
+        }
+      }
+    }
   },
+  "instructions": ["AGENTS.md"],
   "formatter": {
     "prettier": {}
   },
-  "plugin": [
-    "opencode-morph-fast-apply",
-    "opencode-vibeguard",
-    "opencode-dynamic-context-pruning"
-  ],
+  "plugin": ["opencode-morph-fast-apply", "opencode-vibeguard", "opencode-dynamic-context-pruning"],
   "mcp": {
     "context7": {
       "type": "remote",
