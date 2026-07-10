@@ -11,6 +11,21 @@ tags: [vue3, typescript, pinia, tailwindcss, vite, code-standards]
 
 提供 Lucky50 專案的完整程式碼規範、技術棧標準和開發最佳實踐。
 
+## 🎯 核心原則
+
+### 語言規範
+
+- **AI 回覆語言**: 一律使用**繁體中文（正體中文）** 回覆，不得使用簡體中文或英文
+- **程式碼註解**: 使用繁體中文撰寫
+- **提交訊息**: 使用繁體中文優先（參見 git-workflow skill）
+- **文件與規範**: 皆以繁體中文為主
+
+### 技術原則
+
+- 類型安全為最高優先級
+- 可讀性優先於效能（除非經測量證實為瓶頸）
+- 遵循 Vue 3 Composition API 最佳實踐
+
 ## 📚 核心技術棧
 
 - **前端框架**: Vue 3 + Composition API
@@ -180,23 +195,35 @@ module.exports = {
 
 ## 🎯 程式碼品質檢查
 
-### 提交前檢查
+### Git Hooks 自動檢查
+
+| Hook | 指令 | 時機 |
+|------|------|------|
+| `pre-commit` | `npx vitest run` | 提交前跑**全部**單元測試 |
+| `pre-push` | `npx vue-tsc --noEmit` | 推送前執行 TypeScript 型別檢查 |
+
+pre-commit 若偵測到無 `.ts` / `.vue` 檔案變更則會跳過測試。
+
+### 手動 / CI 測試指令
 
 ```bash
-# 類型檢查
+# 跑全部單元測試（等同 pre-commit）
+pnpm run test:run
+
+# 測試 + 涵蓋率報告
+pnpm run test:coverage
+
+# CI 完整測試（涵蓋率 + verbose）
+pnpm run test:ci
+
+# 開發用瀏覽器 UI 模式
+pnpm run test:ui
+
+# 型別檢查（等同 pre-push）
 pnpm run type-check
 
-# ESLint 檢查
+# ESLint
 pnpm run lint
-
-# 格式化檢查
-pnpm run format:check
-
-# 單元測試
-pnpm run test:unit
-
-# 端到端測試
-pnpm run test:e2e
 ```
 
 ### 效能監控

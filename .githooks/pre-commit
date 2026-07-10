@@ -155,6 +155,51 @@ show_branch_name_error() {
 }
 
 # ============================================
+# 函數定義 - 測試相關
+# ============================================
+
+# 執行 unit test
+run_unit_tests() {
+    local changed_files
+    
+    # 獲取暫存區中有變更的檔案
+    changed_files=$(git diff --cached --name-only --diff-filter=ACMR | grep -E '\.(ts|vue)$' | head -20)
+    
+    # 如果沒有 TypeScript/Vue 檔案變更，跳過測試
+    if [ -z "$changed_files" ]; then
+        echo -e "${BLUE}  沒有 TypeScript/Vue 檔案變更，跳過測試${NC}"
+        return 0
+    fi
+    
+    echo ""
+    echo -e "${BLUE}🧪 執行 unit test...${NC}"
+    echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo ""
+    
+    START_TIME=$(date +%s)
+    
+    # 執行全部 unit test
+    if npx vitest run 2>&1; then
+        END_TIME=$(date +%s)
+        DURATION=$((END_TIME - START_TIME))
+        echo ""
+        echo -e "${GREEN}✅ Unit test 通過 (${DURATION}s)${NC}"
+        echo ""
+        return 0
+    else
+        END_TIME=$(date +%s)
+        DURATION=$((END_TIME - START_TIME))
+        echo ""
+        echo -e "${RED}❌ Unit test 失敗 (${DURATION}s)${NC}"
+        echo ""
+        echo -e "${YELLOW}請修正測試錯誤後再提交。${NC}"
+        echo -e "${YELLOW}💡 如需跳過檢查：git commit --no-verify${NC}"
+        echo ""
+        return 1
+    fi
+}
+
+# ============================================
 # 主要邏輯
 # ============================================
 
@@ -174,10 +219,15 @@ if [ "$CHECK_BRANCH_NAME" = true ]; then
     
     if [ $VALIDATION_RESULT -ne 0 ]; then
         show_branch_name_error "$CURRENT_BRANCH" "$VALIDATION_RESULT"
-        # 注意：這裡只顯示警告，不退出（return 0）
-        # 如果要強制執行命名規範，將下面這行取消註解：
-        # exit 1
     fi
+fi
+
+# 檢查 3: 執行 unit test
+run_unit_tests
+TEST_RESULT=$?
+
+if [ $TEST_RESULT -ne 0 ]; then
+    exit 1
 fi
 
 # 所有檢查通過，允許提交
