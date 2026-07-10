@@ -22,12 +22,10 @@ const FortuneCard = defineAsyncComponent({
   loader: () => import('@/components/FortuneCard.vue'),
   loadingComponent: () => import('@/components/ui/Loading.vue'),
 })
-
 // Store instances
 const userStore = useUserStore()
 const dashboardStore = useDashboardStore()
 const { isDark } = useTheme()
-
 // 將userStore的profile轉換為UserProfileCompat格式
 const userProfileCompat = computed((): UserProfileCompat | null => {
   if (!userStore.profile) return null
@@ -66,14 +64,14 @@ watch(
 </script>
 
 <template>
-  <div class="min-h-screen py-8">
+  <div class="min-h-screen py-6 sm:py-8 lg:py-12">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
       <!-- Header -->
-      <div class="mb-8">
-        <h1 class="text-3xl font-bold text-white mb-2">
+      <div class="mb-6 sm:mb-8">
+        <h1 class="text-xl sm:text-2xl lg:text-3xl font-bold text-white mb-1 sm:mb-2">
           投資儀表板
         </h1>
-        <p class="text-gray-300">
+        <p class="text-xs sm:text-sm lg:text-base text-gray-400">
           今日是 {{ dashboardStore.formattedCurrentDate }}，
           <span
             v-if="dashboardStore.integratedFortune"
@@ -369,6 +367,7 @@ watch(
           </div>
         </div>
       </div>
+
     </div>
   </div>
 </template>

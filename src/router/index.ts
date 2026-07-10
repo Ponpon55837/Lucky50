@@ -38,6 +38,33 @@ const router = createRouter({
         title: '數據分析 - 農民曆智慧投資',
         description: '深度分析市場數據與投資趨勢'
       }
+    },
+    {
+      path: '/history',
+      name: 'history',
+      component: () => import('@/views/History.vue'),
+      meta: { 
+        title: '運勢歷史記錄 - 農民曆智慧投資',
+        description: '瀏覽所有已計算的運勢結果'
+      }
+    },
+    {
+      path: '/dev/perf',
+      name: 'perf-monitor',
+      component: () => import('@/views/dev/PerformanceMonitor.vue'),
+      meta: { 
+        title: '效能監控 - 農民曆智慧投資',
+        description: '開發者效能監控面板'
+      }
+    },
+    {
+      path: '/dev/api',
+      name: 'api-monitor',
+      component: () => import('@/views/dev/ApiMonitor.vue'),
+      meta: { 
+        title: 'API 監控 - 農民曆智慧投資',
+        description: '開發者 API 監控面板'
+      }
     }
   ]
 })

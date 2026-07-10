@@ -44,6 +44,13 @@ const closeMobile = () => {
             投資儀表板
           </RouterLink>
           <RouterLink
+            to="/history"
+            class="nav-link"
+            :class="{ active: $route.name === 'history' }"
+          >
+            運勢歷史
+          </RouterLink>
+          <RouterLink
             to="/analytics"
             class="nav-link"
             :class="{ active: $route.name === 'analytics' }"
@@ -114,6 +121,13 @@ const closeMobile = () => {
           @click="closeMobile"
         >
           投資儀表板
+        </RouterLink>
+        <RouterLink
+          to="/history"
+          class="mobile-nav-link"
+          @click="closeMobile"
+        >
+          運勢歷史
         </RouterLink>
         <RouterLink
           to="/analytics"

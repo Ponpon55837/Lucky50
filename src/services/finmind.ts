@@ -22,6 +22,33 @@ finmindAPI.interceptors.request.use(config => {
   return config
 })
 
+// API 監控 — 記錄每次 axios 請求的 endpoint / method / status / duration
+if (typeof window !== 'undefined' && !(window as any).__apiMonitorInterceptors) {
+  ;(window as any).__apiMonitorInterceptors = true
+  finmindAPI.interceptors.request.use(config => {
+    ;(config as any).__startTime = performance.now()
+    return config
+  })
+  finmindAPI.interceptors.response.use(
+    response => {
+      const apiMon = (window as any).__apiMonitor
+      if (apiMon) {
+        const dur = performance.now() - (response.config as any).__startTime
+        apiMon.record(response.config.url || '', response.config.method?.toUpperCase() || 'GET', response.status, dur)
+      }
+      return response
+    },
+    error => {
+      const apiMon = (window as any).__apiMonitor
+      if (apiMon && error.config) {
+        const dur = performance.now() - (error.config as any).__startTime
+        apiMon.record(error.config.url || '', error.config.method?.toUpperCase() || 'GET', error.response?.status || 0, dur)
+      }
+      return Promise.reject(error)
+    }
+  )
+}
+
 // 安全的數字解析函數
 const parseFloatSafe = (value: string | undefined, fallback: number = 0): number => {
   if (!value) return fallback

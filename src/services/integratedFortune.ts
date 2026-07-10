@@ -2,6 +2,7 @@
 import { Solar } from 'lunar-javascript'
 import { lunarService } from '@/services/lunar'
 import { TaiwanStockService } from './taiwanStock'
+import { fortuneHistoryStore } from '@/services/fortuneStore'
 import type { LunarData } from '@/services/lunar'
 import type { PersonalBaZi, ElementsEnergy } from '@/types'
 
@@ -237,6 +238,10 @@ export class IntegratedFortuneService {
     }
 
     this.cache.set(cacheKey, fortuneData)
+
+    // 自動記錄運勢歷史（非阻塞）
+    this.recordFortuneHistory(profile, fortuneData)
+
     return fortuneData
   }
 
@@ -623,6 +628,30 @@ export class IntegratedFortuneService {
     }
 
     return { warnings, opportunities }
+  }
+
+  // ===== 自動歷史記錄 =====
+
+  /**
+   * 自動記錄運勢到 IndexedDB（非阻塞，失敗靜默）
+   */
+  private static recordFortuneHistory(
+    profile: UserProfileCompat,
+    fortune: IntegratedFortuneData
+  ): void {
+    const dateStr = profile.birthDate.replace(/-/g, '')
+    const profileHash = `${profile.name}_${dateStr}`.length.toString(36)
+    fortuneHistoryStore.append({
+      id: Date.now(),
+      date: fortune.date.toISOString().split('T')[0],
+      timestamp: Date.now(),
+      overallScore: fortune.overallScore,
+      investmentScore: fortune.investmentScore,
+      recommendation: fortune.recommendation === 'OBSERVE' ? 'HOLD' : fortune.recommendation,
+      elements: fortune.elements,
+      lunarSummary: fortune.advice,
+      userProfileHash: profileHash,
+    }).catch(() => {})
   }
 
   // 輔助方法們

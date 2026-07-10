@@ -2,6 +2,7 @@
 import { Solar } from 'lunar-javascript'
 import { perfMonitor } from '@/utils/performance'
 
+import { fortuneHistoryStore } from '@/services/fortuneStore'
 import type {
   UserProfile,
   FortuneData,
@@ -203,6 +204,9 @@ export class FortuneService {
         }
       }
       this.fortuneCache.set(cacheKey, fortuneData)
+
+      // 自動記錄運勢歷史（非阻塞）
+      this.recordFortuneHistory(profile, fortuneData)
 
       return fortuneData
     })
@@ -492,6 +496,24 @@ export class FortuneService {
     }
 
     return conflictMap[zodiac] || []
+  }
+
+  /**
+   * 自動記錄運勢到 IndexedDB（非阻塞，失敗靜默）
+   */
+  private static recordFortuneHistory(profile: UserProfile, fortune: FortuneData): void {
+    const profileHash = this.createSeed(new Date(), profile).toString(36)
+    fortuneHistoryStore.append({
+      id: Date.now(),
+      date: fortune.date,
+      timestamp: Date.now(),
+      overallScore: fortune.overallScore,
+      investmentScore: fortune.investmentScore,
+      recommendation: fortune.recommendation,
+      elements: fortune.elements,
+      lunarSummary: fortune.advice,
+      userProfileHash: profileHash,
+    }).catch(() => {})
   }
 
   /**

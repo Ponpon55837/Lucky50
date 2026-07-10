@@ -17,6 +17,20 @@ export const useAnalyticsStore = defineStore('analytics', () => {
   // 回測結果緩存
   const backtestCache = new Map<string, BacktestCache>()
 
+  // 共用的每日報酬率計算函數（消除 DRY 違規）
+  const calculateDailyReturns = (data: ETFData[]): number[] => {
+    return data.slice(1).reduce((acc: number[], item: ETFData, index: number) => {
+      const prevItem = data[index]
+      if (prevItem && prevItem.close && item.close && prevItem.close > 0) {
+        const returnRate = ((item.close - prevItem.close) / prevItem.close) * 100
+        if (isFinite(returnRate) && !isNaN(returnRate)) {
+          acc.push(returnRate)
+        }
+      }
+      return acc
+    }, [])
+  }
+
   // 根據時間段獲取天數
   const getPeriodDays = (period: string) => {
     const periodMap: Record<string, number> = {
@@ -161,16 +175,7 @@ export const useAnalyticsStore = defineStore('analytics', () => {
     }
 
     // 計算波動率 - 改進返回值計算並過濾無效值
-    const returns = adjustedData.slice(1).reduce((acc: number[], item: ETFData, index: number) => {
-      const prevItem = adjustedData[index]
-      if (prevItem && prevItem.close && item.close && prevItem.close > 0) {
-        const returnRate = ((item.close - prevItem.close) / prevItem.close) * 100
-        if (isFinite(returnRate) && !isNaN(returnRate)) {
-          acc.push(returnRate)
-        }
-      }
-      return acc
-    }, [])
+    const returns = calculateDailyReturns(adjustedData)
 
     if (returns.length === 0) {
       return {
@@ -222,16 +227,7 @@ export const useAnalyticsStore = defineStore('analytics', () => {
       }
     }
 
-    const returns = adjustedData.slice(1).reduce((acc: number[], item: ETFData, index: number) => {
-      const prevItem = adjustedData[index]
-      if (prevItem && prevItem.close && item.close && prevItem.close > 0) {
-        const returnRate = ((item.close - prevItem.close) / prevItem.close) * 100
-        if (isFinite(returnRate) && !isNaN(returnRate)) {
-          acc.push(returnRate)
-        }
-      }
-      return acc
-    }, [])
+    const returns = calculateDailyReturns(adjustedData)
 
     if (returns.length === 0) {
       return {
@@ -406,18 +402,7 @@ export const useAnalyticsStore = defineStore('analytics', () => {
         : 1
 
     // 計算歷史勝率（基於正報酬日數）- 改進計算
-    const dailyReturns = adjustedData
-      .slice(1)
-      .reduce((acc: number[], item: ETFData, index: number) => {
-        const prevItem = adjustedData[index]
-        if (prevItem && prevItem.close && item.close && prevItem.close > 0) {
-          const returnRate = ((item.close - prevItem.close) / prevItem.close) * 100
-          if (isFinite(returnRate) && !isNaN(returnRate)) {
-            acc.push(returnRate)
-          }
-        }
-        return acc
-      }, [])
+    const dailyReturns = calculateDailyReturns(adjustedData)
     const positiveReturnDays = dailyReturns.filter(r => r > 0).length
     const baseWinRate =
       dailyReturns.length > 0 ? (positiveReturnDays / dailyReturns.length) * 100 : 60

@@ -121,16 +121,16 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="min-h-screen py-8">
+  <div class="min-h-screen py-6 sm:py-8 lg:py-12">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
       <!-- Header -->
-      <div class="mb-8">
+      <div class="mb-6 sm:mb-8">
         <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
           <div>
-            <h1 class="text-3xl font-bold text-primary mb-2">
+            <h1 class="text-xl sm:text-2xl lg:text-3xl font-bold text-primary mb-1 sm:mb-2">
               數據分析
             </h1>
-            <p class="text-secondary">
+            <p class="text-xs sm:text-sm lg:text-base text-secondary">
               深入分析 0050 ETF 的歷史表現與投資趨勢
             </p>
           </div>

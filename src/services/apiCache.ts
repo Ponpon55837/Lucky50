@@ -9,12 +9,21 @@ export class ApiCacheService {
   private static instance: ApiCacheService
   private cache = new Map<string, CacheItem>()
   private defaultTTL = 5 * 60 * 1000 // 5分鐘預設過期時間
+  private hits = 0
+  private misses = 0
 
   static getInstance(): ApiCacheService {
     if (!this.instance) {
       this.instance = new ApiCacheService()
     }
     return this.instance
+  }
+
+  private recordApi(key: string, hit: boolean) {
+    const mon = typeof window !== 'undefined' ? (window as any).__apiMonitor : null
+    if (mon) {
+      mon.record(`[cache] ${key}`, hit ? 'HIT' : 'MISS', hit ? 200 : 404, 0)
+    }
   }
 
   private constructor() {
@@ -41,15 +50,21 @@ export class ApiCacheService {
     const item = this.cache.get(key)
 
     if (!item) {
+      this.misses++
+      this.recordApi(key, false)
       return null
     }
 
     // 檢查是否過期
     if (Date.now() > item.expiresAt) {
       this.cache.delete(key)
+      this.misses++
+      this.recordApi(key, false)
       return null
     }
 
+    this.hits++
+    this.recordApi(key, true)
     return item.data as T
   }
 
@@ -87,20 +102,33 @@ export class ApiCacheService {
   }
 
   /**
+   * 重設統計計數器
+   */
+  resetStats(): void {
+    this.hits = 0
+    this.misses = 0
+  }
+
+  /**
    * 取得快取統計資訊
    */
   getStats(): {
     totalItems: number
     totalSize: string
     hitRate: number
+    hits: number
+    misses: number
   } {
     const totalItems = this.cache.size
     const totalSize = new Blob([JSON.stringify(Array.from(this.cache.values()))]).size
+    const totalRequests = this.hits + this.misses
 
     return {
       totalItems,
       totalSize: `${(totalSize / 1024).toFixed(2)} KB`,
-      hitRate: 0, // 可以後續加入命中率統計
+      hitRate: totalRequests > 0 ? this.hits / totalRequests : 0,
+      hits: this.hits,
+      misses: this.misses,
     }
   }
 
