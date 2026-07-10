@@ -5,6 +5,7 @@ import { useAnalyticsStore } from '@/stores/analytics'
 import { useUserStore } from '@/stores/user'
 import { useTheme } from '@/composables/useTheme'
 import { FinMindService } from '@/services/finmind'
+import { toLocalDateString } from '@/utils/date'
 
 // Lazy load components
 const PriceChart = defineAsyncComponent({
@@ -85,9 +86,9 @@ const loadAnalyticsData = async () => {
 
   try {
     // 根據當前選擇的時間段載入對應的數據
-    const endDate = new Date().toISOString().split('T')[0]
+    const endDate = toLocalDateString(new Date())
     const days = analyticsStore.getPeriodDays(selectedPeriod.value)
-    const startDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+    const startDate = toLocalDateString(new Date(Date.now() - days * 24 * 60 * 60 * 1000))
 
     // 載入 ETF 數據
     const etfData = await FinMindService.getETFData(startDate, endDate)

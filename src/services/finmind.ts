@@ -2,6 +2,7 @@ import axios from 'axios'
 import type { AxiosError, InternalAxiosRequestConfig } from 'axios'
 import type { ETFData, FinMindDataItem } from '@/types'
 import { apiCache, CacheKeyGenerator } from './apiCache'
+import { toLocalDateString } from '@/utils/date'
 
 // API 監控介面
 interface ApiMonitor {
@@ -117,7 +118,7 @@ export class FinMindService {
         const volume = Math.floor(Math.random() * 50000000) + 10000000
 
         const dataPoint = {
-          date: currentDate.toISOString().split('T')[0],
+          date: toLocalDateString(currentDate),
           open: Number(open.toFixed(2)),
           high: Number(high.toFixed(2)),
           low: Number(low.toFixed(2)),
@@ -208,10 +209,10 @@ export class FinMindService {
    */
   static async getRealTimePrice(): Promise<ETFData | null> {
     try {
-      const today = new Date().toISOString().split('T')[0]
+      const today = toLocalDateString(new Date())
       const yesterday = new Date()
       yesterday.setDate(yesterday.getDate() - 7) // 取最近7天的數據
-      const weekAgo = yesterday.toISOString().split('T')[0]
+      const weekAgo = toLocalDateString(yesterday)
 
       const data = await this.getETFData(weekAgo, today)
       // 返回最新的數據
@@ -221,7 +222,7 @@ export class FinMindService {
 
       // 如果無法取得數據，返回一個基本的模擬數據
       const mockPrice: ETFData = {
-        date: new Date().toISOString().split('T')[0],
+        date: toLocalDateString(new Date()),
         open: 132.5,
         high: 133.8,
         low: 131.9,

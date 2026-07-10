@@ -3,6 +3,7 @@ import { Solar } from 'lunar-javascript'
 import { lunarService } from '@/services/lunar'
 import { TaiwanStockService } from './taiwanStock'
 import { fortuneHistoryStore } from '@/services/fortuneStore'
+import { toLocalDateString } from '@/utils/date'
 import type { LunarData } from '@/services/lunar'
 import type { PersonalBaZi, ElementsEnergy } from '@/types'
 
@@ -173,7 +174,7 @@ export class IntegratedFortuneService {
     profile: UserProfileCompat,
     date: Date = new Date()
   ): Promise<IntegratedFortuneData> {
-    const cacheKey = `${profile.birthDate}-${date.toISOString().split('T')[0]}`
+    const cacheKey = `${profile.birthDate}-${toLocalDateString(date)}`
 
     if (this.cache.has(cacheKey)) {
       return this.cache.get(cacheKey)!
@@ -644,7 +645,7 @@ export class IntegratedFortuneService {
     fortuneHistoryStore
       .append({
         id: Date.now(),
-        date: fortune.date.toISOString().split('T')[0],
+        date: toLocalDateString(fortune.date),
         timestamp: Date.now(),
         overallScore: fortune.overallScore,
         investmentScore: fortune.investmentScore,

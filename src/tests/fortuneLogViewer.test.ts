@@ -1,7 +1,6 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { mount } from '@vue/test-utils'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { mount, flushPromises } from '@vue/test-utils'
 
-// Mock data must be defined inside vi.mock factory to avoid hoisting issues
 vi.mock('@/services/fortuneStore', () => {
   const mockRecords = [
     {
@@ -39,40 +38,46 @@ vi.mock('@/services/fortuneStore', () => {
     },
   ]
 
-  return {
-    fortuneHistoryStore: {
-      init: vi.fn().mockResolvedValue(undefined),
-      query: vi
-        .fn()
-        .mockResolvedValue({ records: mockRecords, total: 3, pageIndex: 0, pageSize: 10 }),
-      getStats: vi.fn().mockResolvedValue({
-        totalRecords: 3,
-        dateRange: { earliest: '2024-01-15', latest: '2024-01-17' },
-        averageScore: 50,
-        recommendationDistribution: { BUY: 1, HOLD: 1, SELL: 1 },
-      }),
-      clear: vi.fn().mockResolvedValue(undefined),
-    },
+  const store = {
+    init: vi.fn().mockResolvedValue(undefined),
+    query: vi
+      .fn()
+      .mockResolvedValue({ records: mockRecords, total: 3, pageIndex: 0, pageSize: 10 }),
+    getStats: vi.fn().mockResolvedValue({
+      totalRecords: 3,
+      dateRange: { earliest: '2024-01-15', latest: '2024-01-17' },
+      averageScore: 50,
+      recommendationDistribution: { BUY: 1, HOLD: 1, SELL: 1 },
+    }),
+    clear: vi.fn().mockResolvedValue(undefined),
   }
+
+  return { fortuneHistoryStore: store }
 })
 
 import FortuneLogViewer from '@/components/FortuneLogViewer.vue'
+import { fortuneHistoryStore } from '@/services/fortuneStore'
 
 describe('FortuneLogViewer', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    document.body.innerHTML = ''
+  })
+
+  afterEach(() => {
+    document.body.innerHTML = ''
   })
 
   it('should display stats when loaded', async () => {
     const wrapper = mount(FortuneLogViewer)
-    await vi.dynamicImportSettled()
+    await flushPromises()
 
     expect(wrapper.text()).toContain('共 3 筆')
   })
 
   it('should display records list', async () => {
     const wrapper = mount(FortuneLogViewer)
-    await vi.dynamicImportSettled()
+    await flushPromises()
 
     expect(wrapper.text()).toContain('買入')
     expect(wrapper.text()).toContain('持有')
@@ -80,34 +85,87 @@ describe('FortuneLogViewer', () => {
     expect(wrapper.text()).toContain('今日財運亨通')
   })
 
-  it('should show recommendation badges', async () => {
+  it('should show recommendation badges in records', async () => {
     const wrapper = mount(FortuneLogViewer)
-    await vi.dynamicImportSettled()
+    await flushPromises()
 
-    const badges = wrapper.findAll('.rounded-full')
-    const buyBadge = badges.filter(b => b.text().trim() === '買入')
-    expect(buyBadge.length).toBeGreaterThan(0)
-    expect(buyBadge[0].classes()).toContain('bg-green-500/20')
+    const buyBadges = wrapper.findAll('.bg-green-500\\/20')
+    expect(buyBadges.length).toBeGreaterThan(0)
+    expect(buyBadges[0].text().trim()).toBe('買入')
   })
 
-  it('should display filter controls', async () => {
+  it('should display filter chip buttons instead of select', async () => {
     const wrapper = mount(FortuneLogViewer)
-    await vi.dynamicImportSettled()
+    await flushPromises()
 
     expect(wrapper.find('input[placeholder="搜尋"]').exists()).toBe(true)
-    expect(wrapper.find('select').exists()).toBe(true)
-    expect(wrapper.findAll('input[type="date"]').length).toBe(2)
+    expect(wrapper.find('select').exists()).toBe(false)
+
+    const chipTexts = ['買入', '持有', '賣出']
+    for (const text of chipTexts) {
+      const chip = wrapper.findAll('button').find(b => b.text().trim() === text)
+      expect(chip).toBeDefined()
+    }
   })
 
-  it('should emit confirmClear when clear button clicked', async () => {
+  it('should show confirmation dialog when clear button clicked', async () => {
     const wrapper = mount(FortuneLogViewer)
-    await vi.dynamicImportSettled()
+    await flushPromises()
 
     const clearBtn = wrapper.findAll('button').find(b => b.text().includes('清除'))
     expect(clearBtn).toBeDefined()
     await clearBtn!.trigger('click')
-    await new Promise(r => setTimeout(r, 10))
+    await flushPromises()
+
+    const dialogText = document.body.textContent || ''
+    expect(dialogText).toContain('確認清除')
+    expect(dialogText).toContain('此操作無法復原')
+    expect(wrapper.emitted('confirmClear')).toBeFalsy()
+  })
+
+  it('should emit confirmClear after confirming in dialog', async () => {
+    const wrapper = mount(FortuneLogViewer)
+    await flushPromises()
+
+    const clearBtn = wrapper.findAll('button').find(b => b.text().includes('清除'))
+    await clearBtn!.trigger('click')
+    await flushPromises()
+
+    const confirmBtns = document.body.querySelectorAll('button')
+    const confirmBtn = Array.from(confirmBtns).find(b => b.textContent?.includes('確認清除'))
+    expect(confirmBtn).toBeDefined()
+    confirmBtn!.click()
+    await flushPromises()
 
     expect(wrapper.emitted('confirmClear')).toBeTruthy()
+  })
+
+  it('should close dialog when cancel clicked', async () => {
+    const wrapper = mount(FortuneLogViewer)
+    await flushPromises()
+
+    const clearBtn = wrapper.findAll('button').find(b => b.text().includes('清除'))
+    await clearBtn!.trigger('click')
+    await flushPromises()
+
+    expect(document.body.textContent).toContain('確認清除')
+
+    const cancelBtns = document.body.querySelectorAll('button')
+    const cancelBtn = Array.from(cancelBtns).find(b => b.textContent?.trim() === '取消')
+    cancelBtn!.click()
+    await flushPromises()
+
+    expect(document.body.textContent).not.toContain('確認清除')
+  })
+
+  it('should show skeleton loading state', async () => {
+    vi.mocked(fortuneHistoryStore.query).mockImplementation(() => new Promise(() => {}) as never)
+
+    const wrapper = mount(FortuneLogViewer)
+    await flushPromises()
+    await wrapper.vm.$nextTick()
+
+    const skeletons = wrapper.findAll('.animate-pulse')
+    expect(skeletons.length).toBeGreaterThan(0)
   })
 })

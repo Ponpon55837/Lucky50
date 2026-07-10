@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { fortuneHistoryStore } from '@/services/fortuneStore'
+import { toLocalDateString } from '@/utils/date'
 import type { FortuneRecord, HistoryQueryOptions, HistoryStats } from '@/types/history'
 
 interface Props {
@@ -20,14 +21,19 @@ const total = ref(0)
 const pageIndex = ref(0)
 const loading = ref(false)
 const stats = ref<HistoryStats | null>(null)
+const filtersExpanded = ref(false)
+const showClearConfirm = ref(false)
 
 const now = new Date()
 const sixMonthsAgo = new Date(now)
 sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6)
 
+const defaultDateStart = toLocalDateString(sixMonthsAgo)
+const defaultDateEnd = toLocalDateString(now)
+
 const filterRecommendation = ref<FortuneRecord['recommendation'] | ''>('')
-const filterDateStart = ref(sixMonthsAgo.toISOString().split('T')[0])
-const filterDateEnd = ref(now.toISOString().split('T')[0])
+const filterDateStart = ref(defaultDateStart)
+const filterDateEnd = ref(defaultDateEnd)
 const searchText = ref('')
 
 const hasFilters = computed(
@@ -37,6 +43,28 @@ const hasFilters = computed(
     !!filterDateEnd.value ||
     !!searchText.value
 )
+
+const activeFilterTags = computed(() => {
+  const tags: { label: string; color: string }[] = []
+  if (filterRecommendation.value) {
+    const map = {
+      BUY: { label: '買入', color: 'bg-green-500/20 text-green-400' },
+      HOLD: { label: '持有', color: 'bg-yellow-500/20 text-yellow-400' },
+      SELL: { label: '賣出', color: 'bg-red-500/20 text-red-400' },
+    }
+    tags.push(map[filterRecommendation.value])
+  }
+  if (filterDateStart.value && filterDateStart.value !== defaultDateStart) {
+    tags.push({ label: filterDateStart.value.slice(5), color: 'bg-blue-500/20 text-blue-400' })
+  }
+  if (filterDateEnd.value && filterDateEnd.value !== defaultDateEnd) {
+    tags.push({ label: filterDateEnd.value.slice(5), color: 'bg-blue-500/20 text-blue-400' })
+  }
+  if (searchText.value) {
+    tags.push({ label: searchText.value, color: 'bg-purple-500/20 text-purple-400' })
+  }
+  return tags
+})
 
 const totalPages = computed(() => Math.ceil(total.value / props.pageSize))
 
@@ -51,6 +79,21 @@ const displayRecommendation = (
   return map[rec]
 }
 
+const elementColors: Record<string, string> = {
+  metal: '#9CA3AF',
+  wood: '#22C55E',
+  water: '#3B82F6',
+  fire: '#EF4444',
+  earth: '#A16207',
+}
+const elementLabels: Record<string, string> = {
+  metal: '金',
+  wood: '木',
+  water: '水',
+  fire: '火',
+  earth: '土',
+}
+
 const formatDate = (dateStr: string, mobile = false): string => {
   const d = new Date(dateStr + 'T00:00:00')
   const mm = String(d.getMonth() + 1).padStart(2, '0')
@@ -62,6 +105,12 @@ const formatDate = (dateStr: string, mobile = false): string => {
 
 const formatTime = (timestamp: number): string => {
   return new Date(timestamp).toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit' })
+}
+
+function getScoreColor(score: number): string {
+  if (score >= 70) return 'bg-emerald-500'
+  if (score >= 40) return 'bg-amber-500'
+  return 'bg-rose-500'
 }
 
 async function loadRecords() {
@@ -96,15 +145,21 @@ async function loadStats() {
 function applyFilters() {
   pageIndex.value = 0
   loadRecords()
+  filtersExpanded.value = false
 }
 
 function clearFilters() {
   filterRecommendation.value = ''
-  filterDateStart.value = ''
-  filterDateEnd.value = ''
+  filterDateStart.value = defaultDateStart
+  filterDateEnd.value = defaultDateEnd
   searchText.value = ''
   pageIndex.value = 0
   loadRecords()
+}
+
+function toggleRecommendation(value: FortuneRecord['recommendation']) {
+  filterRecommendation.value = filterRecommendation.value === value ? '' : value
+  applyFilters()
 }
 
 function nextPage() {
@@ -121,7 +176,16 @@ function prevPage() {
   }
 }
 
-async function clearAllHistory() {
+function openClearConfirm() {
+  showClearConfirm.value = true
+}
+
+function closeClearConfirm() {
+  showClearConfirm.value = false
+}
+
+async function confirmClearAll() {
+  showClearConfirm.value = false
   emit('confirmClear')
   await fortuneHistoryStore.clear()
   records.value = []
@@ -137,7 +201,7 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div class="space-y-5">
+  <div class="space-y-4 sm:space-y-5">
     <!-- Stats -->
     <div v-if="stats && stats.totalRecords > 0" class="card !py-2.5 !px-3 sm:!py-3 sm:!px-6">
       <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1.5 sm:gap-2">
@@ -168,7 +232,7 @@ onMounted(async () => {
           </span>
           <button
             class="px-1.5 py-0.5 text-[10px] font-medium text-rose-400 hover:text-rose-300 border border-rose-800/50 rounded hover:bg-rose-900/20 transition-colors"
-            @click="clearAllHistory"
+            @click="openClearConfirm"
           >
             清除
           </button>
@@ -178,138 +242,322 @@ onMounted(async () => {
 
     <!-- Filters -->
     <div class="card !py-2.5 !px-3 sm:!py-3 sm:!px-6">
-      <div class="flex flex-col gap-2">
-        <div class="flex gap-2">
-          <input
-            v-model="searchText"
-            type="text"
-            placeholder="搜尋"
-            class="flex-1 min-w-0 px-2 py-1.5 sm:px-3 sm:py-2 text-xs sm:text-sm bg-gray-800/40 border border-gray-700/60 rounded-lg text-white placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-amber-500/50 focus:border-amber-500/50 transition-all"
-            @keyup.enter="applyFilters"
-          />
-          <button
-            class="px-2.5 py-1.5 sm:px-4 sm:py-2 text-xs sm:text-sm font-medium text-white bg-amber-600 hover:bg-amber-500 rounded-lg transition-colors shrink-0"
-            @click="applyFilters"
+      <!-- Mobile: collapsed summary bar -->
+      <div class="sm:hidden">
+        <button
+          class="w-full flex items-center justify-between gap-2"
+          @click="filtersExpanded = !filtersExpanded"
+        >
+          <div class="flex items-center gap-2 min-w-0 overflow-hidden">
+            <svg
+              class="w-4 h-4 text-gray-500 shrink-0"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"
+              />
+            </svg>
+            <div v-if="activeFilterTags.length === 0" class="text-xs text-gray-500 truncate">
+              篩選條件
+            </div>
+            <div v-else class="flex items-center gap-1 overflow-hidden">
+              <span
+                v-for="(tag, i) in activeFilterTags"
+                :key="i"
+                class="px-1.5 py-0.5 text-[10px] rounded-full shrink-0"
+                :class="tag.color"
+              >
+                {{ tag.label }}
+              </span>
+            </div>
+          </div>
+          <svg
+            class="w-4 h-4 text-gray-500 shrink-0 transition-transform duration-200"
+            :class="{ 'rotate-180': filtersExpanded }"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
           >
-            搜尋
-          </button>
-        </div>
-        <div class="flex flex-col sm:flex-row sm:items-center gap-1.5 sm:gap-3">
-          <div class="flex items-center gap-1.5">
-            <select
-              v-model="filterRecommendation"
-              class="px-2 py-1.5 text-xs sm:text-sm bg-gray-800/40 border border-gray-700/60 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-amber-500/50 focus:border-amber-500/50 transition-all"
-              @change="applyFilters"
-            >
-              <option value="">全部</option>
-              <option value="BUY">買入</option>
-              <option value="HOLD">持有</option>
-              <option value="SELL">賣出</option>
-            </select>
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M19 9l-7 7-7-7"
+            />
+          </svg>
+        </button>
+
+        <!-- Expanded filters (mobile) -->
+        <div v-show="filtersExpanded" class="mt-3 space-y-2 border-t border-white/5 pt-3">
+          <div class="flex gap-2">
+            <input
+              v-model="searchText"
+              type="text"
+              placeholder="搜尋"
+              class="flex-1 min-w-0 px-3 py-2 text-sm bg-gray-800/40 border border-gray-700/60 rounded-lg text-white placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-amber-500/50 focus:border-amber-500/50 transition-all"
+              @keyup.enter="applyFilters"
+            />
             <button
-              v-if="hasFilters"
-              class="sm:hidden text-xs text-gray-500 hover:text-gray-300 transition-colors"
-              @click="clearFilters"
+              class="px-4 py-2 text-sm font-medium text-white bg-amber-600 hover:bg-amber-500 rounded-lg transition-colors shrink-0"
+              @click="applyFilters"
             >
-              清除
+              搜尋
             </button>
           </div>
-          <div class="flex items-center gap-1">
+
+          <!-- Chips -->
+          <div class="flex items-center gap-2">
+            <button
+              v-for="rec in ['BUY', 'HOLD', 'SELL'] as const"
+              :key="rec"
+              class="px-3 py-1.5 text-xs font-medium rounded-full border transition-all"
+              :class="
+                filterRecommendation === rec
+                  ? rec === 'BUY'
+                    ? 'bg-green-500/30 text-green-400 border-green-500/50'
+                    : rec === 'HOLD'
+                      ? 'bg-yellow-500/30 text-yellow-400 border-yellow-500/50'
+                      : 'bg-red-500/30 text-red-400 border-red-500/50'
+                  : 'bg-gray-800/40 text-gray-500 border-gray-700/60 hover:text-gray-300'
+              "
+              @click="toggleRecommendation(rec)"
+            >
+              {{ rec === 'BUY' ? '買入' : rec === 'HOLD' ? '持有' : '賣出' }}
+            </button>
+          </div>
+
+          <!-- Date range -->
+          <div class="flex items-center gap-2">
             <input
               v-model="filterDateStart"
               type="date"
-              class="flex-1 sm:w-auto px-1.5 sm:px-2 py-1.5 text-xs sm:text-sm bg-gray-800/40 border border-gray-700/60 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-amber-500/50 focus:border-amber-500/50 [color-scheme:dark] transition-all"
+              class="flex-1 px-2 py-2 text-sm bg-gray-800/40 border border-gray-700/60 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-amber-500/50 focus:border-amber-500/50 [color-scheme:dark] transition-all"
               @change="applyFilters"
             />
-            <span class="text-gray-600 shrink-0 text-xs sm:text-sm">~</span>
+            <span class="text-gray-600 shrink-0 text-sm">~</span>
             <input
               v-model="filterDateEnd"
               type="date"
-              class="flex-1 sm:w-auto px-1.5 sm:px-2 py-1.5 text-xs sm:text-sm bg-gray-800/40 border border-gray-700/60 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-amber-500/50 focus:border-amber-500/50 [color-scheme:dark] transition-all"
+              class="flex-1 px-2 py-2 text-sm bg-gray-800/40 border border-gray-700/60 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-amber-500/50 focus:border-amber-500/50 [color-scheme:dark] transition-all"
               @change="applyFilters"
             />
           </div>
+
           <button
             v-if="hasFilters"
-            class="hidden sm:inline text-xs text-gray-500 hover:text-gray-300 transition-colors"
+            class="text-xs text-gray-500 hover:text-gray-300 transition-colors"
             @click="clearFilters"
           >
             清除篩選
           </button>
         </div>
       </div>
+
+      <!-- Desktop: always expanded -->
+      <div class="hidden sm:block">
+        <div class="flex flex-col gap-2">
+          <div class="flex gap-2">
+            <input
+              v-model="searchText"
+              type="text"
+              placeholder="搜尋"
+              class="flex-1 min-w-0 px-3 py-2 text-sm bg-gray-800/40 border border-gray-700/60 rounded-lg text-white placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-amber-500/50 focus:border-amber-500/50 transition-all"
+              @keyup.enter="applyFilters"
+            />
+            <button
+              class="px-4 py-2 text-sm font-medium text-white bg-amber-600 hover:bg-amber-500 rounded-lg transition-colors shrink-0"
+              @click="applyFilters"
+            >
+              搜尋
+            </button>
+          </div>
+          <div class="flex items-center gap-3">
+            <!-- Desktop Chips -->
+            <div class="flex items-center gap-1.5">
+              <button
+                v-for="rec in ['BUY', 'HOLD', 'SELL'] as const"
+                :key="rec"
+                class="px-3 py-1.5 text-xs font-medium rounded-full border transition-all"
+                :class="
+                  filterRecommendation === rec
+                    ? rec === 'BUY'
+                      ? 'bg-green-500/30 text-green-400 border-green-500/50'
+                      : rec === 'HOLD'
+                        ? 'bg-yellow-500/30 text-yellow-400 border-yellow-500/50'
+                        : 'bg-red-500/30 text-red-400 border-red-500/50'
+                    : 'bg-gray-800/40 text-gray-500 border-gray-700/60 hover:text-gray-300'
+                "
+                @click="toggleRecommendation(rec)"
+              >
+                {{ rec === 'BUY' ? '買入' : rec === 'HOLD' ? '持有' : '賣出' }}
+              </button>
+            </div>
+            <div class="flex items-center gap-1">
+              <input
+                v-model="filterDateStart"
+                type="date"
+                class="w-auto px-2 py-1.5 text-sm bg-gray-800/40 border border-gray-700/60 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-amber-500/50 focus:border-amber-500/50 [color-scheme:dark] transition-all"
+                @change="applyFilters"
+              />
+              <span class="text-gray-600 shrink-0 text-sm">~</span>
+              <input
+                v-model="filterDateEnd"
+                type="date"
+                class="w-auto px-2 py-1.5 text-sm bg-gray-800/40 border border-gray-700/60 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-amber-500/50 focus:border-amber-500/50 [color-scheme:dark] transition-all"
+                @change="applyFilters"
+              />
+            </div>
+            <button
+              v-if="hasFilters"
+              class="text-xs text-gray-500 hover:text-gray-300 transition-colors"
+              @click="clearFilters"
+            >
+              清除篩選
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
 
-    <!-- Records List -->
-    <div v-if="loading" class="card !py-12">
-      <div class="text-center text-gray-500">載入中...</div>
+    <!-- Loading skeleton -->
+    <div
+      v-if="loading"
+      class="space-y-4 sm:space-y-0 sm:divide-y sm:divide-gray-800/60 sm:overflow-hidden sm:card sm:!p-0"
+    >
+      <div
+        v-for="n in 5"
+        :key="n"
+        class="card sm:!rounded-none sm:!border-0 sm:!shadow-none !py-3 !px-3 sm:!py-4 sm:!px-6"
+      >
+        <!-- Mobile card skeleton -->
+        <div class="sm:hidden space-y-2">
+          <div class="flex items-center gap-2">
+            <div class="w-12 h-3 bg-white/5 rounded animate-pulse" />
+            <div class="w-7 h-7 bg-white/5 rounded-full animate-pulse" />
+            <div class="w-10 h-5 bg-white/5 rounded-full animate-pulse" />
+            <div class="ml-auto w-8 h-3 bg-white/5 rounded animate-pulse" />
+          </div>
+          <div class="flex items-center gap-1 pl-[52px]">
+            <div v-for="e in 5" :key="e" class="w-5 h-1 bg-white/5 rounded-full animate-pulse" />
+          </div>
+        </div>
+        <!-- Desktop list skeleton -->
+        <div class="hidden sm:flex items-center gap-4">
+          <div class="w-20 h-4 bg-white/5 rounded animate-pulse" />
+          <div class="w-9 h-9 bg-white/5 rounded-full animate-pulse" />
+          <div class="w-12 h-5 bg-white/5 rounded-full animate-pulse" />
+          <div class="flex items-center gap-1 ml-auto">
+            <div
+              v-for="e in 5"
+              :key="e"
+              class="w-1.5 bg-white/5 rounded-full animate-pulse"
+              :style="{ height: `${Math.max(4, 30 * 0.22)}px` }"
+            />
+          </div>
+          <div class="w-10 h-3 bg-white/5 rounded animate-pulse" />
+        </div>
+      </div>
     </div>
+
+    <!-- Empty state -->
     <div v-else-if="records.length === 0" class="card !py-12">
       <div class="text-center text-gray-500">
         {{ hasFilters ? '沒有符合條件的記錄' : '尚無歷史記錄' }}
       </div>
     </div>
-    <div v-else class="card !p-0 divide-y divide-gray-800/60 overflow-hidden">
+
+    <!-- Records List -->
+    <div v-else class="sm:card sm:!p-0 sm:divide-y sm:divide-gray-800/60 sm:overflow-hidden">
       <div
         v-for="record in records"
         :key="record.id"
-        class="px-3 sm:px-6 py-2.5 sm:py-4 hover:bg-white/[0.02] transition-colors cursor-default"
+        class="card !rounded-xl sm:!rounded-none sm:!border-0 sm:!shadow-none sm:!p-0 hover:bg-white/[0.02] transition-colors cursor-default"
       >
-        <div class="flex items-center gap-2 sm:gap-4 flex-wrap sm:flex-nowrap">
-          <div
-            class="text-[11px] sm:text-sm font-medium text-white/70 shrink-0 min-w-12 sm:min-w-0 leading-tight"
-          >
-            <span class="sm:hidden">{{ formatDate(record.date, true) }}</span>
-            <span class="hidden sm:inline">{{ formatDate(record.date) }}</span>
+        <!-- Mobile: card layout -->
+        <div class="sm:hidden">
+          <div class="flex items-center gap-2 mb-1.5">
+            <span class="text-[11px] font-medium text-white/70 leading-tight">
+              {{ formatDate(record.date, true) }}
+            </span>
+            <div
+              class="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold text-white shrink-0"
+              :class="getScoreColor(record.investmentScore)"
+            >
+              {{ record.investmentScore }}
+            </div>
+            <span
+              class="px-1.5 py-0.5 text-[10px] font-medium rounded-full shrink-0 leading-tight"
+              :class="displayRecommendation(record.recommendation).class"
+            >
+              {{ displayRecommendation(record.recommendation).text }}
+            </span>
+            <span class="text-[10px] text-gray-600 ml-auto leading-tight">
+              {{ formatTime(record.timestamp) }}
+            </span>
           </div>
+          <div class="flex items-center gap-1.5 pl-1">
+            <div v-for="(value, key) in record.elements" :key="key" class="flex items-end gap-0.5">
+              <div
+                class="w-5 h-1 rounded-full"
+                :style="{
+                  height: `${Math.max(4, value * 0.22)}px`,
+                  backgroundColor: elementColors[key],
+                }"
+              />
+              <span class="text-[8px] text-gray-600 leading-none">{{ elementLabels[key] }}</span>
+            </div>
+          </div>
+          <p
+            v-if="record.lunarSummary"
+            class="mt-1.5 text-[10px] text-gray-400/70 line-clamp-1 leading-relaxed"
+          >
+            {{ record.lunarSummary }}
+          </p>
+        </div>
+
+        <!-- Desktop: list layout -->
+        <div class="hidden sm:flex items-center gap-4 py-3 px-6">
+          <span class="text-sm font-medium text-white/70 min-w-20 leading-tight">
+            {{ formatDate(record.date) }}
+          </span>
           <div
-            class="w-7 h-7 sm:w-9 sm:h-9 rounded-full flex items-center justify-center text-[10px] sm:text-xs font-bold text-white shrink-0"
-            :class="
-              record.investmentScore >= 70
-                ? 'bg-emerald-500'
-                : record.investmentScore >= 40
-                  ? 'bg-amber-500'
-                  : 'bg-rose-500'
-            "
+            class="w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold text-white shrink-0"
+            :class="getScoreColor(record.investmentScore)"
           >
             {{ record.investmentScore }}
           </div>
           <span
-            class="px-1.5 py-0.5 text-[10px] sm:text-xs font-medium rounded-full shrink-0 leading-tight"
+            class="px-2 py-0.5 text-xs font-medium rounded-full shrink-0 leading-tight"
             :class="displayRecommendation(record.recommendation).class"
           >
             {{ displayRecommendation(record.recommendation).text }}
           </span>
-          <div class="hidden sm:flex items-center gap-1 ml-auto">
+          <div class="flex items-center gap-1 ml-auto">
             <div
               v-for="(value, key) in record.elements"
               :key="key"
               class="w-1.5 rounded-full"
               :style="{
                 height: `${Math.max(4, value * 0.22)}px`,
-                backgroundColor:
-                  key === 'metal'
-                    ? '#9CA3AF'
-                    : key === 'wood'
-                      ? '#22C55E'
-                      : key === 'water'
-                        ? '#3B82F6'
-                        : key === 'fire'
-                          ? '#EF4444'
-                          : '#A16207',
+                backgroundColor: elementColors[key],
               }"
             />
           </div>
-          <span class="text-[10px] sm:text-xs text-gray-600 ml-auto leading-tight">
+          <span class="text-xs text-gray-600 leading-tight">
             {{ formatTime(record.timestamp) }}
           </span>
+          <p
+            v-if="record.lunarSummary"
+            class="absolute -bottom-0.5 left-[160px] text-xs text-gray-400/70 line-clamp-1 leading-relaxed"
+          >
+            {{ record.lunarSummary }}
+          </p>
         </div>
-        <p
-          v-if="record.lunarSummary"
-          class="mt-0.5 sm:mt-1 text-[10px] sm:text-xs text-gray-400/70 line-clamp-1 ml-12 sm:ml-0 leading-relaxed"
-        >
-          {{ record.lunarSummary }}
-        </p>
       </div>
     </div>
 
@@ -331,5 +579,46 @@ onMounted(async () => {
         下一頁 →
       </button>
     </div>
+
+    <!-- Clear confirmation dialog -->
+    <Teleport to="body">
+      <Transition name="fade">
+        <div
+          v-if="showClearConfirm"
+          class="fixed inset-0 z-50 flex items-center justify-center p-4"
+        >
+          <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" @click="closeClearConfirm" />
+          <div class="card relative w-full max-w-sm !py-6 !px-6 z-10">
+            <h3 class="text-base font-semibold text-white mb-2">確認清除</h3>
+            <p class="text-sm text-gray-400 mb-5">確定要清除所有運勢歷史記錄嗎？此操作無法復原。</p>
+            <div class="flex justify-end gap-2">
+              <button
+                class="px-4 py-2 text-sm text-gray-400 hover:text-white bg-gray-800/40 hover:bg-gray-800/60 rounded-lg transition-colors"
+                @click="closeClearConfirm"
+              >
+                取消
+              </button>
+              <button
+                class="px-4 py-2 text-sm font-medium text-white bg-rose-600 hover:bg-rose-500 rounded-lg transition-colors"
+                @click="confirmClearAll"
+              >
+                確認清除
+              </button>
+            </div>
+          </div>
+        </div>
+      </Transition>
+    </Teleport>
   </div>
 </template>
+
+<style scoped>
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.2s ease;
+}
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+}
+</style>

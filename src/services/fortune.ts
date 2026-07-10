@@ -1,6 +1,7 @@
 // @ts-expect-error - lunar-javascript doesn't have TypeScript definitions
 import { Solar } from 'lunar-javascript'
 import { perfMonitor } from '@/utils/performance'
+import { toLocalDateString } from '@/utils/date'
 
 import { fortuneHistoryStore } from '@/services/fortuneStore'
 import type {
@@ -122,7 +123,7 @@ export class FortuneService {
    * 獲取緩存鍵
    */
   private static getCacheKey(profile: UserProfile, date: Date): string {
-    const dateStr = date.toISOString().split('T')[0]
+    const dateStr = toLocalDateString(date)
     return `${profile.name}_${profile.birthDate}_${profile.birthTime}_${dateStr}`
   }
 
@@ -130,7 +131,7 @@ export class FortuneService {
    * 創建基於日期和用戶資料的種子 - 優化哈希算法
    */
   private static createSeed(date: Date, profile: UserProfile): number {
-    const dateStr = date.toISOString().split('T')[0].replace(/-/g, '')
+    const dateStr = toLocalDateString(date).replace(/-/g, '')
     const profileStr = `${profile.name}${profile.birthDate.replace(/-/g, '')}${profile.birthTime.replace(':', '')}`
 
     // 使用 FNV-1a 哈希算法，比簡單的 string hashing 更好
@@ -185,7 +186,7 @@ export class FortuneService {
       const recommendation = this.generateRecommendation(investmentScore, overallScore)
 
       const fortuneData: FortuneData = {
-        date: date.toISOString().split('T')[0],
+        date: toLocalDateString(date),
         overallScore: Math.round(overallScore),
         investmentScore: Math.round(investmentScore),
         recommendation,
