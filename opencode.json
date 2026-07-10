@@ -12,15 +12,9 @@
       }
     }
   },
-  "instructions": ["AGENTS.md", "ARCHITECTURE.md"],
+  "instructions": ["AGENT.md", "ARCHITECTURE.md"],
   "formatter": {
     "prettier": {}
   },
-  "plugin": ["opencode-morph-fast-apply", "opencode-vibeguard", "opencode-dynamic-context-pruning"],
-  "mcp": {
-    "context7": {
-      "type": "remote",
-      "url": "https://mcp.context7.com/mcp"
-    }
-  }
+  "plugin": ["opencode-morph-fast-apply", "opencode-dynamic-context-pruning"]
 }
