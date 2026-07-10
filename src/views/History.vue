@@ -10,9 +10,7 @@ import FortuneLogViewer from '@/components/FortuneLogViewer.vue'
         <h1 class="text-xl sm:text-2xl lg:text-3xl font-bold text-white mb-1 sm:mb-2">
           運勢歷史記錄
         </h1>
-        <p class="text-xs sm:text-sm lg:text-base text-gray-400">
-          瀏覽所有已計算的運勢結果
-        </p>
+        <p class="text-xs sm:text-sm lg:text-base text-gray-400">瀏覽所有已計算的運勢結果</p>
       </div>
 
       <!-- 運勢歷史列表 -->

@@ -4,11 +4,56 @@ import { useAnalyticsStore } from '@/stores/analytics'
 import type { ETFData } from '@/types'
 
 const mockETFData: ETFData[] = [
-  { date: '2025-06-01', open: 130, high: 132, low: 129, close: 131, volume: 1000000, change: 1, changePercent: 0.77 },
-  { date: '2025-06-02', open: 131, high: 133, low: 130, close: 132, volume: 1100000, change: 1, changePercent: 0.76 },
-  { date: '2025-06-03', open: 132, high: 134, low: 131, close: 133, volume: 900000, change: 1, changePercent: 0.76 },
-  { date: '2025-06-04', open: 133, high: 135, low: 132, close: 134, volume: 1200000, change: 1, changePercent: 0.75 },
-  { date: '2025-06-05', open: 134, high: 136, low: 133, close: 135, volume: 1300000, change: 1, changePercent: 0.75 },
+  {
+    date: '2025-06-01',
+    open: 130,
+    high: 132,
+    low: 129,
+    close: 131,
+    volume: 1000000,
+    change: 1,
+    changePercent: 0.77,
+  },
+  {
+    date: '2025-06-02',
+    open: 131,
+    high: 133,
+    low: 130,
+    close: 132,
+    volume: 1100000,
+    change: 1,
+    changePercent: 0.76,
+  },
+  {
+    date: '2025-06-03',
+    open: 132,
+    high: 134,
+    low: 131,
+    close: 133,
+    volume: 900000,
+    change: 1,
+    changePercent: 0.76,
+  },
+  {
+    date: '2025-06-04',
+    open: 133,
+    high: 135,
+    low: 132,
+    close: 134,
+    volume: 1200000,
+    change: 1,
+    changePercent: 0.75,
+  },
+  {
+    date: '2025-06-05',
+    open: 134,
+    high: 136,
+    low: 133,
+    close: 135,
+    volume: 1300000,
+    change: 1,
+    changePercent: 0.75,
+  },
 ]
 
 describe('useAnalyticsStore', () => {
@@ -41,8 +86,26 @@ describe('useAnalyticsStore', () => {
 
     it('2025/6/18 前的資料進行 1拆4 調整', () => {
       const data: ETFData[] = [
-        { date: '2025-06-17', open: 400, high: 410, low: 395, close: 405, volume: 1000000, change: 5, changePercent: 1.25 },
-        { date: '2025-06-19', open: 105, high: 108, low: 103, close: 107, volume: 3000000, change: 2, changePercent: 1.90 },
+        {
+          date: '2025-06-17',
+          open: 400,
+          high: 410,
+          low: 395,
+          close: 405,
+          volume: 1000000,
+          change: 5,
+          changePercent: 1.25,
+        },
+        {
+          date: '2025-06-19',
+          open: 105,
+          high: 108,
+          low: 103,
+          close: 107,
+          volume: 3000000,
+          change: 2,
+          changePercent: 1.9,
+        },
       ]
       const adjusted = store.getAdjustedEtfData(data)
       expect(adjusted[0].close).toBe(405 / 4)
@@ -53,8 +116,26 @@ describe('useAnalyticsStore', () => {
 
     it('排序後再回傳', () => {
       const data: ETFData[] = [
-        { date: '2025-06-03', open: 133, high: 134, low: 131, close: 133, volume: 900000, change: 0, changePercent: 0 },
-        { date: '2025-06-01', open: 130, high: 132, low: 129, close: 131, volume: 1000000, change: 0, changePercent: 0 },
+        {
+          date: '2025-06-03',
+          open: 133,
+          high: 134,
+          low: 131,
+          close: 133,
+          volume: 900000,
+          change: 0,
+          changePercent: 0,
+        },
+        {
+          date: '2025-06-01',
+          open: 130,
+          high: 132,
+          low: 129,
+          close: 131,
+          volume: 1000000,
+          change: 0,
+          changePercent: 0,
+        },
       ]
       const adjusted = store.getAdjustedEtfData(data)
       expect(adjusted[0].date).toBe('2025-06-01')

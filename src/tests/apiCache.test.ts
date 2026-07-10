@@ -186,8 +186,9 @@ describe('ApiCacheService', () => {
 describe('CacheKeyGenerator', () => {
   it('stock 產生正確格式', () => {
     expect(CacheKeyGenerator.stock('2330')).toBe('stock_2330')
-    expect(CacheKeyGenerator.stock('2330', '2024-01-01', '2024-01-31'))
-      .toBe('stock_2330_2024-01-01_2024-01-31')
+    expect(CacheKeyGenerator.stock('2330', '2024-01-01', '2024-01-31')).toBe(
+      'stock_2330_2024-01-01_2024-01-31'
+    )
   })
 
   it('lunar 產生正確格式', () => {

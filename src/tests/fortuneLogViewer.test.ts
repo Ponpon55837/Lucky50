@@ -5,29 +5,46 @@ import { mount } from '@vue/test-utils'
 vi.mock('@/services/fortuneStore', () => {
   const mockRecords = [
     {
-      id: 1, date: '2024-01-15', timestamp: 1705276800000,
-      overallScore: 75, investmentScore: 80, recommendation: 'BUY',
+      id: 1,
+      date: '2024-01-15',
+      timestamp: 1705276800000,
+      overallScore: 75,
+      investmentScore: 80,
+      recommendation: 'BUY',
       elements: { metal: 50, wood: 60, water: 40, fire: 55, earth: 45 },
-      lunarSummary: '今日財運亨通', userProfileHash: 'h1',
+      lunarSummary: '今日財運亨通',
+      userProfileHash: 'h1',
     },
     {
-      id: 2, date: '2024-01-16', timestamp: 1705363200000,
-      overallScore: 55, investmentScore: 45, recommendation: 'HOLD',
+      id: 2,
+      date: '2024-01-16',
+      timestamp: 1705363200000,
+      overallScore: 55,
+      investmentScore: 45,
+      recommendation: 'HOLD',
       elements: { metal: 55, wood: 45, water: 50, fire: 50, earth: 50 },
-      lunarSummary: '今日宜觀望', userProfileHash: 'h1',
+      lunarSummary: '今日宜觀望',
+      userProfileHash: 'h1',
     },
     {
-      id: 3, date: '2024-01-17', timestamp: 1705449600000,
-      overallScore: 30, investmentScore: 25, recommendation: 'SELL',
+      id: 3,
+      date: '2024-01-17',
+      timestamp: 1705449600000,
+      overallScore: 30,
+      investmentScore: 25,
+      recommendation: 'SELL',
       elements: { metal: 40, wood: 70, water: 30, fire: 60, earth: 50 },
-      lunarSummary: '今日運勢不佳', userProfileHash: 'h1',
+      lunarSummary: '今日運勢不佳',
+      userProfileHash: 'h1',
     },
   ]
 
   return {
     fortuneHistoryStore: {
       init: vi.fn().mockResolvedValue(undefined),
-      query: vi.fn().mockResolvedValue({ records: mockRecords, total: 3, pageIndex: 0, pageSize: 10 }),
+      query: vi
+        .fn()
+        .mockResolvedValue({ records: mockRecords, total: 3, pageIndex: 0, pageSize: 10 }),
       getStats: vi.fn().mockResolvedValue({
         totalRecords: 3,
         dateRange: { earliest: '2024-01-15', latest: '2024-01-17' },

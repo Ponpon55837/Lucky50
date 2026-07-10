@@ -18,18 +18,18 @@ export const useToast = () => {
     const newToast: ToastItem = {
       id,
       duration: 3000, // 改為 3 秒自動關閉
-      ...toast
+      ...toast,
     }
-    
+
     toasts.value.push(newToast)
-    
+
     // 自動移除 toast
     if (newToast.duration && newToast.duration > 0) {
       setTimeout(() => {
         removeToast(id)
       }, newToast.duration)
     }
-    
+
     return id
   }
 
@@ -68,6 +68,6 @@ export const useToast = () => {
     error,
     warning,
     info,
-    clear
+    clear,
   }
 }

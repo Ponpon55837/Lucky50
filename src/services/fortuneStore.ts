@@ -7,7 +7,12 @@
  * - IndexedDB：持久化儲存
  */
 
-import type { FortuneRecord, HistoryQueryOptions, HistoryQueryResult, HistoryStats } from '@/types/history'
+import type {
+  FortuneRecord,
+  HistoryQueryOptions,
+  HistoryQueryResult,
+  HistoryStats,
+} from '@/types/history'
 
 const DB_NAME = 'lucky50_fortune_history'
 const DB_VERSION = 1
@@ -22,7 +27,7 @@ const openDB = (): Promise<IDBDatabase> => {
   return new Promise((resolve, reject) => {
     const request = indexedDB.open(DB_NAME, DB_VERSION)
 
-    request.onupgradeneeded = (event) => {
+    request.onupgradeneeded = event => {
       const db = (event.target as IDBOpenDBRequest).result
 
       if (!db.objectStoreNames.contains(STORE_NAME)) {
@@ -60,7 +65,7 @@ export class FortuneHistoryStore {
     this.db = await openDB()
 
     // 從 metadata 載入 totalCount
-    this.totalCount = (await this.getMetadata('totalCount') as number) ?? 0
+    this.totalCount = ((await this.getMetadata('totalCount')) as number) ?? 0
 
     // 從 IndexedDB 載入最近的記錄到記憶體快取
     const recentRecords = await this.getRecentFromIDB(MAX_MEMORY_CACHE)
@@ -137,16 +142,17 @@ export class FortuneHistoryStore {
 
     // 篩選：日期範圍
     if (options.dateRange) {
-      records = records.filter(r =>
-        r.date >= options.dateRange!.start && r.date <= options.dateRange!.end
+      records = records.filter(
+        r => r.date >= options.dateRange!.start && r.date <= options.dateRange!.end
       )
     }
 
     // 篩選：分數範圍
     if (options.scoreRange) {
-      records = records.filter(r =>
-        r.investmentScore >= options.scoreRange!.min &&
-        r.investmentScore <= options.scoreRange!.max
+      records = records.filter(
+        r =>
+          r.investmentScore >= options.scoreRange!.min &&
+          r.investmentScore <= options.scoreRange!.max
       )
     }
 
@@ -159,18 +165,24 @@ export class FortuneHistoryStore {
     if (options.keyword) {
       const kw = options.keyword.toLowerCase()
       const recMap: Record<string, string[]> = {
-        '買': ['BUY'], '買入': ['BUY'], 'buy': ['BUY'],
-        '賣': ['SELL'], '賣出': ['SELL'], 'sell': ['SELL'],
-        '持有': ['HOLD'], 'hold': ['HOLD'],
+        買: ['BUY'],
+        買入: ['BUY'],
+        buy: ['BUY'],
+        賣: ['SELL'],
+        賣出: ['SELL'],
+        sell: ['SELL'],
+        持有: ['HOLD'],
+        hold: ['HOLD'],
       }
       const matchedRecs = recMap[kw] ?? recMap[kw.replace(/\s/g, '')]
 
-      records = records.filter(r =>
-        r.date.includes(kw) ||
-        (r.lunarSummary && r.lunarSummary.toLowerCase().includes(kw)) ||
-        r.investmentScore.toString().includes(kw) ||
-        r.overallScore.toString().includes(kw) ||
-        (matchedRecs && matchedRecs.includes(r.recommendation))
+      records = records.filter(
+        r =>
+          r.date.includes(kw) ||
+          (r.lunarSummary && r.lunarSummary.toLowerCase().includes(kw)) ||
+          r.investmentScore.toString().includes(kw) ||
+          r.overallScore.toString().includes(kw) ||
+          (matchedRecs && matchedRecs.includes(r.recommendation))
       )
     }
 

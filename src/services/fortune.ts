@@ -503,17 +503,19 @@ export class FortuneService {
    */
   private static recordFortuneHistory(profile: UserProfile, fortune: FortuneData): void {
     const profileHash = this.createSeed(new Date(), profile).toString(36)
-    fortuneHistoryStore.append({
-      id: Date.now(),
-      date: fortune.date,
-      timestamp: Date.now(),
-      overallScore: fortune.overallScore,
-      investmentScore: fortune.investmentScore,
-      recommendation: fortune.recommendation,
-      elements: fortune.elements,
-      lunarSummary: fortune.advice,
-      userProfileHash: profileHash,
-    }).catch(() => {})
+    fortuneHistoryStore
+      .append({
+        id: Date.now(),
+        date: fortune.date,
+        timestamp: Date.now(),
+        overallScore: fortune.overallScore,
+        investmentScore: fortune.investmentScore,
+        recommendation: fortune.recommendation,
+        elements: fortune.elements,
+        lunarSummary: fortune.advice,
+        userProfileHash: profileHash,
+      })
+      .catch(() => {})
   }
 
   /**

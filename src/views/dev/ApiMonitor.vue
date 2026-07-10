@@ -9,6 +9,13 @@ interface ApiCall {
   timestamp: string
 }
 
+// 掛在 window 上的監控相關欄位（與 apiCache.ts / finmind.ts 共用同一份協議）
+interface ApiMonitorWindow {
+  __apiMonitor?: {
+    record: (url: string, method: string, status: number, duration: number) => void
+  }
+}
+
 const calls = ref<ApiCall[]>([])
 
 // 掛載到 window 讓應用程式可以記錄 API 呼叫
@@ -25,7 +32,7 @@ const apiRecord = {
 }
 
 if (typeof window !== 'undefined') {
-  ;(window as any).__apiMonitor = apiRecord
+  ;(window as unknown as ApiMonitorWindow).__apiMonitor = apiRecord
 }
 
 function clearCalls() {
@@ -39,7 +46,13 @@ function clearCalls() {
       <div class="mb-6">
         <h1 class="text-2xl font-bold text-white">API 監控</h1>
         <p class="text-gray-400 text-sm mt-1">開發者工具 — 監控所有 API 請求狀態與耗時</p>
-        <p class="text-gray-500 text-xs mt-1">在應用程式中呼叫 <code class="text-gold-400 bg-gray-800 px-1 rounded">window.__apiMonitor.record(endpoint, method, status, duration)</code> 即可記錄</p>
+        <p class="text-gray-500 text-xs mt-1">
+          在應用程式中呼叫
+          <code class="text-gold-400 bg-gray-800 px-1 rounded"
+            >window.__apiMonitor.record(endpoint, method, status, duration)</code
+          >
+          即可記錄
+        </p>
       </div>
 
       <div class="flex gap-3 mb-6">
@@ -51,9 +64,7 @@ function clearCalls() {
         </button>
       </div>
 
-      <div v-if="calls.length === 0" class="text-center py-12 text-gray-500">
-        尚無 API 呼叫紀錄
-      </div>
+      <div v-if="calls.length === 0" class="text-center py-12 text-gray-500">尚無 API 呼叫紀錄</div>
 
       <div v-else class="space-y-2">
         <div
@@ -79,7 +90,13 @@ function clearCalls() {
             <span class="text-gray-500 text-xs">{{ call.timestamp }}</span>
             <span
               class="font-mono font-medium text-sm"
-              :class="call.duration > 2000 ? 'text-red-400' : call.duration > 800 ? 'text-yellow-400' : 'text-green-400'"
+              :class="
+                call.duration > 2000
+                  ? 'text-red-400'
+                  : call.duration > 800
+                    ? 'text-yellow-400'
+                    : 'text-green-400'
+              "
             >
               {{ call.duration }}ms
             </span>

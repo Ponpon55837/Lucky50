@@ -53,8 +53,26 @@ vi.mock('@/services/finmind', () => ({
     checkAPIStatus: vi.fn(() => Promise.resolve(true)),
     getETFData: vi.fn(() =>
       Promise.resolve([
-        { date: '2024-01-15', open: 132, high: 134, low: 131, close: 133.5, volume: 25000000, change: 1.5, changePercent: 1.13 },
-        { date: '2024-01-16', open: 133.5, high: 135, low: 132.8, close: 134.2, volume: 28000000, change: 0.7, changePercent: 0.52 },
+        {
+          date: '2024-01-15',
+          open: 132,
+          high: 134,
+          low: 131,
+          close: 133.5,
+          volume: 25000000,
+          change: 1.5,
+          changePercent: 1.13,
+        },
+        {
+          date: '2024-01-16',
+          open: 133.5,
+          high: 135,
+          low: 132.8,
+          close: 134.2,
+          volume: 28000000,
+          change: 0.7,
+          changePercent: 0.52,
+        },
       ])
     ),
   },
@@ -124,14 +142,32 @@ describe('useDashboardStore', () => {
   })
 
   describe('loadIntegratedFortune', () => {
-    const userProfile = { name: '用戶', birthDate: '1990-01-01', birthTime: '10:30', zodiac: '鼠', element: '金', luckyColors: [], luckyNumbers: [] }
+    const userProfile = {
+      name: '用戶',
+      birthDate: '1990-01-01',
+      birthTime: '10:30',
+      zodiac: '鼠',
+      element: '金',
+      luckyColors: [],
+      luckyNumbers: [],
+    }
 
     it('缺少 userProfile 拋出錯誤', async () => {
       await expect(store.loadIntegratedFortune(null)).rejects.toThrow('使用者資料不存在')
     })
 
     it('缺少姓名拋出錯誤', async () => {
-      await expect(store.loadIntegratedFortune({ name: '', birthDate: '1990-01-01', birthTime: '10:30', zodiac: '鼠', element: '金', luckyColors: [], luckyNumbers: [] })).rejects.toThrow('用戶資料不完整')
+      await expect(
+        store.loadIntegratedFortune({
+          name: '',
+          birthDate: '1990-01-01',
+          birthTime: '10:30',
+          zodiac: '鼠',
+          element: '金',
+          luckyColors: [],
+          luckyNumbers: [],
+        })
+      ).rejects.toThrow('用戶資料不完整')
     })
 
     it('成功載入整合運勢', async () => {
@@ -158,7 +194,15 @@ describe('useDashboardStore', () => {
 
   describe('loadAllData', () => {
     it('並行載入所有資料', async () => {
-      const userProfile = { name: '用戶', birthDate: '1990-01-01', birthTime: '10:30', zodiac: '鼠', element: '金', luckyColors: [], luckyNumbers: [] }
+      const userProfile = {
+        name: '用戶',
+        birthDate: '1990-01-01',
+        birthTime: '10:30',
+        zodiac: '鼠',
+        element: '金',
+        luckyColors: [],
+        luckyNumbers: [],
+      }
       await store.loadAllData(userProfile, new Date('2024-01-15'))
       expect(store.lunarData).not.toBeNull()
       expect(store.integratedFortune).not.toBeNull()
@@ -185,7 +229,18 @@ describe('useDashboardStore', () => {
 
   describe('setETFData', () => {
     it('直接設定 ETF 資料', () => {
-      store.setETFData([{ date: '2024-01-15', open: 132, high: 134, low: 131, close: 133, volume: 1000, change: 0, changePercent: 0 }])
+      store.setETFData([
+        {
+          date: '2024-01-15',
+          open: 132,
+          high: 134,
+          low: 131,
+          close: 133,
+          volume: 1000,
+          change: 0,
+          changePercent: 0,
+        },
+      ])
       expect(store.etfData).toHaveLength(1)
     })
   })

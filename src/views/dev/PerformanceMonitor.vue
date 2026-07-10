@@ -7,6 +7,14 @@ interface PerfEntry {
   timestamp: string
 }
 
+// 掛在 window 上的效能監控相關欄位
+interface PerfMonitorWindow {
+  __perfMonitor?: {
+    start: (label: string) => void
+    end: (label: string) => void
+  }
+}
+
 const entries = ref<PerfEntry[]>([])
 const isRecording = ref(false)
 const logs: { label: string; start: number }[] = []
@@ -56,7 +64,7 @@ onUnmounted(() => {
 
 // 掛載到 window
 if (typeof window !== 'undefined') {
-  ;(window as any).__perfMonitor = { start, end }
+  ;(window as unknown as PerfMonitorWindow).__perfMonitor = { start, end }
 }
 </script>
 
@@ -71,7 +79,11 @@ if (typeof window !== 'undefined') {
       <div class="flex gap-3 mb-6">
         <button
           class="px-4 py-2 rounded-lg font-medium transition-colors"
-          :class="isRecording ? 'bg-red-600 hover:bg-red-700 text-white' : 'bg-green-600 hover:bg-green-700 text-white'"
+          :class="
+            isRecording
+              ? 'bg-red-600 hover:bg-red-700 text-white'
+              : 'bg-green-600 hover:bg-green-700 text-white'
+          "
           @click="toggleRecording"
         >
           {{ isRecording ? '停止錄製' : '開始錄製' }}
@@ -100,7 +112,13 @@ if (typeof window !== 'undefined') {
           </div>
           <span
             class="font-mono font-medium"
-            :class="entry.duration > 3 ? 'text-red-400' : entry.duration > 1 ? 'text-yellow-400' : 'text-green-400'"
+            :class="
+              entry.duration > 3
+                ? 'text-red-400'
+                : entry.duration > 1
+                  ? 'text-yellow-400'
+                  : 'text-green-400'
+            "
           >
             {{ entry.duration }}ms
           </span>

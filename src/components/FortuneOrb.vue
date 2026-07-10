@@ -84,14 +84,9 @@ onMounted(() => {
 })
 </script>
 
-
 <template>
   <div class="fortune-orb-container">
-    <div
-      class="fortune-orb"
-      :class="{ floating: isFloating }"
-      @click="toggleFloat"
-    >
+    <div class="fortune-orb" :class="{ floating: isFloating }" @click="toggleFloat">
       <div class="orb-inner">
         <div class="orb-glow" />
         <div class="orb-surface">
@@ -108,19 +103,12 @@ onMounted(() => {
     </div>
 
     <div class="orb-controls">
-      <button
-        class="fortune-btn"
-        :disabled="isGenerating"
-        @click="generateFortune"
-      >
+      <button class="fortune-btn" :disabled="isGenerating" @click="generateFortune">
         {{ isGenerating ? '運算中...' : '求運勢' }}
       </button>
     </div>
 
-    <div
-      v-if="currentFortune.description"
-      class="fortune-description"
-    >
+    <div v-if="currentFortune.description" class="fortune-description">
       <h3>運勢解析</h3>
       <p>{{ currentFortune.description }}</p>
       <div class="fortune-stats">
@@ -136,7 +124,6 @@ onMounted(() => {
     </div>
   </div>
 </template>
-
 
 <style scoped>
 .fortune-orb-container {

@@ -19,7 +19,9 @@ function createMockIndexedDB() {
     }
     // 使用 Object.defineProperty 以在設定 onsuccess 時立即觸發
     Object.defineProperty(req, 'onsuccess', {
-      get() { return _onsuccess },
+      get() {
+        return _onsuccess
+      },
       set(fn: ((event: Event) => void) | null) {
         _onsuccess = fn
         // 同步觸發 callback
@@ -65,8 +67,7 @@ function createMockIndexedDB() {
       getOrCreateStore(name)
       return mockObjectStore(name)
     }),
-    transaction: vi.fn((names: string | string[], _mode: string) => {
-      const storeNames = Array.isArray(names) ? names : [names]
+    transaction: vi.fn((_names: string | string[], _mode: string) => {
       const tx = {
         objectStore: vi.fn((name: string) => mockObjectStore(name)),
         oncomplete: null as (() => void) | null,
@@ -94,7 +95,9 @@ function createMockIndexedDB() {
       }
 
       Object.defineProperty(req, 'onupgradeneeded', {
-        get() { return _onupgradeneeded },
+        get() {
+          return _onupgradeneeded
+        },
         set(fn: ((event: Event) => void) | null) {
           _onupgradeneeded = fn
           if (fn) {
@@ -109,7 +112,9 @@ function createMockIndexedDB() {
       })
 
       Object.defineProperty(req, 'onsuccess', {
-        get() { return _onsuccess },
+        get() {
+          return _onsuccess
+        },
         set(fn: ((event: Event) => void) | null) {
           _onsuccess = fn
           if (fn) {
@@ -121,8 +126,12 @@ function createMockIndexedDB() {
       })
 
       Object.defineProperty(req, 'onerror', {
-        get() { return _onerror },
-        set(fn: ((event: Event) => void) | null) { _onerror = fn },
+        get() {
+          return _onerror
+        },
+        set(fn: ((event: Event) => void) | null) {
+          _onerror = fn
+        },
         configurable: true,
       })
 
@@ -166,8 +175,12 @@ describe('FortuneHistoryStore', () => {
   describe('append', () => {
     it('應該成功新增記錄', async () => {
       await store.append({
-        id: 1, date: '2024-01-15', timestamp: Date.now(),
-        overallScore: 75, investmentScore: 75, recommendation: 'BUY',
+        id: 1,
+        date: '2024-01-15',
+        timestamp: Date.now(),
+        overallScore: 75,
+        investmentScore: 75,
+        recommendation: 'BUY',
         elements: { metal: 50, wood: 50, water: 50, fire: 50, earth: 50 },
         userProfileHash: 'test-hash',
       })
@@ -177,9 +190,36 @@ describe('FortuneHistoryStore', () => {
 
     it('應該支援批次新增', async () => {
       await store.appendBatch([
-        { id: 1, date: '2024-01-15', timestamp: Date.now(), overallScore: 75, investmentScore: 75, recommendation: 'BUY', elements: { metal: 50, wood: 50, water: 50, fire: 50, earth: 50 }, userProfileHash: 'hash1' },
-        { id: 2, date: '2024-01-16', timestamp: Date.now(), overallScore: 55, investmentScore: 55, recommendation: 'HOLD', elements: { metal: 50, wood: 50, water: 50, fire: 50, earth: 50 }, userProfileHash: 'hash1' },
-        { id: 3, date: '2024-01-17', timestamp: Date.now(), overallScore: 30, investmentScore: 30, recommendation: 'SELL', elements: { metal: 50, wood: 50, water: 50, fire: 50, earth: 50 }, userProfileHash: 'hash1' },
+        {
+          id: 1,
+          date: '2024-01-15',
+          timestamp: Date.now(),
+          overallScore: 75,
+          investmentScore: 75,
+          recommendation: 'BUY',
+          elements: { metal: 50, wood: 50, water: 50, fire: 50, earth: 50 },
+          userProfileHash: 'hash1',
+        },
+        {
+          id: 2,
+          date: '2024-01-16',
+          timestamp: Date.now(),
+          overallScore: 55,
+          investmentScore: 55,
+          recommendation: 'HOLD',
+          elements: { metal: 50, wood: 50, water: 50, fire: 50, earth: 50 },
+          userProfileHash: 'hash1',
+        },
+        {
+          id: 3,
+          date: '2024-01-17',
+          timestamp: Date.now(),
+          overallScore: 30,
+          investmentScore: 30,
+          recommendation: 'SELL',
+          elements: { metal: 50, wood: 50, water: 50, fire: 50, earth: 50 },
+          userProfileHash: 'hash1',
+        },
       ])
       const count = await store.getTotalCount()
       expect(count).toBe(3)
@@ -195,9 +235,36 @@ describe('FortuneHistoryStore', () => {
 
     it('應該支援按推薦類型篩選', async () => {
       await store.appendBatch([
-        { id: 1, date: '2024-01-15', timestamp: Date.now(), overallScore: 75, investmentScore: 75, recommendation: 'BUY', elements: { metal: 50, wood: 50, water: 50, fire: 50, earth: 50 }, userProfileHash: 'hash1' },
-        { id: 2, date: '2024-01-16', timestamp: Date.now(), overallScore: 55, investmentScore: 55, recommendation: 'HOLD', elements: { metal: 50, wood: 50, water: 50, fire: 50, earth: 50 }, userProfileHash: 'hash1' },
-        { id: 3, date: '2024-01-17', timestamp: Date.now(), overallScore: 30, investmentScore: 30, recommendation: 'SELL', elements: { metal: 50, wood: 50, water: 50, fire: 50, earth: 50 }, userProfileHash: 'hash1' },
+        {
+          id: 1,
+          date: '2024-01-15',
+          timestamp: Date.now(),
+          overallScore: 75,
+          investmentScore: 75,
+          recommendation: 'BUY',
+          elements: { metal: 50, wood: 50, water: 50, fire: 50, earth: 50 },
+          userProfileHash: 'hash1',
+        },
+        {
+          id: 2,
+          date: '2024-01-16',
+          timestamp: Date.now(),
+          overallScore: 55,
+          investmentScore: 55,
+          recommendation: 'HOLD',
+          elements: { metal: 50, wood: 50, water: 50, fire: 50, earth: 50 },
+          userProfileHash: 'hash1',
+        },
+        {
+          id: 3,
+          date: '2024-01-17',
+          timestamp: Date.now(),
+          overallScore: 30,
+          investmentScore: 30,
+          recommendation: 'SELL',
+          elements: { metal: 50, wood: 50, water: 50, fire: 50, earth: 50 },
+          userProfileHash: 'hash1',
+        },
       ])
       const buyResult = await store.query({ pageIndex: 0, pageSize: 10, recommendation: 'BUY' })
       expect(buyResult.records.length).toBe(1)
@@ -206,11 +273,30 @@ describe('FortuneHistoryStore', () => {
 
     it('應該支援按日期範圍篩選', async () => {
       await store.appendBatch([
-        { id: 1, date: '2024-01-15', timestamp: Date.now(), overallScore: 75, investmentScore: 75, recommendation: 'BUY', elements: { metal: 50, wood: 50, water: 50, fire: 50, earth: 50 }, userProfileHash: 'hash1' },
-        { id: 2, date: '2024-02-15', timestamp: Date.now(), overallScore: 55, investmentScore: 55, recommendation: 'HOLD', elements: { metal: 50, wood: 50, water: 50, fire: 50, earth: 50 }, userProfileHash: 'hash1' },
+        {
+          id: 1,
+          date: '2024-01-15',
+          timestamp: Date.now(),
+          overallScore: 75,
+          investmentScore: 75,
+          recommendation: 'BUY',
+          elements: { metal: 50, wood: 50, water: 50, fire: 50, earth: 50 },
+          userProfileHash: 'hash1',
+        },
+        {
+          id: 2,
+          date: '2024-02-15',
+          timestamp: Date.now(),
+          overallScore: 55,
+          investmentScore: 55,
+          recommendation: 'HOLD',
+          elements: { metal: 50, wood: 50, water: 50, fire: 50, earth: 50 },
+          userProfileHash: 'hash1',
+        },
       ])
       const result = await store.query({
-        pageIndex: 0, pageSize: 10,
+        pageIndex: 0,
+        pageSize: 10,
         dateRange: { start: '2024-01-01', end: '2024-01-31' },
       })
       expect(result.records.length).toBe(1)
@@ -219,9 +305,14 @@ describe('FortuneHistoryStore', () => {
 
     it('應該支援分頁', async () => {
       const records: FortuneRecord[] = Array.from({ length: 5 }, (_, i) => ({
-        id: i + 1, date: `2024-01-${String(i + 15).padStart(2, '0')}`, timestamp: Date.now(),
-        overallScore: 50 + i * 10, investmentScore: 50 + i * 10, recommendation: 'HOLD' as const,
-        elements: { metal: 50, wood: 50, water: 50, fire: 50, earth: 50 }, userProfileHash: 'hash1',
+        id: i + 1,
+        date: `2024-01-${String(i + 15).padStart(2, '0')}`,
+        timestamp: Date.now(),
+        overallScore: 50 + i * 10,
+        investmentScore: 50 + i * 10,
+        recommendation: 'HOLD' as const,
+        elements: { metal: 50, wood: 50, water: 50, fire: 50, earth: 50 },
+        userProfileHash: 'hash1',
       }))
       await store.appendBatch(records)
       const page1 = await store.query({ pageIndex: 0, pageSize: 2 })
@@ -233,8 +324,28 @@ describe('FortuneHistoryStore', () => {
 
     it('應該支援關鍵字搜尋', async () => {
       await store.appendBatch([
-        { id: 1, date: '2024-01-15', timestamp: Date.now(), overallScore: 75, investmentScore: 75, recommendation: 'BUY', elements: { metal: 50, wood: 50, water: 50, fire: 50, earth: 50 }, lunarSummary: '今日宜投資', userProfileHash: 'hash1' },
-        { id: 2, date: '2024-01-16', timestamp: Date.now(), overallScore: 55, investmentScore: 55, recommendation: 'HOLD', elements: { metal: 50, wood: 50, water: 50, fire: 50, earth: 50 }, lunarSummary: '今日宜觀望', userProfileHash: 'hash1' },
+        {
+          id: 1,
+          date: '2024-01-15',
+          timestamp: Date.now(),
+          overallScore: 75,
+          investmentScore: 75,
+          recommendation: 'BUY',
+          elements: { metal: 50, wood: 50, water: 50, fire: 50, earth: 50 },
+          lunarSummary: '今日宜投資',
+          userProfileHash: 'hash1',
+        },
+        {
+          id: 2,
+          date: '2024-01-16',
+          timestamp: Date.now(),
+          overallScore: 55,
+          investmentScore: 55,
+          recommendation: 'HOLD',
+          elements: { metal: 50, wood: 50, water: 50, fire: 50, earth: 50 },
+          lunarSummary: '今日宜觀望',
+          userProfileHash: 'hash1',
+        },
       ])
       const result = await store.query({ pageIndex: 0, pageSize: 10, keyword: '投資' })
       expect(result.records.length).toBe(1)
@@ -253,9 +364,36 @@ describe('FortuneHistoryStore', () => {
 
     it('應該正確計算統計', async () => {
       await store.appendBatch([
-        { id: 1, date: '2024-01-15', timestamp: Date.now(), overallScore: 80, investmentScore: 80, recommendation: 'BUY', elements: { metal: 50, wood: 50, water: 50, fire: 50, earth: 50 }, userProfileHash: 'hash1' },
-        { id: 2, date: '2024-01-20', timestamp: Date.now(), overallScore: 50, investmentScore: 50, recommendation: 'HOLD', elements: { metal: 50, wood: 50, water: 50, fire: 50, earth: 50 }, userProfileHash: 'hash1' },
-        { id: 3, date: '2024-01-25', timestamp: Date.now(), overallScore: 30, investmentScore: 30, recommendation: 'SELL', elements: { metal: 50, wood: 50, water: 50, fire: 50, earth: 50 }, userProfileHash: 'hash1' },
+        {
+          id: 1,
+          date: '2024-01-15',
+          timestamp: Date.now(),
+          overallScore: 80,
+          investmentScore: 80,
+          recommendation: 'BUY',
+          elements: { metal: 50, wood: 50, water: 50, fire: 50, earth: 50 },
+          userProfileHash: 'hash1',
+        },
+        {
+          id: 2,
+          date: '2024-01-20',
+          timestamp: Date.now(),
+          overallScore: 50,
+          investmentScore: 50,
+          recommendation: 'HOLD',
+          elements: { metal: 50, wood: 50, water: 50, fire: 50, earth: 50 },
+          userProfileHash: 'hash1',
+        },
+        {
+          id: 3,
+          date: '2024-01-25',
+          timestamp: Date.now(),
+          overallScore: 30,
+          investmentScore: 30,
+          recommendation: 'SELL',
+          elements: { metal: 50, wood: 50, water: 50, fire: 50, earth: 50 },
+          userProfileHash: 'hash1',
+        },
       ])
       const stats = await store.getStats()
       expect(stats.totalRecords).toBe(3)
@@ -268,8 +406,12 @@ describe('FortuneHistoryStore', () => {
   describe('clear', () => {
     it('應該成功清除所有記錄', async () => {
       await store.append({
-        id: 1, date: '2024-01-15', timestamp: Date.now(),
-        overallScore: 75, investmentScore: 75, recommendation: 'BUY',
+        id: 1,
+        date: '2024-01-15',
+        timestamp: Date.now(),
+        overallScore: 75,
+        investmentScore: 75,
+        recommendation: 'BUY',
         elements: { metal: 50, wood: 50, water: 50, fire: 50, earth: 50 },
         userProfileHash: 'hash1',
       })

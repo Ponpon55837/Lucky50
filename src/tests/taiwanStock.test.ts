@@ -147,7 +147,11 @@ describe('TaiwanStockService', () => {
   describe('getRecommendedTradingPeriods', () => {
     it('非同一天回傳空的推薦時段', () => {
       const futureDate = new Date('2099-01-01')
-      const result = TaiwanStockService.getRecommendedTradingPeriods(['09:00-10:00'], [], futureDate)
+      const result = TaiwanStockService.getRecommendedTradingPeriods(
+        ['09:00-10:00'],
+        [],
+        futureDate
+      )
       expect(result.recommended).toHaveLength(0)
       expect(result.avoid).toHaveLength(0)
       expect(result.isToday).toBe(false)

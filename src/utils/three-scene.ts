@@ -13,7 +13,7 @@ export const ThemeColors = {
     warning: 0xf59e0b,
     info: 0x3b82f6,
     surface: 0x334155,
-    text: 0xffffff
+    text: 0xffffff,
   },
   light: {
     background: 0xf8fafc,
@@ -25,8 +25,8 @@ export const ThemeColors = {
     warning: 0xd97706,
     info: 0x2563eb,
     surface: 0xe2e8f0,
-    text: 0x1e293b
-  }
+    text: 0x1e293b,
+  },
 }
 
 export class ThreeJSScene {
@@ -37,18 +37,23 @@ export class ThreeJSScene {
   private animationId: number | null = null
   private isDark: boolean = true
 
-  constructor(container: HTMLElement, options: {
-    backgroundColor?: number
-    alpha?: boolean
-    antialias?: boolean
-    isDark?: boolean
-  } = {}) {
+  constructor(
+    container: HTMLElement,
+    options: {
+      backgroundColor?: number
+      alpha?: boolean
+      antialias?: boolean
+      isDark?: boolean
+    } = {}
+  ) {
     this.container = container
     this.isDark = options.isDark ?? true
-    
+
     // 創建場景
     this.scene = new THREE.Scene()
-    const bgColor = options.backgroundColor ?? (this.isDark ? ThemeColors.dark.background : ThemeColors.light.background)
+    const bgColor =
+      options.backgroundColor ??
+      (this.isDark ? ThemeColors.dark.background : ThemeColors.light.background)
     this.scene.background = new THREE.Color(bgColor)
 
     // 創建相機
@@ -60,11 +65,11 @@ export class ThreeJSScene {
     // 創建渲染器
     this.renderer = new THREE.WebGLRenderer({
       alpha: options.alpha ?? true,
-      antialias: options.antialias ?? true
+      antialias: options.antialias ?? true,
     })
     this.renderer.setSize(width, height)
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
-    
+
     // 添加到 DOM
     container.appendChild(this.renderer.domElement)
 
@@ -80,7 +85,7 @@ export class ThreeJSScene {
 
   private setupLights() {
     const colors = this.isDark ? ThemeColors.dark : ThemeColors.light
-    
+
     // 環境光
     const ambientLight = new THREE.AmbientLight(colors.surface, this.isDark ? 0.6 : 0.8)
     this.scene.add(ambientLight)
@@ -98,10 +103,10 @@ export class ThreeJSScene {
 
   private animate() {
     this.animationId = requestAnimationFrame(() => this.animate())
-    
+
     // 更新 Tween 動畫
     TWEEN.update()
-    
+
     this.renderer.render(this.scene, this.camera)
   }
 
@@ -127,12 +132,12 @@ export class ThreeJSScene {
   // 清空場景（除了光照）
   clearScene() {
     const objectsToRemove: THREE.Object3D[] = []
-    this.scene.traverse((child) => {
+    this.scene.traverse(child => {
       if (!(child instanceof THREE.Light) && child !== this.scene) {
         objectsToRemove.push(child)
       }
     })
-    
+
     objectsToRemove.forEach(obj => {
       this.scene.remove(obj)
     })
@@ -158,7 +163,7 @@ export class ThreeJSScene {
     this.isDark = isDark
     const colors = this.getThemeColors()
     this.scene.background = new THREE.Color(colors.background)
-    
+
     // 重新設置光照
     this.scene.remove(...this.scene.children.filter(child => child instanceof THREE.Light))
     this.setupLights()
@@ -169,12 +174,12 @@ export class ThreeJSScene {
     if (this.animationId) {
       cancelAnimationFrame(this.animationId)
     }
-    
+
     window.removeEventListener('resize', this.handleResize.bind(this))
-    
+
     this.clearScene()
     this.renderer.dispose()
-    
+
     if (this.container.contains(this.renderer.domElement)) {
       this.container.removeChild(this.renderer.domElement)
     }
@@ -182,13 +187,17 @@ export class ThreeJSScene {
 }
 
 // 創建主題感知的發光材質
-export function createThemeGlowMaterial(baseColor: number, intensity: number = 1, isDark: boolean = true) {
+export function createThemeGlowMaterial(
+  baseColor: number,
+  intensity: number = 1,
+  isDark: boolean = true
+) {
   return new THREE.MeshPhongMaterial({
     color: baseColor,
     transparent: true,
     opacity: isDark ? 0.8 : 0.9,
     emissive: baseColor,
-    emissiveIntensity: intensity * (isDark ? 0.2 : 0.1)
+    emissiveIntensity: intensity * (isDark ? 0.2 : 0.1),
   })
 }
 
@@ -199,7 +208,11 @@ export function getThemeColor(colorKey: keyof typeof ThemeColors.dark, isDark: b
 }
 
 // 創建粒子系統
-export function createParticleSystem(count: number, color: number = 0xffd700, isDark: boolean = true) {
+export function createParticleSystem(
+  count: number,
+  color: number = 0xffd700,
+  isDark: boolean = true
+) {
   const geometry = new THREE.BufferGeometry()
   const positions = new Float32Array(count * 3)
   const velocities = new Float32Array(count * 3)
@@ -209,7 +222,7 @@ export function createParticleSystem(count: number, color: number = 0xffd700, is
     positions[i3] = (Math.random() - 0.5) * 20
     positions[i3 + 1] = (Math.random() - 0.5) * 20
     positions[i3 + 2] = (Math.random() - 0.5) * 20
-    
+
     velocities[i3] = (Math.random() - 0.5) * 0.02
     velocities[i3 + 1] = (Math.random() - 0.5) * 0.02
     velocities[i3 + 2] = (Math.random() - 0.5) * 0.02
@@ -222,7 +235,7 @@ export function createParticleSystem(count: number, color: number = 0xffd700, is
     color: color,
     size: isDark ? 0.1 : 0.08,
     transparent: true,
-    opacity: isDark ? 0.6 : 0.4
+    opacity: isDark ? 0.6 : 0.4,
   })
 
   return new THREE.Points(geometry, material)
@@ -241,7 +254,7 @@ export function animateObject(
     z: object.position.z,
     rotationX: object.rotation.x,
     rotationY: object.rotation.y,
-    rotationZ: object.rotation.z
+    rotationZ: object.rotation.z,
   }
 
   const target = {
@@ -250,7 +263,7 @@ export function animateObject(
     z: to.z ?? from.z,
     rotationX: to.rotation?.x ?? from.rotationX,
     rotationY: to.rotation?.y ?? from.rotationY,
-    rotationZ: to.rotation?.z ?? from.rotationZ
+    rotationZ: to.rotation?.z ?? from.rotationZ,
   }
 
   return new TWEEN.Tween(from)

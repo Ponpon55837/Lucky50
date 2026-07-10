@@ -22,14 +22,14 @@ export const useTheme = () => {
   // 監聽主題變化，更新 localStorage 和 document 類別
   watch(
     theme,
-    (newTheme) => {
+    newTheme => {
       localStorage.setItem(THEME_KEY, newTheme)
-      
+
       // 更新 document 的 class
       if (typeof document !== 'undefined') {
         document.documentElement.classList.remove('light', 'dark')
         document.documentElement.classList.add(newTheme)
-        
+
         // 更新 meta theme-color
         const metaTheme = document.querySelector('meta[name="theme-color"]')
         if (metaTheme) {
@@ -45,6 +45,6 @@ export const useTheme = () => {
     isDark,
     isLight,
     toggleTheme,
-    setTheme
+    setTheme,
   }
 }

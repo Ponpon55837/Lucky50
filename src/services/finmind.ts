@@ -1,6 +1,23 @@
 import axios from 'axios'
+import type { AxiosError, InternalAxiosRequestConfig } from 'axios'
 import type { ETFData, FinMindDataItem } from '@/types'
 import { apiCache, CacheKeyGenerator } from './apiCache'
+
+// API 監控介面
+interface ApiMonitor {
+  record: (url: string, method: string, status: number, duration: number) => void
+}
+
+// 掛在 window 上的監控相關欄位
+interface ApiMonitorWindow {
+  __apiMonitorInterceptors?: boolean
+  __apiMonitor?: ApiMonitor
+}
+
+// 附加請求開始時間的 axios 設定
+interface TimedAxiosRequestConfig extends InternalAxiosRequestConfig {
+  __startTime?: number
+}
 
 const finmindAPI = axios.create({
   baseURL: import.meta.env.VITE_FINMIND_API_URL || 'https://api.finmindtrade.com/api/v4',
@@ -23,30 +40,46 @@ finmindAPI.interceptors.request.use(config => {
 })
 
 // API 監控 — 記錄每次 axios 請求的 endpoint / method / status / duration
-if (typeof window !== 'undefined' && !(window as any).__apiMonitorInterceptors) {
-  ;(window as any).__apiMonitorInterceptors = true
-  finmindAPI.interceptors.request.use(config => {
-    ;(config as any).__startTime = performance.now()
-    return config
-  })
-  finmindAPI.interceptors.response.use(
-    response => {
-      const apiMon = (window as any).__apiMonitor
-      if (apiMon) {
-        const dur = performance.now() - (response.config as any).__startTime
-        apiMon.record(response.config.url || '', response.config.method?.toUpperCase() || 'GET', response.status, dur)
+if (typeof window !== 'undefined') {
+  const monitorWindow = window as unknown as ApiMonitorWindow
+
+  if (!monitorWindow.__apiMonitorInterceptors) {
+    monitorWindow.__apiMonitorInterceptors = true
+    finmindAPI.interceptors.request.use(config => {
+      ;(config as TimedAxiosRequestConfig).__startTime = performance.now()
+      return config
+    })
+    finmindAPI.interceptors.response.use(
+      response => {
+        const apiMon = monitorWindow.__apiMonitor
+        if (apiMon) {
+          const startTime = (response.config as TimedAxiosRequestConfig).__startTime
+          const dur = performance.now() - (startTime ?? performance.now())
+          apiMon.record(
+            response.config.url || '',
+            response.config.method?.toUpperCase() || 'GET',
+            response.status,
+            dur
+          )
+        }
+        return response
+      },
+      (error: AxiosError) => {
+        const apiMon = monitorWindow.__apiMonitor
+        if (apiMon && error.config) {
+          const startTime = (error.config as TimedAxiosRequestConfig).__startTime
+          const dur = performance.now() - (startTime ?? performance.now())
+          apiMon.record(
+            error.config.url || '',
+            error.config.method?.toUpperCase() || 'GET',
+            error.response?.status || 0,
+            dur
+          )
+        }
+        return Promise.reject(error)
       }
-      return response
-    },
-    error => {
-      const apiMon = (window as any).__apiMonitor
-      if (apiMon && error.config) {
-        const dur = performance.now() - (error.config as any).__startTime
-        apiMon.record(error.config.url || '', error.config.method?.toUpperCase() || 'GET', error.response?.status || 0, dur)
-      }
-      return Promise.reject(error)
-    }
-  )
+    )
+  }
 }
 
 // 安全的數字解析函數

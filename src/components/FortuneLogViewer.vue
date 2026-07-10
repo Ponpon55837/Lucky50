@@ -30,13 +30,19 @@ const filterDateStart = ref(sixMonthsAgo.toISOString().split('T')[0])
 const filterDateEnd = ref(now.toISOString().split('T')[0])
 const searchText = ref('')
 
-const hasFilters = computed(() =>
-  !!filterRecommendation.value || !!filterDateStart.value || !!filterDateEnd.value || !!searchText.value
+const hasFilters = computed(
+  () =>
+    !!filterRecommendation.value ||
+    !!filterDateStart.value ||
+    !!filterDateEnd.value ||
+    !!searchText.value
 )
 
 const totalPages = computed(() => Math.ceil(total.value / props.pageSize))
 
-const displayRecommendation = (rec: FortuneRecord['recommendation']): { text: string; class: string } => {
+const displayRecommendation = (
+  rec: FortuneRecord['recommendation']
+): { text: string; class: string } => {
   const map = {
     BUY: { text: '買入', class: 'bg-green-500/20 text-green-400 border border-green-500/30' },
     HOLD: { text: '持有', class: 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/30' },
@@ -161,8 +167,8 @@ onMounted(async () => {
             </span>
           </span>
           <button
-            @click="clearAllHistory"
             class="px-1.5 py-0.5 text-[10px] font-medium text-rose-400 hover:text-rose-300 border border-rose-800/50 rounded hover:bg-rose-900/20 transition-colors"
+            @click="clearAllHistory"
           >
             清除
           </button>
@@ -176,14 +182,14 @@ onMounted(async () => {
         <div class="flex gap-2">
           <input
             v-model="searchText"
-            @keyup.enter="applyFilters"
             type="text"
             placeholder="搜尋"
             class="flex-1 min-w-0 px-2 py-1.5 sm:px-3 sm:py-2 text-xs sm:text-sm bg-gray-800/40 border border-gray-700/60 rounded-lg text-white placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-amber-500/50 focus:border-amber-500/50 transition-all"
+            @keyup.enter="applyFilters"
           />
           <button
-            @click="applyFilters"
             class="px-2.5 py-1.5 sm:px-4 sm:py-2 text-xs sm:text-sm font-medium text-white bg-amber-600 hover:bg-amber-500 rounded-lg transition-colors shrink-0"
+            @click="applyFilters"
           >
             搜尋
           </button>
@@ -192,8 +198,8 @@ onMounted(async () => {
           <div class="flex items-center gap-1.5">
             <select
               v-model="filterRecommendation"
-              @change="applyFilters"
               class="px-2 py-1.5 text-xs sm:text-sm bg-gray-800/40 border border-gray-700/60 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-amber-500/50 focus:border-amber-500/50 transition-all"
+              @change="applyFilters"
             >
               <option value="">全部</option>
               <option value="BUY">買入</option>
@@ -202,31 +208,31 @@ onMounted(async () => {
             </select>
             <button
               v-if="hasFilters"
-              @click="clearFilters"
               class="sm:hidden text-xs text-gray-500 hover:text-gray-300 transition-colors"
+              @click="clearFilters"
             >
               清除
             </button>
           </div>
-           <div class="flex items-center gap-1">
+          <div class="flex items-center gap-1">
             <input
               v-model="filterDateStart"
-              @change="applyFilters"
               type="date"
               class="flex-1 sm:w-auto px-1.5 sm:px-2 py-1.5 text-xs sm:text-sm bg-gray-800/40 border border-gray-700/60 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-amber-500/50 focus:border-amber-500/50 [color-scheme:dark] transition-all"
+              @change="applyFilters"
             />
             <span class="text-gray-600 shrink-0 text-xs sm:text-sm">~</span>
             <input
               v-model="filterDateEnd"
-              @change="applyFilters"
               type="date"
               class="flex-1 sm:w-auto px-1.5 sm:px-2 py-1.5 text-xs sm:text-sm bg-gray-800/40 border border-gray-700/60 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-amber-500/50 focus:border-amber-500/50 [color-scheme:dark] transition-all"
+              @change="applyFilters"
             />
           </div>
           <button
             v-if="hasFilters"
-            @click="clearFilters"
             class="hidden sm:inline text-xs text-gray-500 hover:text-gray-300 transition-colors"
+            @click="clearFilters"
           >
             清除篩選
           </button>
@@ -250,7 +256,9 @@ onMounted(async () => {
         class="px-3 sm:px-6 py-2.5 sm:py-4 hover:bg-white/[0.02] transition-colors cursor-default"
       >
         <div class="flex items-center gap-2 sm:gap-4 flex-wrap sm:flex-nowrap">
-          <div class="text-[11px] sm:text-sm font-medium text-white/70 shrink-0 min-w-12 sm:min-w-0 leading-tight">
+          <div
+            class="text-[11px] sm:text-sm font-medium text-white/70 shrink-0 min-w-12 sm:min-w-0 leading-tight"
+          >
             <span class="sm:hidden">{{ formatDate(record.date, true) }}</span>
             <span class="hidden sm:inline">{{ formatDate(record.date) }}</span>
           </div>
@@ -280,7 +288,15 @@ onMounted(async () => {
               :style="{
                 height: `${Math.max(4, value * 0.22)}px`,
                 backgroundColor:
-                  key === 'metal' ? '#9CA3AF' : key === 'wood' ? '#22C55E' : key === 'water' ? '#3B82F6' : key === 'fire' ? '#EF4444' : '#A16207',
+                  key === 'metal'
+                    ? '#9CA3AF'
+                    : key === 'wood'
+                      ? '#22C55E'
+                      : key === 'water'
+                        ? '#3B82F6'
+                        : key === 'fire'
+                          ? '#EF4444'
+                          : '#A16207',
               }"
             />
           </div>
@@ -288,31 +304,29 @@ onMounted(async () => {
             {{ formatTime(record.timestamp) }}
           </span>
         </div>
-        <p v-if="record.lunarSummary" class="mt-0.5 sm:mt-1 text-[10px] sm:text-xs text-gray-400/70 line-clamp-1 ml-12 sm:ml-0 leading-relaxed">
+        <p
+          v-if="record.lunarSummary"
+          class="mt-0.5 sm:mt-1 text-[10px] sm:text-xs text-gray-400/70 line-clamp-1 ml-12 sm:ml-0 leading-relaxed"
+        >
           {{ record.lunarSummary }}
         </p>
       </div>
     </div>
 
     <!-- Pagination -->
-    <div
-      v-if="totalPages > 1"
-      class="flex items-center justify-between"
-    >
+    <div v-if="totalPages > 1" class="flex items-center justify-between">
       <button
-        @click="prevPage"
         :disabled="pageIndex === 0"
         class="px-3 py-1.5 text-sm text-gray-500 hover:text-white bg-gray-800/20 hover:bg-gray-800/50 rounded-lg disabled:opacity-25 disabled:cursor-not-allowed transition-all"
+        @click="prevPage"
       >
         ← 上一頁
       </button>
-      <span class="text-sm text-gray-600">
-        {{ pageIndex + 1 }} / {{ totalPages }}
-      </span>
+      <span class="text-sm text-gray-600"> {{ pageIndex + 1 }} / {{ totalPages }} </span>
       <button
-        @click="nextPage"
         :disabled="pageIndex >= totalPages - 1"
         class="px-3 py-1.5 text-sm text-gray-500 hover:text-white bg-gray-800/20 hover:bg-gray-800/50 rounded-lg disabled:opacity-25 disabled:cursor-not-allowed transition-all"
+        @click="nextPage"
       >
         下一頁 →
       </button>

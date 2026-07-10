@@ -5,6 +5,16 @@ export interface CacheItem<T = unknown> {
   expiresAt: number
 }
 
+// API 監控介面
+interface ApiMonitor {
+  record: (url: string, method: string, status: number, duration: number) => void
+}
+
+// 掛在 window 上的監控相關欄位
+interface ApiMonitorWindow {
+  __apiMonitor?: ApiMonitor
+}
+
 export class ApiCacheService {
   private static instance: ApiCacheService
   private cache = new Map<string, CacheItem>()
@@ -20,7 +30,8 @@ export class ApiCacheService {
   }
 
   private recordApi(key: string, hit: boolean) {
-    const mon = typeof window !== 'undefined' ? (window as any).__apiMonitor : null
+    const mon =
+      typeof window !== 'undefined' ? (window as unknown as ApiMonitorWindow).__apiMonitor : null
     if (mon) {
       mon.record(`[cache] ${key}`, hit ? 'HIT' : 'MISS', hit ? 200 : 404, 0)
     }
