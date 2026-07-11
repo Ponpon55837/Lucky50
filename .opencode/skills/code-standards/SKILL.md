@@ -33,7 +33,7 @@ tags: [vue3, typescript, pinia, tailwindcss, vite, code-standards]
 - **狀態管理**: Pinia
 - **樣式框架**: Tailwind CSS
 - **建置工具**: Vite
-- **套件管理**: ppnpm
+- **套件管理**: pnpm（本專案統一使用 pnpm，禁止使用 npm 或 yarn）
 - **測試框架**: Vitest + Vue Test Utils
 
 ## 🏗️ 開發規範
@@ -208,19 +208,14 @@ module.exports = {
 
 ## 🎯 程式碼品質檢查
 
-### Git Hooks 自動檢查
+### 套件管理器
 
-| Hook         | 指令                   | 時機                           |
-| ------------ | ---------------------- | ------------------------------ |
-| `pre-commit` | `npx vitest run`       | 提交前跑**全部**單元測試       |
-| `pre-push`   | `npx vue-tsc --noEmit` | 推送前執行 TypeScript 型別檢查 |
-
-pre-commit 若偵測到無 `.ts` / `.vue` 檔案變更則會跳過測試。
+> **⚠️ 本專案統一使用 `pnpm`**，所有指令請用 `pnpm` 執行，禁止使用 `npm` 或 `yarn`。
 
 ### 手動 / CI 測試指令
 
 ```bash
-# 跑全部單元測試（等同 pre-commit）
+# 跑全部單元測試
 pnpm run test:run
 
 # 測試 + 涵蓋率報告
@@ -232,8 +227,8 @@ pnpm run test:ci
 # 開發用瀏覽器 UI 模式
 pnpm run test:ui
 
-# 型別檢查（等同 pre-push）
-pnpm run type-check
+# 型別檢查
+vue-tsc --noEmit
 
 # ESLint
 pnpm run lint

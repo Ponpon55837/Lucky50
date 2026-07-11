@@ -604,7 +604,10 @@ onUnmounted(() => {
     class="relative w-full h-full bg-gradient-to-br from-surface-bg/50 via-card-bg to-surface-bg rounded-lg overflow-hidden border border-border-light"
     @mousemove="handleMouseMove"
   >
-    <div ref="threeContainer" class="w-full h-full" />
+    <div
+      ref="threeContainer"
+      class="w-full h-full"
+    />
 
     <!-- 動態懸停說明 -->
     <div
@@ -640,7 +643,9 @@ onUnmounted(() => {
       class="absolute top-4 right-4 bg-card-bg/80 backdrop-blur-sm border border-border-light rounded-lg p-3 w-56"
     >
       <div class="flex justify-between items-center mb-2">
-        <h4 class="text-sm font-semibold text-primary-text">農曆分析</h4>
+        <h4 class="text-sm font-semibold text-primary-text">
+          農曆分析
+        </h4>
         <button
           class="text-xs text-secondary-text hover:text-primary-text"
           @click="showLegend = false"
@@ -750,13 +755,18 @@ onUnmounted(() => {
     </div>
     <div class="absolute bottom-4 right-4 text-primary-text text-xs">
       <div class="text-center">
-        <div class="text-2xl font-bold mb-1" :class="fortuneColor">
+        <div
+          class="text-2xl font-bold mb-1"
+          :class="fortuneColor"
+        >
           {{ fortuneLevel }}
         </div>
         <div class="text-lg font-semibold text-gold-400 mb-1">
           {{ fortuneScore }}
         </div>
-        <div class="text-sm text-secondary-text">投資運勢</div>
+        <div class="text-sm text-secondary-text">
+          投資運勢
+        </div>
       </div>
     </div>
   </div>

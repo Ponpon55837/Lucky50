@@ -447,7 +447,10 @@ onUnmounted(() => {
     class="relative w-full h-full bg-gradient-to-br from-surface-bg/50 via-card-bg to-surface-bg rounded-lg overflow-hidden border border-border-light"
     @mousemove="handleMouseMove"
   >
-    <div ref="threeContainer" class="w-full h-full" />
+    <div
+      ref="threeContainer"
+      class="w-full h-full"
+    />
 
     <!-- 動態懸停說明 -->
     <div
@@ -479,7 +482,9 @@ onUnmounted(() => {
       class="absolute top-4 right-4 bg-card-bg/80 backdrop-blur-sm border border-border-light rounded-lg p-3 w-52"
     >
       <div class="flex justify-between items-center mb-2">
-        <h4 class="text-sm font-semibold text-primary-text">運勢分析</h4>
+        <h4 class="text-sm font-semibold text-primary-text">
+          運勢分析
+        </h4>
         <button
           class="text-xs text-secondary-text hover:text-primary-text"
           @click="showLegend = false"
@@ -499,7 +504,10 @@ onUnmounted(() => {
             />
             <span class="text-secondary-text">{{ zodiac }}生肖</span>
           </div>
-          <span :class="fortuneScoreColor" class="font-mono text-xs">{{ fortuneScore }}</span>
+          <span
+            :class="fortuneScoreColor"
+            class="font-mono text-xs"
+          >{{ fortuneScore }}</span>
         </div>
         <div
           class="flex items-center justify-between cursor-pointer hover:bg-surface-bg/50 p-1 rounded"
@@ -525,7 +533,10 @@ onUnmounted(() => {
             </div>
             <span class="text-secondary-text">投資建議</span>
           </div>
-          <span :class="investmentAdviceColor" class="text-xs">{{ investmentAdvice }}</span>
+          <span
+            :class="investmentAdviceColor"
+            class="text-xs"
+          >{{ investmentAdvice }}</span>
         </div>
         <div
           class="flex items-center space-x-2 cursor-pointer hover:bg-surface-bg/50 p-1 rounded"

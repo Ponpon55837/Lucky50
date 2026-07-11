@@ -437,7 +437,10 @@ onUnmounted(() => {
     class="relative w-full h-full bg-gradient-to-br from-surface-bg/50 via-card-bg to-surface-bg rounded-lg overflow-hidden border border-border-light"
     @mousemove="handleMouseMove"
   >
-    <div ref="threeContainer" class="w-full h-full" />
+    <div
+      ref="threeContainer"
+      class="w-full h-full"
+    />
 
     <!-- 動態懸停說明 -->
     <div
@@ -459,7 +462,9 @@ onUnmounted(() => {
       class="absolute top-4 right-4 bg-card-bg/80 backdrop-blur-sm border border-border-light rounded-lg p-3 w-48"
     >
       <div class="flex justify-between items-center mb-2">
-        <h4 class="text-sm font-semibold text-primary-text">元素說明</h4>
+        <h4 class="text-sm font-semibold text-primary-text">
+          元素說明
+        </h4>
         <button
           class="text-xs text-secondary-text hover:text-primary-text"
           @click="showLegend = false"
@@ -534,15 +539,11 @@ onUnmounted(() => {
         </div>
         <div>
           漲跌:
-          <span :class="priceChangeColor"
-            >{{ priceChange >= 0 ? '+' : '' }}{{ priceChange?.toFixed(2) }}</span
-          >
+          <span :class="priceChangeColor">{{ priceChange >= 0 ? '+' : '' }}{{ priceChange?.toFixed(2) }}</span>
         </div>
         <div>
           漲跌幅:
-          <span :class="priceChangeColor"
-            >{{ priceChange >= 0 ? '+' : '' }}{{ priceChangePercent?.toFixed(2) }}%</span
-          >
+          <span :class="priceChangeColor">{{ priceChange >= 0 ? '+' : '' }}{{ priceChangePercent?.toFixed(2) }}%</span>
         </div>
       </div>
     </div>

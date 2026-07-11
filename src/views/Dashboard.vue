@@ -22,6 +22,18 @@ const FortuneCard = defineAsyncComponent({
   loader: () => import('@/components/FortuneCard.vue'),
   loadingComponent: () => import('@/components/ui/Loading.vue'),
 })
+const TenGodsCard = defineAsyncComponent({
+  loader: () => import('@/components/TenGodsCard.vue'),
+  loadingComponent: () => import('@/components/ui/Loading.vue'),
+})
+const ZiWeiCard = defineAsyncComponent({
+  loader: () => import('@/components/ZiWeiCard.vue'),
+  loadingComponent: () => import('@/components/ui/Loading.vue'),
+})
+const FengShuiCard = defineAsyncComponent({
+  loader: () => import('@/components/FengShuiCard.vue'),
+  loadingComponent: () => import('@/components/ui/Loading.vue'),
+})
 
 // ── Store 實例 ──
 const userStore = useUserStore()
@@ -64,6 +76,14 @@ watch(
 // ── 生命週期 ──
 onMounted(() => {
   dashboardStore.loadAllData(userProfileCompat.value)
+
+  // 監聽命理引擎設定變更，重新載入運勢資料
+  const onSettingsChanged = () => {
+    if (userProfileCompat.value) {
+      dashboardStore.refreshData(userProfileCompat.value)
+    }
+  }
+  window.addEventListener('engine-settings-changed', onSettingsChanged)
 })
 </script>
 
@@ -334,6 +354,13 @@ onMounted(() => {
             <p class="text-gray-300 text-sm mt-1">姓名學五行對運勢有輔助影響，與本命五行相互配合</p>
           </div>
         </div>
+      </div>
+
+      <!-- 命理分析區域 -->
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-6">
+        <TenGodsCard :profile="userProfileCompat" />
+        <ZiWeiCard :profile="userProfileCompat" />
+        <FengShuiCard :profile="userProfileCompat" />
       </div>
     </div>
   </div>

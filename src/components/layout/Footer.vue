@@ -25,7 +25,9 @@ const showTermsModal = ref(false)
         </div>
 
         <div>
-          <h3 class="text-white font-semibold mb-4">功能特色</h3>
+          <h3 class="text-white font-semibold mb-4">
+            功能特色
+          </h3>
           <ul class="space-y-2 text-gray-300 text-sm">
             <li>• 個人化運勢分析</li>
             <li>• 農民曆整合</li>
@@ -35,7 +37,9 @@ const showTermsModal = ref(false)
         </div>
 
         <div class="sm:col-span-2 md:col-span-1">
-          <h3 class="text-white font-semibold mb-4">免責聲明</h3>
+          <h3 class="text-white font-semibold mb-4">
+            免責聲明
+          </h3>
           <p class="text-gray-300 text-sm">
             本系統僅供參考，不構成投資建議。投資有風險，請謹慎評估自身財務狀況。
           </p>
@@ -45,7 +49,9 @@ const showTermsModal = ref(false)
       <div
         class="border-t border-white/10 mt-8 pt-8 flex flex-col sm:flex-row justify-between items-center"
       >
-        <p class="text-gray-400 text-sm">© 2025 農民曆智慧投資系統. All rights reserved.</p>
+        <p class="text-gray-400 text-sm">
+          © 2025 農民曆智慧投資系統. All rights reserved.
+        </p>
         <div class="flex space-x-4 mt-4 sm:mt-0">
           <button
             class="text-gray-400 hover:text-gold-400 text-sm transition-colors focus:outline-none focus:text-gold-400"
@@ -124,7 +130,9 @@ const showTermsModal = ref(false)
                 >
                   1. 資料收集與使用
                 </h3>
-                <p class="mb-3">我們收集您的個人資訊以提供個人化的投資運勢分析服務：</p>
+                <p class="mb-3">
+                  我們收集您的個人資訊以提供個人化的投資運勢分析服務：
+                </p>
                 <ul class="list-disc list-inside space-y-1 ml-4">
                   <li>生辰八字資訊（出生日期、時間、地點）</li>
                   <li>投資偏好與風險承受度</li>
@@ -140,7 +148,9 @@ const showTermsModal = ref(false)
                 >
                   2. 資料保護措施
                 </h3>
-                <p class="mb-3">我們採用業界標準的安全措施保護您的個人資料：</p>
+                <p class="mb-3">
+                  我們採用業界標準的安全措施保護您的個人資料：
+                </p>
                 <ul class="list-disc list-inside space-y-1 ml-4">
                   <li>SSL/TLS 加密傳輸</li>
                   <li>資料庫加密存儲</li>
@@ -172,7 +182,9 @@ const showTermsModal = ref(false)
                 >
                   4. 資料分享政策
                 </h3>
-                <p class="mb-3">我們不會將您的個人資料出售、租借或與第三方分享，除非：</p>
+                <p class="mb-3">
+                  我們不會將您的個人資料出售、租借或與第三方分享，除非：
+                </p>
                 <ul class="list-disc list-inside space-y-1 ml-4">
                   <li>獲得您的明確同意</li>
                   <li>法律法規要求</li>
@@ -188,7 +200,9 @@ const showTermsModal = ref(false)
                 >
                   5. 數據儲存方式
                 </h3>
-                <p class="mb-3">我們使用以下方式來改善用戶體驗：</p>
+                <p class="mb-3">
+                  我們使用以下方式來改善用戶體驗：
+                </p>
                 <ul class="list-disc list-inside space-y-1 ml-4">
                   <li>使用瀏覽器本地儲存（localStorage）保存個人設定</li>
                   <li>透過全域狀態管理器管理應用程式狀態</li>
@@ -325,7 +339,10 @@ const showTermsModal = ref(false)
                   class="rounded-lg p-4 mb-3 border"
                   :class="isDark ? 'bg-red-900/20 border-red-500/30' : 'bg-red-50 border-red-200'"
                 >
-                  <p class="font-semibold mb-2" :class="isDark ? 'text-red-400' : 'text-red-700'">
+                  <p
+                    class="font-semibold mb-2"
+                    :class="isDark ? 'text-red-400' : 'text-red-700'"
+                  >
                     重要聲明：
                   </p>
                   <ul class="list-disc list-inside space-y-1">
@@ -345,7 +362,9 @@ const showTermsModal = ref(false)
                 >
                   3. 使用規範
                 </h3>
-                <p class="mb-3">使用本系統時，您同意遵守以下規範：</p>
+                <p class="mb-3">
+                  使用本系統時，您同意遵守以下規範：
+                </p>
                 <ul class="list-disc list-inside space-y-1 ml-4">
                   <li>不得進行任何非法或有害活動</li>
                   <li>不得嘗試破壞系統安全或獲取未授權資料</li>
@@ -419,13 +438,17 @@ const showTermsModal = ref(false)
                 >
                   8. 條款變更
                 </h3>
-                <p class="mb-3">我們保留隨時修改本使用條款的權利。重大變更將透過以下方式通知：</p>
+                <p class="mb-3">
+                  我們保留隨時修改本使用條款的權利。重大變更將透過以下方式通知：
+                </p>
                 <ul class="list-disc list-inside space-y-1 ml-4">
                   <li>網站公告</li>
                   <li>電子郵件通知</li>
                   <li>系統內訊息</li>
                 </ul>
-                <p class="mt-3">繼續使用服務即表示同意修改後的條款。</p>
+                <p class="mt-3">
+                  繼續使用服務即表示同意修改後的條款。
+                </p>
               </div>
 
               <div>

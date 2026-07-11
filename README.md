@@ -17,10 +17,51 @@
 - **姓名學五行分析** - 根據姓名筆劃自動計算五行屬性，結合八字命理
 - **自動生肖推算** - 輸入生日自動計算生肖與五行屬性
 - **農民曆整合** - 結合傳統農民曆的吉凶宜忌判斷
+- **命理引擎插件系統** - 可擴展的命理引擎架構，支援多種命理系統
 - **實時數據視覺化** - 使用 Three.js 打造沉浸式 3D 投資運勢球體
 - **0050 ETF 專注** - 專門針對台灣最具代表性的 ETF 提供分析
 - **現代化界面** - 響應式設計，支援多裝置使用
 - **統一錯誤處理** - 完整的錯誤處理系統，提供友善的錯誤提示與恢復機制
+
+## 🔮 命理引擎系統
+
+本專案實作了插件式的命理引擎架構，可擴展多種命理系統進行綜合分析。
+
+### 引擎列表
+
+| 引擎        | 權重 | 說明                                           |
+| ----------- | ---- | ---------------------------------------------- |
+| 🏮 經典命理 | 30%  | 傳統五行、生肖、星座綜合運勢                   |
+| 🔮 八字十神 | 25%  | 基於四柱的十神投資性格分析                     |
+| ⭐ 紫微斗數 | 20%  | 十四主星的簡化投資分析（命宮、財帛宮、事業宮） |
+| 🧭 風水方位 | 15%  | 五行方位與流日吉凶分析                         |
+
+### 引擎架構
+
+```typescript
+// 引擎介面
+interface MetaphysicsEngine {
+  readonly name: string
+  readonly description: string
+  readonly version: string
+  calculate(profile, date, lunarData, personalBaZi, elements): MetaphysicsResult
+  getWeight(): number
+  isEnabled(): boolean
+}
+
+// 引擎註冊
+const registry = new MetaphysicsEngineRegistry()
+registry.register(new ClassicFortuneEngine())
+registry.register(new BaziTenGodsEngine())
+registry.register(new ZiWeiEngine())
+registry.register(new FengShuiEngine())
+```
+
+### 使用者可調整
+
+- 啟用/停用各引擎
+- 調整各引擎權重（0-100%）
+- 設定儲存至 localStorage
 
 ## � 快速開始
 

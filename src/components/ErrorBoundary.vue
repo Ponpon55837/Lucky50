@@ -131,7 +131,10 @@ const goHome = () => {
     <slot v-if="!hasError" />
 
     <!-- 錯誤畫面 -->
-    <div v-else class="error-fallback">
+    <div
+      v-else
+      class="error-fallback"
+    >
       <div class="error-container">
         <div class="error-icon">
           <svg
@@ -142,9 +145,23 @@ const goHome = () => {
             stroke="currentColor"
             stroke-width="2"
           >
-            <circle cx="12" cy="12" r="10" />
-            <line x1="12" y1="8" x2="12" y2="12" />
-            <line x1="12" y1="16" x2="12.01" y2="16" />
+            <circle
+              cx="12"
+              cy="12"
+              r="10"
+            />
+            <line
+              x1="12"
+              y1="8"
+              x2="12"
+              y2="12"
+            />
+            <line
+              x1="12"
+              y1="16"
+              x2="12.01"
+              y2="16"
+            />
           </svg>
         </div>
 
@@ -155,7 +172,10 @@ const goHome = () => {
           {{ errorMessage }}
         </p>
 
-        <div v-if="showDetails && error" class="error-details">
+        <div
+          v-if="showDetails && error"
+          class="error-details"
+        >
           <details>
             <summary>錯誤詳情</summary>
             <pre>{{ errorDetails }}</pre>
@@ -163,9 +183,25 @@ const goHome = () => {
         </div>
 
         <div class="error-actions">
-          <button class="btn-retry" @click="retry">重試</button>
-          <button class="btn-home" @click="goHome">返回首頁</button>
-          <button v-if="showReset" class="btn-reset" @click="reset">清除錯誤</button>
+          <button
+            class="btn-retry"
+            @click="retry"
+          >
+            重試
+          </button>
+          <button
+            class="btn-home"
+            @click="goHome"
+          >
+            返回首頁
+          </button>
+          <button
+            v-if="showReset"
+            class="btn-reset"
+            @click="reset"
+          >
+            清除錯誤
+          </button>
         </div>
       </div>
     </div>

@@ -32,6 +32,8 @@ Keep this managed block so 'openspec update' can refresh the instructions.
 - **Step 6**: Performance monitor page at `/dev/perf` (developer tool, not in NavBar)
 - **Step 7**: API monitor page at `/dev/api` (developer tool, not in NavBar)
 - **Step 8**: Final UI Polish & Consistency Pass — All 4 main pages unified layout (full-width cards, responsive spacing), 195 tests pass ✅
+- **Step 9**: 命理引擎架構 (MetaphysicsEngine interface + registry, ClassicFortuneEngine, BaziTenGodsEngine, ZiWeiEngine, FengShuiEngine, EngineSettingsCard)
+- **Step 10**: 引擎整合至核心 — registry 設定同步 localStorage，引擎加權分數融入 integratedFortune 投資/整體/財運分數，EngineSettingsCard 儲存觸發 Dashboard 即時重算，Profile 雙欄重構 ✅
 
 ## Routes
 
@@ -52,8 +54,8 @@ Keep this managed block so 'openspec update' can refresh the instructions.
 
 ## Tests
 
-- 198 tests across 13 test files
-- Key: `fortuneStore.test.ts` (12), `fortuneLogViewer.test.ts` (8), `dashboard.test.ts` (18), `analytics.test.ts` (17), `user.test.ts` (15)
+- 324 tests across 23 test files
+- Key: `fortuneStore.test.ts` (12), `fortuneLogViewer.test.ts` (8), `dashboard.test.ts` (18), `analytics.test.ts` (17), `user.test.ts` (15), `metaphysicsEngine.test.ts` (20)
 
 ## Tech Stack
 
