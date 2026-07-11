@@ -4,7 +4,6 @@ import { useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import { useToast } from '@/composables/useToast'
 import type { UserProfile } from '@/types'
-import VueDatePicker from '@vuepic/vue-datepicker'
 import '@vuepic/vue-datepicker/dist/main.css'
 import {
   getZodiacFromDate,
@@ -18,6 +17,10 @@ const EngineSettingsCard = defineAsyncComponent({
   loader: () => import('@/components/EngineSettingsCard.vue'),
   loadingComponent: () => import('@/components/ui/Loading.vue'),
 })
+
+const VueDatePicker = defineAsyncComponent(() =>
+  import('@vuepic/vue-datepicker').then(m => m.default)
+)
 
 // ── 常量與設定 ──
 const shichenList = [

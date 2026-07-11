@@ -1,12 +1,39 @@
 import { defineStore } from 'pinia'
 import { ref, computed, shallowRef } from 'vue'
-import { lunarService } from '@/services/lunar'
-import { IntegratedFortuneService } from '@/services/integratedFortune'
-import { FinMindService } from '@/services/finmind'
 import { toLocalDateString } from '@/utils/date'
 import type { LunarData, InvestmentAdvice } from '@/services/lunar'
 import type { IntegratedFortuneData, UserProfileCompat } from '@/services/integratedFortune'
 import type { ETFData } from '@/types'
+
+// 動態 import 服務層 — 避免將重型依賴（lunar-javascript, axios, 4 engines）打包進 main chunk
+// 使用 any 因為 LunarService 未 export，動態 import 型別推導會造成循環引用
+let _lunarService: any = null // eslint-disable-line @typescript-eslint/no-explicit-any
+let _integratedFortuneService: any = null // eslint-disable-line @typescript-eslint/no-explicit-any
+let _finMindService: any = null // eslint-disable-line @typescript-eslint/no-explicit-any
+
+async function getLunarService() {
+  if (!_lunarService) {
+    const mod = await import('@/services/lunar')
+    _lunarService = mod.lunarService
+  }
+  return _lunarService
+}
+
+async function getIntegratedFortuneService() {
+  if (!_integratedFortuneService) {
+    const mod = await import('@/services/integratedFortune')
+    _integratedFortuneService = mod.IntegratedFortuneService
+  }
+  return _integratedFortuneService
+}
+
+async function getFinMindService() {
+  if (!_finMindService) {
+    const mod = await import('@/services/finmind')
+    _finMindService = mod.FinMindService
+  }
+  return _finMindService
+}
 
 // 工具函數 - 直接在 store 中定義
 const formatDate = (date: Date): string => {
@@ -108,11 +135,9 @@ export const useDashboardStore = defineStore('dashboard', () => {
       lunarError.value = null
       currentDate.value = date
 
-      // 載入農民曆資料
-      lunarData.value = lunarService.getLunarData(date)
-
-      // 載入投資建議
-      investmentAdvice.value = lunarService.getInvestmentAdvice(date)
+      const svc = await getLunarService()
+      lunarData.value = svc.getLunarData(date)
+      investmentAdvice.value = svc.getInvestmentAdvice(date)
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : String(error)
       console.error('載入農民曆資料失敗:', errorMessage)
@@ -166,14 +191,12 @@ export const useDashboardStore = defineStore('dashboard', () => {
         birthTime: userProfile.birthTime,
       })
 
-      integratedFortune.value = await IntegratedFortuneService.calculateIntegratedFortune(
-        userProfile,
-        date
-      )
+      const svc = await getIntegratedFortuneService()
+      integratedFortune.value = await svc.calculateIntegratedFortune(userProfile, date)
 
       console.log(
         'DashboardStore - 整合運勢資料載入完成，投資分數:',
-        integratedFortune.value.investmentScore
+        integratedFortune.value?.investmentScore
       )
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : String(error)
@@ -191,8 +214,10 @@ export const useDashboardStore = defineStore('dashboard', () => {
       etfLoading.value = true
       etfError.value = null
 
+      const svc = await getFinMindService()
+
       // 檢查API狀態
-      const apiStatus = await FinMindService.checkAPIStatus()
+      const apiStatus = await svc.checkAPIStatus()
       if (!apiStatus) {
         console.warn('FinMind API 無法連接，將使用備用數據')
       }
@@ -202,7 +227,7 @@ export const useDashboardStore = defineStore('dashboard', () => {
       const startDate = toLocalDateString(new Date(Date.now() - 30 * 24 * 60 * 60 * 1000))
 
       try {
-        const data = await FinMindService.getETFData(startDate, endDate)
+        const data = await svc.getETFData(startDate, endDate)
 
         if (data.length > 0) {
           etfData.value = data
@@ -269,8 +294,10 @@ export const useDashboardStore = defineStore('dashboard', () => {
 
       // 僅在日期改變時才清除快取，避免無謂的重複計算
       if (date.getTime() !== currentDate.value.getTime()) {
-        lunarService.clearCache()
-        IntegratedFortuneService.clearCache()
+        const lunarSvc = await getLunarService()
+        lunarSvc.clearCache()
+        const fortuneSvc = await getIntegratedFortuneService()
+        fortuneSvc.clearCache()
       }
       currentDate.value = date
 

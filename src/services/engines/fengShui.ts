@@ -211,12 +211,12 @@ function calculateEnhancedDirection(
     reason: '能量較弱或相剋',
   }))
 
-  // 流日吉凶
+  // 流日吉凶：favorable = 生我 + 日主本身，unavoidable = 克我 + 我生（排除日主本身）
   const favorableElements = [GENERATES[dailyElement], dailyElement]
   const unfavorableElements = [
     Object.entries(GENERATES).find(([_, v]) => v === dailyElement)?.[0] || '',
     Object.entries(GENERATES).find(([k, _]) => k === dailyElement)?.[0] || '',
-  ]
+  ].filter(e => e && e !== dailyElement)
 
   // 流日分數
   let dailyScore = 60

@@ -1,12 +1,15 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, defineAsyncComponent } from 'vue'
 import { useUserStore } from '@/stores/user'
 import type { FortuneRecord, HistoryQueryOptions, HistoryStats } from '@/types/history'
-import VueDatePicker from '@vuepic/vue-datepicker'
 import '@vuepic/vue-datepicker/dist/main.css'
 import { fortuneHistoryStore } from '@/services/fortuneStore'
 import { IntegratedFortuneService } from '@/services/integratedFortune'
 import { toLocalDateString } from '@/utils/date'
+
+const VueDatePicker = defineAsyncComponent(() =>
+  import('@vuepic/vue-datepicker').then(m => m.default)
+)
 
 // ── Props / Emits ──
 interface Props {
