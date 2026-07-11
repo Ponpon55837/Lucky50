@@ -5,21 +5,36 @@
       <span class="text-white">風水方位與流日</span>
     </h3>
 
-    <div v-if="loading" class="text-center py-8 text-gray-400">計算中...</div>
+    <div
+      v-if="loading"
+      class="text-center py-8 text-gray-400"
+    >
+      計算中...
+    </div>
 
-    <div v-else-if="error" class="text-center py-8 text-red-400">
+    <div
+      v-else-if="error"
+      class="text-center py-8 text-red-400"
+    >
       {{ error }}
     </div>
 
     <template v-else-if="result">
       <!-- 流日概覽 -->
       <div class="text-center mb-6 p-4 bg-white/5 rounded-lg">
-        <div class="text-sm text-amber-400 mb-1">今日流日</div>
+        <div class="text-sm text-amber-400 mb-1">
+          今日流日
+        </div>
         <div class="text-2xl font-bold text-white">
           {{ result.daily.stem }}{{ result.daily.branch }}
         </div>
-        <div class="text-sm text-gray-400 mt-1">五行：{{ elementLabel(result.daily.element) }}</div>
-        <div class="text-lg font-bold mt-2" :class="dailyScoreColor">
+        <div class="text-sm text-gray-400 mt-1">
+          五行：{{ elementLabel(result.daily.element) }}
+        </div>
+        <div
+          class="text-lg font-bold mt-2"
+          :class="dailyScoreColor"
+        >
           {{ result.daily.overallScore }}分
         </div>
         <div class="text-sm text-gray-300 mt-1">
@@ -29,7 +44,9 @@
 
       <!-- 吉方 -->
       <div class="mb-4">
-        <h4 class="text-sm font-bold text-green-400 mb-2">吉方</h4>
+        <h4 class="text-sm font-bold text-green-400 mb-2">
+          吉方
+        </h4>
         <div class="space-y-2">
           <div
             v-for="(dir, idx) in result.luckyDirections"
@@ -41,7 +58,9 @@
               <span class="font-bold text-sm text-white">{{ dir.direction }}</span>
             </div>
             <div class="text-right">
-              <div class="text-sm text-green-400">{{ dir.score }}分</div>
+              <div class="text-sm text-green-400">
+                {{ dir.score }}分
+              </div>
               <div class="text-xs text-gray-500">
                 {{ dir.reason }}
               </div>
@@ -52,7 +71,9 @@
 
       <!-- 凶方 -->
       <div class="mb-4">
-        <h4 class="text-sm font-bold text-red-400 mb-2">凶方</h4>
+        <h4 class="text-sm font-bold text-red-400 mb-2">
+          凶方
+        </h4>
         <div class="space-y-1">
           <div
             v-for="(dir, idx) in result.avoidDirections"
@@ -69,7 +90,9 @@
       <!-- 幸運元素 -->
       <div class="grid grid-cols-2 gap-2">
         <div class="p-2 bg-white/5 rounded">
-          <div class="text-xs text-amber-400 mb-1">幸運五行</div>
+          <div class="text-xs text-amber-400 mb-1">
+            幸運五行
+          </div>
           <div class="flex flex-wrap gap-1">
             <span
               v-for="el in result.favorableElements"
@@ -81,7 +104,9 @@
           </div>
         </div>
         <div class="p-2 bg-white/5 rounded">
-          <div class="text-xs text-gray-500 mb-1">避開五行</div>
+          <div class="text-xs text-gray-500 mb-1">
+            避開五行
+          </div>
           <div class="flex flex-wrap gap-1">
             <span
               v-for="el in result.unfavorableElements"
@@ -95,7 +120,12 @@
       </div>
     </template>
 
-    <div v-else class="text-center py-8 text-gray-500">請先設定出生資料</div>
+    <div
+      v-else
+      class="text-center py-8 text-gray-500"
+    >
+      請先設定出生資料
+    </div>
   </div>
 </template>
 

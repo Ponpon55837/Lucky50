@@ -48,7 +48,16 @@ const ELEMENT_DESTROYS: Record<string, string> = {
 
 // 十神名稱
 export type TenGodName =
-  '比肩' | '劫財' | '食神' | '傷官' | '偏財' | '正財' | '七殺' | '正官' | '偏印' | '正印'
+  | '比肩'
+  | '劫財'
+  | '食神'
+  | '傷官'
+  | '偏財'
+  | '正財'
+  | '七殺'
+  | '正官'
+  | '偏印'
+  | '正印'
 
 // 十神 → 投資性格映射
 export const TEN_GODS_INVESTMENT_STYLE: Record<TenGodName, string> = {
