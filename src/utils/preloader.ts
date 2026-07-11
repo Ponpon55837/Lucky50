@@ -1,20 +1,18 @@
 // Resource preloading strategy
-import type { Component } from 'vue'
+// 注意：不要在此自動預載重型元件（PriceChart, FortuneCard 等），
+// 否則會將 chart.js 等依賴拉進 main chunk，擊潰 code splitting。
+// 預載由各頁面的 defineAsyncComponent 按需處理。
 
 export class ResourcePreloader {
   private static preloadedResources = new Set<string>()
 
   /**
-   * Preload critical resources
+   * Preload critical resources — 僅預載 lightweight 資源
    */
   static preloadCriticalResources() {
-    // Preload critical routes
+    // 僅預載路由 prefetch（ lightweight ）
     this.preloadRoute('/dashboard')
     this.preloadRoute('/analytics')
-
-    // Preload critical components
-    this.preloadComponent(() => import('@/components/charts/PriceChart.vue'))
-    this.preloadComponent(() => import('@/components/FortuneCard.vue'))
   }
 
   /**
@@ -29,17 +27,6 @@ export class ResourcePreloader {
     document.head.appendChild(link)
 
     this.preloadedResources.add(route)
-  }
-
-  /**
-   * Preload component module
-   */
-  private static async preloadComponent(importFunc: () => Promise<{ default: Component }>) {
-    try {
-      await importFunc()
-    } catch (error) {
-      console.warn('Failed to preload component:', error)
-    }
   }
 
   /**
@@ -67,20 +54,19 @@ export class ResourcePreloader {
   static init() {
     if (document.readyState === 'loading') {
       document.addEventListener('DOMContentLoaded', () => {
-        // Preload after initial render
         setTimeout(() => {
           this.preloadCriticalResources()
           this.preloadFonts()
-        }, 1000)
+        }, 2000)
       })
     } else {
       setTimeout(() => {
         this.preloadCriticalResources()
         this.preloadFonts()
-      }, 1000)
+      }, 2000)
     }
   }
 }
 
-// Auto-initialize
+// Auto-initialize — 延遲 2 秒，避免阻塞首次繪製
 ResourcePreloader.init()
