@@ -154,44 +154,83 @@ function getClashZhi(zodiac: string): string[] {
 <template>
   <div class="card">
     <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4 gap-2">
-      <h3 class="text-lg sm:text-xl font-bold flex items-center" style="color: var(--primary-text)">
-        <span class="mr-2" style="color: var(--accent-text)">📆</span>
+      <h3
+        class="text-lg sm:text-xl font-bold flex items-center"
+        style="color: var(--primary-text)"
+      >
+        <span
+          class="mr-2"
+          style="color: var(--accent-text)"
+        >📆</span>
         今日農民曆
       </h3>
-      <div class="text-sm" style="color: var(--secondary-text)">
+      <div
+        class="text-sm"
+        style="color: var(--secondary-text)"
+      >
         {{ dashboardStore.formattedCurrentDate }}
       </div>
     </div>
 
-    <div v-if="lunarInfo && !loading" class="space-y-4">
+    <div
+      v-if="lunarInfo && !loading"
+      class="space-y-4"
+    >
       <!-- 農曆日期 -->
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div class="lunar-card">
-          <h4 class="font-semibold text-red-500 mb-2">農曆日期</h4>
-          <div class="text-lg font-bold" style="color: var(--primary-text)">
+          <h4 class="font-semibold text-red-500 mb-2">
+            農曆日期
+          </h4>
+          <div
+            class="text-lg font-bold"
+            style="color: var(--primary-text)"
+          >
             {{ lunarInfo.lunarYear }}年 {{ lunarInfo.lunarMonth }}月 {{ lunarInfo.lunarDay }}日
           </div>
-          <div class="text-sm mt-1" style="color: var(--secondary-text)">
+          <div
+            class="text-sm mt-1"
+            style="color: var(--secondary-text)"
+          >
             {{ lunarInfo.ganZhi }}年 {{ lunarInfo.monthGanZhi }}月 {{ lunarInfo.dayGanZhi }}日
           </div>
         </div>
 
         <div class="lunar-card">
-          <h4 class="font-semibold text-blue-500 mb-2">生肖星座</h4>
-          <div class="text-lg font-bold" style="color: var(--primary-text)">
+          <h4 class="font-semibold text-blue-500 mb-2">
+            生肖星座
+          </h4>
+          <div
+            class="text-lg font-bold"
+            style="color: var(--primary-text)"
+          >
             {{ lunarInfo.zodiac }}年 {{ lunarInfo.constellation }}
           </div>
-          <div class="text-sm mt-1" style="color: var(--secondary-text)">
+          <div
+            class="text-sm mt-1"
+            style="color: var(--secondary-text)"
+          >
             本命納音：{{ lunarInfo.naYin }}
           </div>
         </div>
       </div>
 
       <!-- 節氣節日 -->
-      <div v-if="lunarInfo.jieQi" class="lunar-card">
-        <h4 class="font-semibold mb-2" style="color: var(--accent-text)">節氣節日</h4>
+      <div
+        v-if="lunarInfo.jieQi"
+        class="lunar-card"
+      >
+        <h4
+          class="font-semibold mb-2"
+          style="color: var(--accent-text)"
+        >
+          節氣節日
+        </h4>
         <div class="flex flex-wrap gap-2">
-          <span v-if="lunarInfo.jieQi" class="festival-tag festival-tag-green">
+          <span
+            v-if="lunarInfo.jieQi"
+            class="festival-tag festival-tag-green"
+          >
             {{ lunarInfo.jieQi }}
           </span>
         </div>
@@ -200,18 +239,30 @@ function getClashZhi(zodiac: string): string[] {
       <!-- 宜忌事項 -->
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
         <div class="lunar-card">
-          <h4 class="font-semibold text-green-500 mb-2">宜</h4>
+          <h4 class="font-semibold text-green-500 mb-2">
+            宜
+          </h4>
           <div class="flex flex-wrap gap-1">
-            <span v-for="item in lunarInfo.yi" :key="item" class="yi-tag">
+            <span
+              v-for="item in lunarInfo.yi"
+              :key="item"
+              class="yi-tag"
+            >
               {{ item }}
             </span>
           </div>
         </div>
 
         <div class="lunar-card">
-          <h4 class="font-semibold text-red-500 mb-2">忌</h4>
+          <h4 class="font-semibold text-red-500 mb-2">
+            忌
+          </h4>
           <div class="flex flex-wrap gap-1">
-            <span v-for="item in lunarInfo.ji" :key="item" class="ji-tag">
+            <span
+              v-for="item in lunarInfo.ji"
+              :key="item"
+              class="ji-tag"
+            >
               {{ item }}
             </span>
           </div>
@@ -220,11 +271,20 @@ function getClashZhi(zodiac: string): string[] {
 
       <!-- 時辰分析 -->
       <div class="lunar-card">
-        <h4 class="font-semibold mb-3 flex items-center" style="color: var(--primary-text)">
-          <span class="mr-2" style="color: var(--accent-text)">🕐</span>
+        <h4
+          class="font-semibold mb-3 flex items-center"
+          style="color: var(--primary-text)"
+        >
+          <span
+            class="mr-2"
+            style="color: var(--accent-text)"
+          >🕐</span>
           今日時辰吉凶分析
         </h4>
-        <div class="text-xs mb-3" style="color: var(--secondary-text)">
+        <div
+          class="text-xs mb-3"
+          style="color: var(--secondary-text)"
+        >
           基於農民曆 {{ analysisBase.dayGanZhi }} 日和生肖 {{ analysisBase.zodiac }} 推算
         </div>
         <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3 text-xs">
@@ -248,15 +308,30 @@ function getClashZhi(zodiac: string): string[] {
               {{ hour.time }}
             </div>
             <div class="text-sm font-bold flex items-center justify-center">
-              <span v-if="hour.status === '大吉'" class="mr-1">⭐</span>
-              <span v-else-if="hour.status === '吉'" class="mr-1">✨</span>
-              <span v-else-if="hour.status === '忌'" class="mr-1">⚠️</span>
-              <span v-else-if="hour.status === '平'" class="mr-1">◐</span>
+              <span
+                v-if="hour.status === '大吉'"
+                class="mr-1"
+              >⭐</span>
+              <span
+                v-else-if="hour.status === '吉'"
+                class="mr-1"
+              >✨</span>
+              <span
+                v-else-if="hour.status === '忌'"
+                class="mr-1"
+              >⚠️</span>
+              <span
+                v-else-if="hour.status === '平'"
+                class="mr-1"
+              >◐</span>
               {{ hour.status }}
             </div>
           </div>
         </div>
-        <div class="mt-3 text-xs" style="color: var(--secondary-text)">
+        <div
+          class="mt-3 text-xs"
+          style="color: var(--secondary-text)"
+        >
           <span class="text-green-600">大吉⭐</span>：生肖三合吉時 |
           <span class="text-green-500">吉✨</span>：天干貴人吉時 |
           <span class="text-gray-500">平</span>：普通時辰 |
@@ -265,10 +340,20 @@ function getClashZhi(zodiac: string): string[] {
       </div>
     </div>
 
-    <div v-else class="text-center py-8" style="color: var(--secondary-text)">
-      <div v-if="loading" class="loading-spinner" />
-      <div v-else class="text-red-500">
-        <span class="text-2xl">⚠️</span><br />
+    <div
+      v-else
+      class="text-center py-8"
+      style="color: var(--secondary-text)"
+    >
+      <div
+        v-if="loading"
+        class="loading-spinner"
+      />
+      <div
+        v-else
+        class="text-red-500"
+      >
+        <span class="text-2xl">⚠️</span><br>
         載入農民曆資料失敗
       </div>
       {{ loading ? '載入農民曆資料中...' : '請重新整理頁面' }}

@@ -114,12 +114,18 @@ const getRiskLevelText = (riskLevel: string): string => {
         <span class="text-gold-400 mr-2">{{ icon }}</span>
         {{ title }}
       </h3>
-      <div v-if="showDate" class="text-sm text-gray-300">
+      <div
+        v-if="showDate"
+        class="text-sm text-gray-300"
+      >
         {{ formatDate(date) }}
       </div>
     </div>
 
-    <div v-if="fortuneData && !loading" class="space-y-4">
+    <div
+      v-if="fortuneData && !loading"
+      class="space-y-4"
+    >
       <!-- 運勢分數區域 -->
       <div class="space-y-4">
         <!-- 總體運勢 -->
@@ -184,7 +190,10 @@ const getRiskLevelText = (riskLevel: string): string => {
       <div class="pt-4 border-t border-white/10">
         <div class="flex items-center justify-between mb-2">
           <span class="text-gray-300">建議操作</span>
-          <span :class="getRecommendationColor(fortuneData.recommendation)" class="font-semibold">
+          <span
+            :class="getRecommendationColor(fortuneData.recommendation)"
+            class="font-semibold"
+          >
             {{ getRecommendationText(fortuneData.recommendation) }}
           </span>
         </div>
@@ -195,23 +204,33 @@ const getRiskLevelText = (riskLevel: string): string => {
         <!-- 風險等級 -->
         <div class="flex items-center justify-between">
           <span class="text-gray-300 text-sm">風險等級</span>
-          <span :class="getRiskLevelColor(fortuneData.riskLevel)" class="text-sm font-medium">
+          <span
+            :class="getRiskLevelColor(fortuneData.riskLevel)"
+            class="text-sm font-medium"
+          >
             {{ getRiskLevelText(fortuneData.riskLevel) }}
           </span>
         </div>
       </div>
 
       <!-- 時間建議區域 -->
-      <div v-if="showTimeAdvice" class="pt-4 border-t border-white/10">
+      <div
+        v-if="showTimeAdvice"
+        class="pt-4 border-t border-white/10"
+      >
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div class="bg-green-500/20 p-3 rounded-lg border border-green-500/30">
-            <h4 class="text-green-400 font-medium text-sm mb-1">推薦時段</h4>
+            <h4 class="text-green-400 font-medium text-sm mb-1">
+              推薦時段
+            </h4>
             <p class="text-white text-sm">
               {{ fortuneData.luckyTime }}
             </p>
           </div>
           <div class="bg-red-500/20 p-3 rounded-lg border border-red-500/30">
-            <h4 class="text-red-400 font-medium text-sm mb-1">避免時段</h4>
+            <h4 class="text-red-400 font-medium text-sm mb-1">
+              避免時段
+            </h4>
             <p class="text-white text-sm">
               {{ fortuneData.avoidTime }}
             </p>
@@ -220,16 +239,23 @@ const getRiskLevelText = (riskLevel: string): string => {
       </div>
 
       <!-- 方位建議區域 -->
-      <div v-if="showDirectionAdvice" class="pt-4 border-t border-white/10">
+      <div
+        v-if="showDirectionAdvice"
+        class="pt-4 border-t border-white/10"
+      >
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div class="bg-blue-500/20 p-3 rounded-lg border border-blue-500/30">
-            <h4 class="text-blue-400 font-medium text-sm mb-1">吉方</h4>
+            <h4 class="text-blue-400 font-medium text-sm mb-1">
+              吉方
+            </h4>
             <p class="text-white text-sm">
               {{ fortuneData.luckyDirection }}
             </p>
           </div>
           <div class="bg-orange-500/20 p-3 rounded-lg border border-orange-500/30">
-            <h4 class="text-orange-400 font-medium text-sm mb-1">兇方</h4>
+            <h4 class="text-orange-400 font-medium text-sm mb-1">
+              兇方
+            </h4>
             <p class="text-white text-sm">
               {{ fortuneData.avoidDirection }}
             </p>
@@ -238,10 +264,15 @@ const getRiskLevelText = (riskLevel: string): string => {
       </div>
 
       <!-- 幸��顏色和數字 -->
-      <div v-if="showLuckyInfo" class="pt-4 border-t border-white/10">
+      <div
+        v-if="showLuckyInfo"
+        class="pt-4 border-t border-white/10"
+      >
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
-            <h4 class="text-gray-300 text-sm mb-2">幸運顏色</h4>
+            <h4 class="text-gray-300 text-sm mb-2">
+              幸運顏色
+            </h4>
             <div class="flex flex-wrap gap-1">
               <span
                 v-for="color in fortuneData.luckyColors"
@@ -253,7 +284,9 @@ const getRiskLevelText = (riskLevel: string): string => {
             </div>
           </div>
           <div>
-            <h4 class="text-gray-300 text-sm mb-2">幸運數字</h4>
+            <h4 class="text-gray-300 text-sm mb-2">
+              幸運數字
+            </h4>
             <div class="flex flex-wrap gap-1">
               <span
                 v-for="number in fortuneData.luckyNumbers"
@@ -272,8 +305,13 @@ const getRiskLevelText = (riskLevel: string): string => {
         v-if="fortuneData.warnings.length > 0 || fortuneData.opportunities.length > 0"
         class="pt-4 border-t border-white/10"
       >
-        <div v-if="fortuneData.opportunities.length > 0" class="mb-3">
-          <h4 class="text-green-400 text-sm mb-2">機會提醒</h4>
+        <div
+          v-if="fortuneData.opportunities.length > 0"
+          class="mb-3"
+        >
+          <h4 class="text-green-400 text-sm mb-2">
+            機會提醒
+          </h4>
           <ul class="space-y-1">
             <li
               v-for="opportunity in fortuneData.opportunities"
@@ -286,7 +324,9 @@ const getRiskLevelText = (riskLevel: string): string => {
           </ul>
         </div>
         <div v-if="fortuneData.warnings.length > 0">
-          <h4 class="text-red-400 text-sm mb-2">注意事項</h4>
+          <h4 class="text-red-400 text-sm mb-2">
+            注意事項
+          </h4>
           <ul class="space-y-1">
             <li
               v-for="warning in fortuneData.warnings"
@@ -302,17 +342,28 @@ const getRiskLevelText = (riskLevel: string): string => {
     </div>
 
     <!-- 載入狀態 -->
-    <div v-else-if="loading" class="text-center py-8">
+    <div
+      v-else-if="loading"
+      class="text-center py-8"
+    >
       <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-gold-400 mx-auto" />
-      <p class="text-gray-300 mt-2">計算運勢中...</p>
+      <p class="text-gray-300 mt-2">
+        計算運勢中...
+      </p>
     </div>
 
     <!-- 錯誤狀態 -->
-    <div v-else class="text-center py-8">
+    <div
+      v-else
+      class="text-center py-8"
+    >
       <p class="text-red-400 mb-2">
         {{ errorMessage || '無法載入運勢資料' }}
       </p>
-      <button class="text-gold-400 hover:text-gold-300 text-sm underline" @click="$emit('retry')">
+      <button
+        class="text-gold-400 hover:text-gold-300 text-sm underline"
+        @click="$emit('retry')"
+      >
         重新載入
       </button>
     </div>

@@ -73,8 +73,12 @@ if (typeof window !== 'undefined') {
   <div class="min-h-screen py-8">
     <div class="max-w-4xl mx-auto px-4">
       <div class="mb-6">
-        <h1 class="text-2xl font-bold text-white">效能監控面板</h1>
-        <p class="text-gray-400 text-sm mt-1">開發者工具 — 記錄元件渲染與 API 回應耗時</p>
+        <h1 class="text-2xl font-bold text-white">
+          效能監控面板
+        </h1>
+        <p class="text-gray-400 text-sm mt-1">
+          開發者工具 — 記錄元件渲染與 API 回應耗時
+        </p>
       </div>
 
       <div class="flex gap-3 mb-6">
@@ -97,11 +101,17 @@ if (typeof window !== 'undefined') {
         </button>
       </div>
 
-      <div v-if="entries.length === 0" class="text-center py-12 text-gray-500">
+      <div
+        v-if="entries.length === 0"
+        class="text-center py-12 text-gray-500"
+      >
         尚無效能紀錄，點擊「開始錄製」進行監控
       </div>
 
-      <div v-else class="space-y-2">
+      <div
+        v-else
+        class="space-y-2"
+      >
         <div
           v-for="(entry, i) in entries.slice().reverse()"
           :key="i"
@@ -126,7 +136,10 @@ if (typeof window !== 'undefined') {
         </div>
       </div>
 
-      <div v-if="entries.length > 0" class="mt-4 text-sm text-gray-500 text-right">
+      <div
+        v-if="entries.length > 0"
+        class="mt-4 text-sm text-gray-500 text-right"
+      >
         共 {{ entries.length }} 筆紀錄
       </div>
     </div>

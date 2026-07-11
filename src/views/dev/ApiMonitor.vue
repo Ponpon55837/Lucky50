@@ -45,13 +45,15 @@ function clearCalls() {
   <div class="min-h-screen py-8">
     <div class="max-w-4xl mx-auto px-4">
       <div class="mb-6">
-        <h1 class="text-2xl font-bold text-white">API 監控</h1>
-        <p class="text-gray-400 text-sm mt-1">開發者工具 — 監控所有 API 請求狀態與耗時</p>
+        <h1 class="text-2xl font-bold text-white">
+          API 監控
+        </h1>
+        <p class="text-gray-400 text-sm mt-1">
+          開發者工具 — 監控所有 API 請求狀態與耗時
+        </p>
         <p class="text-gray-500 text-xs mt-1">
           在應用程式中呼叫
-          <code class="text-gold-400 bg-gray-800 px-1 rounded"
-            >window.__apiMonitor.record(endpoint, method, status, duration)</code
-          >
+          <code class="text-gold-400 bg-gray-800 px-1 rounded">window.__apiMonitor.record(endpoint, method, status, duration)</code>
           即可記錄
         </p>
       </div>
@@ -65,9 +67,17 @@ function clearCalls() {
         </button>
       </div>
 
-      <div v-if="calls.length === 0" class="text-center py-12 text-gray-500">尚無 API 呼叫紀錄</div>
+      <div
+        v-if="calls.length === 0"
+        class="text-center py-12 text-gray-500"
+      >
+        尚無 API 呼叫紀錄
+      </div>
 
-      <div v-else class="space-y-2">
+      <div
+        v-else
+        class="space-y-2"
+      >
         <div
           v-for="(call, i) in calls.slice().reverse()"
           :key="i"
@@ -105,7 +115,10 @@ function clearCalls() {
         </div>
       </div>
 
-      <div v-if="calls.length > 0" class="mt-4 flex justify-between text-sm text-gray-500">
+      <div
+        v-if="calls.length > 0"
+        class="mt-4 flex justify-between text-sm text-gray-500"
+      >
         <span>總請求數: {{ calls.length }}</span>
         <span>
           平均耗時:

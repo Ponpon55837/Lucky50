@@ -12,7 +12,10 @@ const { isDark, toggleTheme } = useTheme()
     @click="toggleTheme"
   >
     <div class="toggle-icon">
-      <transition name="icon-fade" mode="out-in">
+      <transition
+        name="icon-fade"
+        mode="out-in"
+      >
         <svg
           v-if="isDark"
           key="sun"
