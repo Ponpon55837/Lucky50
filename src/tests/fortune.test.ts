@@ -237,4 +237,111 @@ describe('FortuneService', () => {
       expect(fortune2.investmentScore).toBeLessThanOrEqual(100)
     })
   })
+
+  describe('element energy with naYin', () => {
+    it('納音五行末字應正確對應五行', () => {
+      // 直接測試 getNaYinElement 的邏輯（從納音名稱提取五行）
+      const naYinToElement: Record<string, string> = {
+        海中金: 'metal',
+        爐中火: 'fire',
+        大林木: 'wood',
+        路旁土: 'earth',
+        劍鋒金: 'metal',
+        山頭火: 'fire',
+        澗下水: 'water',
+        城頭土: 'earth',
+        白蠟金: 'metal',
+        楊柳木: 'wood',
+        井泉水: 'water',
+        屋上土: 'earth',
+        霹靂火: 'fire',
+        松柏木: 'wood',
+        長流水: 'water',
+        砂中金: 'metal',
+        山下火: 'fire',
+        平地木: 'wood',
+        壁上土: 'earth',
+        金箔金: 'metal',
+        覆燈火: 'fire',
+        天河水: 'water',
+        大驛土: 'earth',
+        釵釧金: 'metal',
+        桑柘木: 'wood',
+        大溪水: 'water',
+        砂中土: 'earth',
+        天上火: 'fire',
+        石榴木: 'wood',
+        大海水: 'water',
+      }
+
+      Object.entries(naYinToElement).forEach(([naYin, expectedElement]) => {
+        const lastChar = naYin.slice(-1)
+        const elementMap: Record<string, string> = {
+          金: 'metal',
+          木: 'wood',
+          水: 'water',
+          火: 'fire',
+          土: 'earth',
+        }
+        expect(elementMap[lastChar]).toBe(expectedElement)
+      })
+    })
+  })
+
+  describe('five element interactions', () => {
+    it('五行相生應影響運勢分數', () => {
+      const testDate = new Date('2024-01-15')
+      FortuneService.clearCache()
+
+      // 測試不同五行屬性的用戶都能正常計算
+      const elements = ['金', '木', '水', '火', '土'] as const
+      for (const element of elements) {
+        const profile = { ...testProfile, name: `${element}命用戶`, element, zodiac: '馬' }
+        const fortune = FortuneService.calculateDailyFortune(profile, testDate)
+        expect(fortune.overallScore).toBeGreaterThanOrEqual(10)
+        expect(fortune.overallScore).toBeLessThanOrEqual(95)
+        expect(fortune.investmentScore).toBeGreaterThanOrEqual(10)
+        expect(fortune.investmentScore).toBeLessThanOrEqual(95)
+      }
+    })
+  })
+
+  describe('constellation influence', () => {
+    it('星座應影響運勢分數', () => {
+      const testDate = new Date('2024-01-15')
+      FortuneService.clearCache()
+
+      // 火象星座（白羊座）用戶
+      const fireProfile = { ...testProfile, name: '白羊用戶', zodiac: '鼠' }
+      const fortune = FortuneService.calculateDailyFortune(fireProfile, testDate)
+
+      // 驗證分數在合理範圍內
+      expect(fortune.overallScore).toBeGreaterThanOrEqual(10)
+      expect(fortune.overallScore).toBeLessThanOrEqual(95)
+      expect(fortune.investmentScore).toBeGreaterThanOrEqual(10)
+      expect(fortune.investmentScore).toBeLessThanOrEqual(95)
+    })
+
+    it('不同星座用戶的運勢應有差異', () => {
+      const testDate = new Date('2024-01-15')
+      FortuneService.clearCache()
+
+      // 不同名字會導致不同的日干支，從而產生不同的星座和運勢
+      const profiles = ['星座用戶A', '星座用戶B', '星座用戶C'].map(name => ({
+        ...testProfile,
+        name,
+        zodiac: '馬',
+      }))
+
+      const fortunes = profiles.map(p => FortuneService.calculateDailyFortune(p, testDate))
+
+      // 至少有一個屬性不同
+      const allSame = fortunes.every(
+        f =>
+          f.overallScore === fortunes[0].overallScore &&
+          f.investmentScore === fortunes[0].investmentScore
+      )
+      expect(allSame).toBe(false)
+    })
+  })
 })

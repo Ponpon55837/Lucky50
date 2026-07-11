@@ -1,5 +1,41 @@
 # Changelog
 
+## [2026-07-11] 命理引擎整合至核心運勢計算 + Profile 雙欄重構
+
+### 命理引擎整合 (`src/services/engines/`)
+
+- `MetaphysicsEngine` 介面新增 `engineId` 屬性，用於 localStorage 設定對照
+- 4 個引擎（classic, bazi-ten-gods, zi-wei, feng-shui）皆加入 `engineId`
+- `MetaphysicsEngineRegistry` 改用 `engineId` 查詢（`getEngineById`），新增 `loadFromStorage()` 從 localStorage 載入設定
+- `IntegratedFortuneService` 首次計算時自動註冊所有引擎，每次計算前從 localStorage 載入最新設定
+- `calculateFortuneScores()` 新增 `engineWeightedScore` 參數，引擎加權分數轉換為 -25～+25 調整值融入 overallScore、investmentScore、wealthScore
+- `IntegratedFortuneData` 新增 `enginesResults` 與 `engineWeightedScore` 欄位
+- 聚合引擎的 warnings、opportunities、luckyDirection、avoidDirection 至主運勢資料
+
+### EngineSettingsCard 聯動 (`src/components/EngineSettingsCard.vue`)
+
+- 儲存設定後呼叫 `IntegratedFortuneService.clearCache()` 清除快取
+- dispatch `engine-settings-changed` 自定義事件通知其他元件
+
+### Dashboard 即時更新 (`src/views/Dashboard.vue`)
+
+- 監聽 `engine-settings-changed` 事件，設定變更後自動重新載入運勢資料
+
+### Profile 頁面雙欄重構 (`src/views/Profile.vue`)
+
+- 左側：個人資料表單（姓氏、名字、生日、生肖、五行等）
+- 右側：EngineSettingsCard（命理引擎開關與權重調整）
+- RWD：`lg:grid-cols-2` 桌面左右並排，手機垂直堆疊
+
+### 測試更新 (`src/tests/metaphysicsEngine.test.ts`)
+
+- MockEngine 加入 `engineId` 屬性
+- 新增 `loadFromStorage` 測試（2 個）
+- 新增 `aggregateAdvice` 測試
+- 所有 `setEngineEnabled`/`setEngineWeight` 改用 engineId
+- ClassicFortuneEngine 測試更新（名稱從 'classic' 改為 '經典命理'）
+- 324 tests 全部通過 ✅
+
 ## [2026-07-11] 運勢歷史頁面 RWD 優化 + 日期時區修正
 
 ### FortuneLogViewer 重構 (`src/components/FortuneLogViewer.vue`)

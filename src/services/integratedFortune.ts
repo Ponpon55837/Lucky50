@@ -4,8 +4,14 @@ import { lunarService } from '@/services/lunar'
 import { TaiwanStockService } from './taiwanStock'
 import { fortuneHistoryStore } from '@/services/fortuneStore'
 import { toLocalDateString } from '@/utils/date'
+import { metaphysicsRegistry } from './engines'
+import { ClassicFortuneEngine } from './engines/classic'
+import { BaziTenGodsEngine } from './engines/baziTenGods'
+import { ZiWeiEngine } from './engines/ziWei'
+import { FengShuiEngine } from './engines/fengShui'
 import type { LunarData } from '@/services/lunar'
 import type { PersonalBaZi, ElementsEnergy } from '@/types'
+import type { MetaphysicsResult } from './engines/types'
 
 export interface UserProfileCompat {
   name: string
@@ -97,6 +103,10 @@ export interface IntegratedFortuneData {
   // 特殊提醒
   warnings: string[]
   opportunities: string[]
+
+  // 命理引擎聚合結果
+  enginesResults: MetaphysicsResult[]
+  engineWeightedScore: number
 }
 
 // 天干地支對五行的影響
@@ -128,8 +138,7 @@ const ZHI_ELEMENTS = Object.freeze({
   亥: 'water',
 } as const)
 
-// 五行相生相剋關係 (保留供未來使用)
-/* eslint-disable @typescript-eslint/no-unused-vars */
+// 五行相生相剋關係
 const ELEMENT_RELATIONS = Object.freeze({
   wood: { generates: 'fire', destroys: 'earth', generatedBy: 'water', destroyedBy: 'metal' },
   fire: { generates: 'earth', destroys: 'metal', generatedBy: 'wood', destroyedBy: 'water' },
@@ -138,8 +147,7 @@ const ELEMENT_RELATIONS = Object.freeze({
   water: { generates: 'wood', destroys: 'fire', generatedBy: 'metal', destroyedBy: 'earth' },
 } as const)
 
-// 生肖配對關係 (保留供未來使用)
-/* eslint-disable @typescript-eslint/no-unused-vars */
+// 生肖配對關係
 const ZODIAC_COMPATIBILITY = {
   鼠: { best: ['龍', '猴'], good: ['牛'], avoid: ['馬', '羊'] },
   牛: { best: ['蛇', '雞'], good: ['鼠'], avoid: ['羊', '馬'] },
@@ -160,6 +168,19 @@ const HOUR_ZHI = ['子', '丑', '寅', '卯', '辰', '巳', '午', '未', '申',
 
 export class IntegratedFortuneService {
   private static cache = new Map<string, IntegratedFortuneData>()
+  private static enginesRegistered = false
+
+  /**
+   * 確保命理引擎已註冊（僅執行一次）
+   */
+  private static ensureEnginesRegistered(): void {
+    if (this.enginesRegistered) return
+    metaphysicsRegistry.register(new ClassicFortuneEngine())
+    metaphysicsRegistry.register(new BaziTenGodsEngine())
+    metaphysicsRegistry.register(new ZiWeiEngine())
+    metaphysicsRegistry.register(new FengShuiEngine())
+    this.enginesRegistered = true
+  }
 
   /**
    * 清除快取
@@ -182,6 +203,10 @@ export class IntegratedFortuneService {
       return this.cache.get(cacheKey)!
     }
 
+    // 確保引擎已註冊，並從 localStorage 載入最新設定
+    this.ensureEnginesRegistered()
+    metaphysicsRegistry.loadFromStorage()
+
     // 獲取農民曆資料
     const lunarData = lunarService.getLunarData(date)
     console.log('IntegratedFortuneService - 農民曆資料:', {
@@ -198,8 +223,26 @@ export class IntegratedFortuneService {
     // 計算五行能量（包含個人設定的五行屬性）
     const elements = this.calculateElementEnergy(personalBaZi, lunarData, profile)
 
-    // 計算各項運勢分數
-    const scores = this.calculateFortuneScores(personalBaZi, lunarData, elements)
+    // 執行所有啟用的命理引擎
+    const enginesResults = metaphysicsRegistry.calculateAll(
+      profile,
+      date,
+      lunarData,
+      personalBaZi,
+      elements
+    )
+    const engineWeightedScore = metaphysicsRegistry.calculateWeightedScore(enginesResults)
+    console.log('IntegratedFortuneService - 引擎聚合分數:', engineWeightedScore, {
+      enginesCount: enginesResults.length,
+    })
+
+    // 計算各項運勢分數（含引擎加權調整）
+    const scores = this.calculateFortuneScores(
+      personalBaZi,
+      lunarData,
+      elements,
+      engineWeightedScore
+    )
 
     // 生成投資建議
     const investmentAdvice = this.generateInvestmentAdvice(
@@ -224,6 +267,9 @@ export class IntegratedFortuneService {
     // 生成特殊提醒
     const specialAdvice = this.generateSpecialAdvice(personalBaZi, lunarData, elements)
 
+    // 聚合引擎建議
+    const engineAdvice = metaphysicsRegistry.aggregateAdvice(enginesResults)
+
     const fortuneData: IntegratedFortuneData = {
       date,
       lunarData,
@@ -237,7 +283,10 @@ export class IntegratedFortuneService {
       luckyColors: this.calculateLuckyColors(personalBaZi, lunarData),
       luckyNumbers: this.calculateLuckyNumbers(personalBaZi, lunarData),
       ...activitiesAnalysis,
-      ...specialAdvice,
+      warnings: [...specialAdvice.warnings, ...engineAdvice.warnings],
+      opportunities: [...specialAdvice.opportunities, ...engineAdvice.opportunities],
+      enginesResults,
+      engineWeightedScore,
     }
 
     this.cache.set(cacheKey, fortuneData)
@@ -312,6 +361,14 @@ export class IntegratedFortuneService {
       }
     }
 
+    // 納音五行（補充權重）
+    if (personalBaZi.naYin) {
+      const naYinElement = this.getNaYinElement(personalBaZi.naYin)
+      if (naYinElement && Object.prototype.hasOwnProperty.call(elements, naYinElement)) {
+        elements[naYinElement as keyof typeof elements] += 10 // 納音五行補充權重
+      }
+    }
+
     // 個人八字的五行影響
     const yearGan = personalBaZi.yearGanZhi[0]
     const yearZhi = personalBaZi.yearGanZhi[1]
@@ -373,12 +430,54 @@ export class IntegratedFortuneService {
   }
 
   /**
-   * 計算運勢分數
+   * 從納音名稱提取五行屬性
+   */
+  private static getNaYinElement(naYin: string): string | null {
+    // 納音結尾的字即為五行
+    const lastChar = naYin.slice(-1)
+    return this.mapElementToEnglish(lastChar)
+  }
+
+  /**
+   * 根據星座調整運勢分數
+   */
+  private static getConstellationBonus(constellation: string): {
+    overall: number
+    investment: number
+    wealth: number
+  } {
+    // 火象星座：積極、行動力強
+    const fireSigns = ['白羊座', '獅子座', '射手座']
+    // 土象星座：穩健、保守
+    const earthSigns = ['金牛座', '處女座', '摩羯座']
+    // 風象星座：靈活、善於交際
+    const airSigns = ['雙子座', '天秤座', '水瓶座']
+    // 水象星座：直覺強、感性
+    const waterSigns = ['巨蟹座', '天蠍座', '雙魚座']
+
+    if (fireSigns.includes(constellation)) {
+      return { overall: 5, investment: 10, wealth: 5 }
+    }
+    if (earthSigns.includes(constellation)) {
+      return { overall: 5, investment: 5, wealth: 10 }
+    }
+    if (airSigns.includes(constellation)) {
+      return { overall: 8, investment: 8, wealth: 3 }
+    }
+    if (waterSigns.includes(constellation)) {
+      return { overall: 3, investment: 3, wealth: 8 }
+    }
+    return { overall: 0, investment: 0, wealth: 0 }
+  }
+
+  /**
+   * 計算運勢分數（含命理引擎加權調整）
    */
   private static calculateFortuneScores(
     personalBaZi: PersonalBaZi,
     lunarData: LunarData,
-    elements: ElementsEnergy
+    elements: ElementsEnergy,
+    engineWeightedScore: number
   ) {
     let overallScore = 50
     let investmentScore = 50
@@ -393,12 +492,46 @@ export class IntegratedFortuneService {
 
     overallScore += Math.round(balance * 0.3)
 
-    // 生肖年運影響 (簡化版本，避免 TypeScript 複雜類型問題)
+    // 五行相生相剋調整
+    const dominantEntry = Object.entries(elements).reduce(
+      (max, [key, value]) =>
+        (value as number) > max.value ? { element: key, value: value as number } : max,
+      { element: '', value: 0 }
+    )
+    const dominatedEntry = Object.entries(elements).reduce(
+      (min, [key, value]) =>
+        (value as number) < min.value ? { element: key, value: value as number } : min,
+      { element: '', value: 100 }
+    )
+
+    if (dominantEntry.element && dominatedEntry.element) {
+      const relations = ELEMENT_RELATIONS[dominantEntry.element as keyof typeof ELEMENT_RELATIONS]
+      if (relations) {
+        // 最旺元素生的元素 → 加分（相生助力）
+        const generated = relations.generates
+        if (generated === dominatedEntry.element) {
+          overallScore += 5
+          investmentScore += 5
+        }
+        // 最旺元素剋的元素 → 減分（相剋消耗）
+        const destroyed = relations.destroys
+        if (destroyed === dominatedEntry.element) {
+          overallScore -= 3
+          wealthScore -= 3
+        }
+      }
+    }
+
+    // 星座加成
+    const constellationBonus = this.getConstellationBonus(lunarData.constellation)
+    overallScore += constellationBonus.overall
+    investmentScore += constellationBonus.investment
+    wealthScore += constellationBonus.wealth
+
+    // 生肖年運影響
     const currentYearZodiac = lunarData.zodiac
+    const _personalZodiac = personalBaZi.zodiac
 
-    const _personalZodiac = personalBaZi.zodiac // 保留供未來使用
-
-    // 簡化的生肖配對邏輯
     const goodMatches = ['龍', '猴', '蛇', '雞', '馬', '狗', '羊', '豬']
     const badMatches = ['鼠', '牛', '虎', '兔']
 
@@ -410,6 +543,21 @@ export class IntegratedFortuneService {
       overallScore -= 10
       investmentScore -= 15
       wealthScore -= 10
+    }
+
+    // 生肖配對加成（使用 ZODIAC_COMPATIBILITY）
+    const personalZodiac = personalBaZi.zodiac
+    const compatibility = ZODIAC_COMPATIBILITY[personalZodiac as keyof typeof ZODIAC_COMPATIBILITY]
+    if (compatibility) {
+      const bestList = compatibility.best as readonly string[]
+      const avoidList = compatibility.avoid as readonly string[]
+      if (bestList.includes(currentYearZodiac)) {
+        overallScore += 8
+        investmentScore += 10
+      } else if (avoidList.includes(currentYearZodiac)) {
+        overallScore -= 5
+        investmentScore -= 8
+      }
     }
 
     // 天干地支相合相沖影響
@@ -433,6 +581,15 @@ export class IntegratedFortuneService {
     ) {
       investmentScore -= 20
       wealthScore -= 15
+    }
+
+    // 命理引擎加權分數調整
+    // engineWeightedScore 範圍 0-100，轉換為 -25 到 +25 的調整值
+    if (engineWeightedScore > 0) {
+      const engineAdjustment = Math.round(((engineWeightedScore - 50) / 50) * 25)
+      overallScore += engineAdjustment
+      investmentScore += Math.round(engineAdjustment * 1.2)
+      wealthScore += engineAdjustment
     }
 
     // 確保分數在合理範圍內
