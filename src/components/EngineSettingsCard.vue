@@ -6,15 +6,12 @@
     </h3>
 
     <p class="text-sm text-gray-400 mb-4">
-      調整各命理引擎的啟用狀態與權重，影響運勢計算結果
+      每個引擎的「權重」代表它在綜合運勢中佔的比例。例如經典命理 30%、八字十神
+      25%，表示前者影響力略大於後者。
     </p>
 
     <div class="space-y-4">
-      <div
-        v-for="engine in engines"
-        :key="engine.id"
-        class="p-4 bg-white/5 rounded-lg"
-      >
+      <div v-for="engine in engines" :key="engine.id" class="p-4 bg-white/5 rounded-lg">
         <div class="flex items-center justify-between mb-2">
           <div class="flex items-center gap-2">
             <span class="text-lg">{{ engine.icon }}</span>
@@ -43,10 +40,7 @@
           </button>
         </div>
 
-        <div
-          v-if="engine.enabled"
-          class="mt-3"
-        >
+        <div v-if="engine.enabled" class="mt-3">
           <div class="flex items-center justify-between text-xs text-gray-500 mb-1">
             <span>權重</span>
             <span class="text-amber-400">{{ engine.weight }}%</span>
@@ -59,7 +53,7 @@
             step="5"
             class="w-full h-2 bg-white/10 rounded-lg appearance-none cursor-pointer accent-amber-500"
             @input="e => updateWeight(engine.id, Number((e.target as HTMLInputElement).value))"
-          >
+          />
           <div class="flex justify-between text-xs text-gray-500 mt-1">
             <span>0%</span>
             <span>50%</span>
@@ -67,6 +61,38 @@
           </div>
         </div>
       </div>
+    </div>
+
+    <!-- 權重加總指示器 -->
+    <div class="mt-5 p-3 bg-white/5 rounded-lg">
+      <div class="flex items-center justify-between mb-1.5">
+        <span class="text-xs text-gray-400">啟用引擎的權重加總</span>
+        <span class="text-sm font-bold" :class="weightStatus.color">{{ weightStatus.label }}</span>
+      </div>
+      <div class="w-full h-2 bg-white/10 rounded-full overflow-hidden">
+        <div
+          class="h-full rounded-full transition-all duration-300"
+          :class="weightStatus.bar"
+          :style="{ width: `${Math.min(totalWeight, 150) / 1.5}%` }"
+        />
+      </div>
+      <div class="flex justify-between text-[10px] text-gray-600 mt-1">
+        <span>0%</span>
+        <span :class="totalWeight === 100 ? 'text-green-500 font-bold' : 'text-gray-600'"
+          >100%</span
+        >
+        <span>150%</span>
+      </div>
+      <p class="text-[11px] text-gray-500 mt-2 leading-relaxed">
+        <template v-if="totalWeight === 100"> 權重加總恰好為 100%，各引擎按比例貢獻。 </template>
+        <template v-else-if="totalWeight > 0 && totalWeight < 100">
+          加總不足 100% 時，系統會自動正規化（按比例放大），不影響排序結果。
+        </template>
+        <template v-else-if="totalWeight > 100">
+          加總超過 100% 時，系統會自動正規化（按比例縮小），不影響排序結果。
+        </template>
+        <template v-else> 所有引擎已關閉，運勢將使用基礎分數。 </template>
+      </p>
     </div>
 
     <!-- 重設按鈕 -->
@@ -85,17 +111,12 @@
       </button>
     </div>
 
-    <div
-      v-if="saved"
-      class="mt-2 text-sm text-green-400"
-    >
-      設定已儲存
-    </div>
+    <div v-if="saved" class="mt-2 text-sm text-green-400">設定已儲存</div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { IntegratedFortuneService } from '@/services/integratedFortune'
 
 interface EngineConfig {
@@ -150,6 +171,34 @@ const engines = ref<EngineConfig[]>([
 ])
 
 const saved = ref(false)
+
+const totalWeight = computed(() =>
+  engines.value.filter(e => e.enabled).reduce((sum, e) => sum + e.weight, 0)
+)
+
+const weightStatus = computed(() => {
+  const t = totalWeight.value
+  if (t === 100)
+    return {
+      label: '100% — 完美',
+      color: 'text-green-400',
+      bar: 'bg-green-500',
+      ring: 'ring-green-500/30',
+    }
+  if (t >= 80 && t <= 120)
+    return {
+      label: `${t}% — 接近`,
+      color: 'text-amber-400',
+      bar: 'bg-amber-500',
+      ring: 'ring-amber-500/30',
+    }
+  return {
+    label: `${t}% — 偏差`,
+    color: 'text-rose-400',
+    bar: 'bg-rose-500',
+    ring: 'ring-rose-500/30',
+  }
+})
 
 function loadSettings() {
   try {

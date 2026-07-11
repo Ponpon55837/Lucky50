@@ -809,6 +809,15 @@ export class IntegratedFortuneService {
   ): void {
     const dateStr = profile.birthDate.replace(/-/g, '')
     const profileHash = `${profile.name}_${dateStr}`.length.toString(36)
+
+    // 將引擎結果轉為精簡摘要存入歷史（含權重）
+    const enginesResults = fortune.enginesResults?.map(r => ({
+      engineId: r.engineId ?? '',
+      engineName: r.engineName,
+      score: r.score,
+      weight: metaphysicsRegistry.getEngineById(r.engineId ?? '')?.getWeight() ?? 0,
+    }))
+
     fortuneHistoryStore
       .append({
         id: Date.now(),
@@ -819,6 +828,8 @@ export class IntegratedFortuneService {
         recommendation: fortune.recommendation === 'OBSERVE' ? 'HOLD' : fortune.recommendation,
         elements: fortune.elements,
         lunarSummary: fortune.advice,
+        enginesResults,
+        engineWeightedScore: fortune.engineWeightedScore,
         userProfileHash: profileHash,
       })
       .catch(() => {})

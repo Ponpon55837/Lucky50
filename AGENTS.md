@@ -34,6 +34,7 @@ Keep this managed block so 'openspec update' can refresh the instructions.
 - **Step 8**: Final UI Polish & Consistency Pass — All 4 main pages unified layout (full-width cards, responsive spacing), 195 tests pass ✅
 - **Step 9**: 命理引擎架構 (MetaphysicsEngine interface + registry, ClassicFortuneEngine, BaziTenGodsEngine, ZiWeiEngine, FengShuiEngine, EngineSettingsCard)
 - **Step 10**: 引擎整合至核心 — registry 設定同步 localStorage，引擎加權分數融入 integratedFortune 投資/整體/財運分數，EngineSettingsCard 儲存觸發 Dashboard 即時重算，Profile 雙欄重構 ✅
+- **Step 11**: 引擎結果寫入歷史 + 運勢記錄卡片重設計 + Bug Fixes — `recordFortuneHistory()` 保存 enginesResults + engineWeightedScore，FortuneLogViewer mobile/desktop 卡片佈局全面翻新，修復 classic.ts 缺少 engineId 導致 Analytics 權重 0%，EngineSettingsCard 新增權重加總指示器 ✅
 
 ## Routes
 

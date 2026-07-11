@@ -204,7 +204,8 @@ Lucky50/
 │   │   ├── charts/      # 圖表組件
 │   │   │   ├── PriceChart.vue          # 價格走勢圖
 │   │   │   ├── VolumeChart.vue         # 成交量圖
-│   │   │   └── ElementRadarChart.vue   # 五行雷達圖
+│   │   │   ├── ElementRadarChart.vue   # 五行雷達圖
+│   │   │   └── EngineScoresChart.vue   # 引擎分數橫條圖
 │   │   ├── three/       # Three.js 3D 組件
 │   │   │   ├── Stock3DVisualization.vue
 │   │   │   ├── Fortune3DVisualization.vue

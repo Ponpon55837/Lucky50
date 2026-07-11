@@ -4,6 +4,20 @@
  */
 
 /**
+ * 引擎分析摘要（存入歷史用）
+ */
+export interface EngineResultSummary {
+  /** 引擎 ID */
+  engineId: string
+  /** 引擎名稱 */
+  engineName: string
+  /** 引擎分數 (0-100) */
+  score: number
+  /** 引擎權重 (%) */
+  weight: number
+}
+
+/**
  * 運勢歷史記錄
  */
 export interface FortuneRecord {
@@ -29,6 +43,10 @@ export interface FortuneRecord {
   }
   /** 農民曆摘要 */
   lunarSummary?: string
+  /** 命理引擎分析結果 */
+  enginesResults?: EngineResultSummary[]
+  /** 引擎加權分數 */
+  engineWeightedScore?: number
   /** 用戶資料雜湊值（用於區分不同用戶的記錄） */
   userProfileHash: string
 }

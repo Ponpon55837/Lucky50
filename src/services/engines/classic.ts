@@ -22,6 +22,7 @@ export class ClassicFortuneEngine implements MetaphysicsEngine {
     // 經典引擎不產生額外分數，它的貢獻已直接在 IntegratedFortuneService 中計算
     // 這裡只提供基礎建議
     return {
+      engineId: 'classic',
       engineName: this.name,
       score: 50,
       advice: ['經典五行分析已納入計算'],

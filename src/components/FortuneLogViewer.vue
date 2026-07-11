@@ -47,6 +47,20 @@ const elementLabels: Record<string, string> = {
   earth: '土',
 }
 
+const engineIcons: Record<string, string> = {
+  classic: '🏮',
+  'bazi-ten-gods': '🔮',
+  'zi-wei': '⭐',
+  'feng-shui': '🧭',
+}
+
+const engineColors: Record<string, string> = {
+  classic: 'text-amber-400',
+  'bazi-ten-gods': 'text-purple-400',
+  'zi-wei': 'text-blue-400',
+  'feng-shui': 'text-emerald-400',
+}
+
 // ── 響應式狀態 ──
 const records = ref<FortuneRecord[]>([])
 const total = ref(0)
@@ -247,10 +261,7 @@ function getScoreColor(score: number): string {
 <template>
   <div class="space-y-4 sm:space-y-5">
     <!-- Stats -->
-    <div
-      v-if="stats && stats.totalRecords > 0"
-      class="card !py-2.5 !px-3 sm:!py-3 sm:!px-6"
-    >
+    <div v-if="stats && stats.totalRecords > 0" class="card !py-2.5 !px-3 sm:!py-3 sm:!px-6">
       <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1.5 sm:gap-2">
         <div class="flex flex-wrap items-center gap-2 text-[11px] sm:text-sm">
           <div class="flex items-center gap-1">
@@ -273,10 +284,7 @@ function getScoreColor(score: number): string {
         <div class="flex items-center gap-2">
           <span class="text-gray-600 text-[11px]">
             共 {{ stats.totalRecords }} 筆
-            <span
-              v-if="stats.dateRange"
-              class="hidden sm:inline"
-            >
+            <span v-if="stats.dateRange" class="hidden sm:inline">
               · {{ stats.dateRange.earliest }} ~ {{ stats.dateRange.latest }}
             </span>
           </span>
@@ -312,16 +320,10 @@ function getScoreColor(score: number): string {
                 d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"
               />
             </svg>
-            <div
-              v-if="activeFilterTags.length === 0"
-              class="text-xs text-gray-500 truncate"
-            >
+            <div v-if="activeFilterTags.length === 0" class="text-xs text-gray-500 truncate">
               篩選條件
             </div>
-            <div
-              v-else
-              class="flex items-center gap-1 overflow-hidden"
-            >
+            <div v-else class="flex items-center gap-1 overflow-hidden">
               <span
                 v-for="(tag, i) in activeFilterTags"
                 :key="i"
@@ -349,10 +351,7 @@ function getScoreColor(score: number): string {
         </button>
 
         <!-- Expanded filters (mobile) -->
-        <div
-          v-show="filtersExpanded"
-          class="mt-3 space-y-2 border-t border-white/5 pt-3"
-        >
+        <div v-show="filtersExpanded" class="mt-3 space-y-2 border-t border-white/5 pt-3">
           <div class="flex gap-2">
             <input
               v-model="searchText"
@@ -360,7 +359,7 @@ function getScoreColor(score: number): string {
               placeholder="搜尋"
               class="flex-1 min-w-0 px-3 py-2 text-sm bg-gray-800/40 border border-gray-700/60 rounded-lg text-white placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-amber-500/50 focus:border-amber-500/50 transition-all"
               @keyup.enter="applyFilters"
-            >
+            />
             <button
               class="px-4 py-2 text-sm font-medium text-white bg-amber-600 hover:bg-amber-500 rounded-lg transition-colors shrink-0"
               @click="applyFilters"
@@ -441,7 +440,7 @@ function getScoreColor(score: number): string {
               placeholder="搜尋"
               class="flex-1 min-w-0 px-3 py-2 text-sm bg-gray-800/40 border border-gray-700/60 rounded-lg text-white placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-amber-500/50 focus:border-amber-500/50 transition-all"
               @keyup.enter="applyFilters"
-            >
+            />
             <button
               class="px-4 py-2 text-sm font-medium text-white bg-amber-600 hover:bg-amber-500 rounded-lg transition-colors shrink-0"
               @click="applyFilters"
@@ -530,11 +529,7 @@ function getScoreColor(score: number): string {
             <div class="ml-auto w-8 h-3 bg-white/5 rounded animate-pulse" />
           </div>
           <div class="flex items-center gap-1 pl-[52px]">
-            <div
-              v-for="e in 5"
-              :key="e"
-              class="w-5 h-1 bg-white/5 rounded-full animate-pulse"
-            />
+            <div v-for="e in 5" :key="e" class="w-5 h-1 bg-white/5 rounded-full animate-pulse" />
           </div>
         </div>
         <!-- Desktop list skeleton -->
@@ -556,117 +551,182 @@ function getScoreColor(score: number): string {
     </div>
 
     <!-- Empty state -->
-    <div
-      v-else-if="records.length === 0"
-      class="card !py-12"
-    >
+    <div v-else-if="records.length === 0" class="card !py-12">
       <div class="text-center text-gray-500">
         {{ hasFilters ? '沒有符合條件的記錄' : '尚無歷史記錄' }}
       </div>
     </div>
 
     <!-- Records List -->
-    <div
-      v-else
-      class="sm:card sm:!p-0 sm:divide-y sm:divide-gray-800/60 sm:overflow-hidden"
-    >
+    <div v-else class="space-y-3 sm:space-y-0 sm:divide-y sm:divide-gray-800/60 sm:overflow-hidden">
       <div
         v-for="record in records"
         :key="record.id"
-        class="card !rounded-xl sm:!rounded-none sm:!border-0 sm:!shadow-none sm:!p-0 hover:bg-white/[0.02] transition-colors cursor-default"
+        class="card sm:!rounded-none sm:!border-0 sm:!shadow-none sm:!p-4 hover:bg-white/[0.02] transition-colors"
       >
         <!-- Mobile: card layout -->
-        <div class="sm:hidden">
-          <div class="flex items-center gap-2 mb-1.5">
-            <span class="text-[11px] font-medium text-white/70 leading-tight">
-              {{ formatDate(record.date, true) }}
-            </span>
+        <div class="sm:hidden space-y-2">
+          <!-- Top row: score + date + time -->
+          <div class="flex items-center gap-2.5">
             <div
-              class="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold text-white shrink-0"
+              class="w-11 h-11 rounded-full flex items-center justify-center text-sm font-bold text-white shrink-0"
               :class="getScoreColor(record.investmentScore)"
             >
               {{ record.investmentScore }}
             </div>
-            <span
-              class="px-1.5 py-0.5 text-[10px] font-medium rounded-full shrink-0 leading-tight"
-              :class="displayRecommendation(record.recommendation).class"
-            >
-              {{ displayRecommendation(record.recommendation).text }}
-            </span>
-            <span class="text-[10px] text-gray-600 ml-auto leading-tight">
-              {{ formatTime(record.timestamp) }}
-            </span>
+            <div class="flex-1 min-w-0">
+              <div class="flex items-center gap-2">
+                <span class="text-sm font-semibold text-white">
+                  {{ formatDate(record.date, true) }}
+                </span>
+                <span class="text-[10px] text-gray-500">
+                  {{ formatTime(record.timestamp) }}
+                </span>
+              </div>
+              <span
+                class="inline-block mt-0.5 px-2 py-0.5 text-[10px] font-medium rounded-full leading-tight"
+                :class="displayRecommendation(record.recommendation).class"
+              >
+                {{ displayRecommendation(record.recommendation).text }}
+              </span>
+            </div>
           </div>
-          <div class="flex items-center gap-1.5 pl-1">
+          <!-- 五行能量條 -->
+          <div class="flex items-end gap-1 pl-1">
             <div
               v-for="(value, key) in record.elements"
               :key="key"
-              class="flex items-end gap-0.5"
+              class="flex flex-col items-center gap-0.5"
             >
               <div
-                class="w-5 h-1 rounded-full"
+                class="w-6 rounded-full"
                 :style="{
-                  height: `${Math.max(4, value * 0.22)}px`,
+                  height: `${Math.max(6, value * 0.28)}px`,
                   backgroundColor: elementColors[key],
                 }"
               />
-              <span class="text-[8px] text-gray-600 leading-none">{{ elementLabels[key] }}</span>
+              <span class="text-[9px] text-gray-500 leading-none">{{ elementLabels[key] }}</span>
             </div>
           </div>
+          <!-- 引擎分數 -->
+          <div
+            v-if="record.enginesResults && record.enginesResults.length > 0"
+            class="flex items-center gap-1.5 flex-wrap"
+          >
+            <span
+              v-for="engine in record.enginesResults"
+              :key="engine.engineId"
+              class="inline-flex items-center gap-1 px-1.5 py-0.5 bg-white/5 rounded text-[10px]"
+            >
+              <span>{{ engineIcons[engine.engineId] || '⚙️' }}</span>
+              <span class="font-medium" :class="engineColors[engine.engineId] || 'text-gray-400'">{{
+                engine.score
+              }}</span>
+              <span class="text-gray-600">{{ engine.weight }}%</span>
+            </span>
+            <span
+              v-if="record.engineWeightedScore != null"
+              class="inline-flex items-center px-1.5 py-0.5 bg-amber-500/10 rounded text-[10px] font-medium text-amber-400"
+            >
+              加權 {{ record.engineWeightedScore }}
+            </span>
+          </div>
+          <!-- 農曆摘要 -->
           <p
             v-if="record.lunarSummary"
-            class="mt-1.5 text-[10px] text-gray-400/70 line-clamp-1 leading-relaxed"
+            class="text-[11px] text-gray-400/70 line-clamp-2 leading-relaxed"
           >
             {{ record.lunarSummary }}
           </p>
         </div>
 
-        <!-- Desktop: list layout -->
-        <div class="hidden sm:flex items-center gap-4 py-3 px-6">
-          <span class="text-sm font-medium text-white/70 min-w-20 leading-tight">
-            {{ formatDate(record.date) }}
-          </span>
-          <div
-            class="w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold text-white shrink-0"
-            :class="getScoreColor(record.investmentScore)"
-          >
-            {{ record.investmentScore }}
-          </div>
-          <span
-            class="px-2 py-0.5 text-xs font-medium rounded-full shrink-0 leading-tight"
-            :class="displayRecommendation(record.recommendation).class"
-          >
-            {{ displayRecommendation(record.recommendation).text }}
-          </span>
-          <div class="flex items-center gap-1 ml-auto">
+        <!-- Desktop: card layout -->
+        <div class="hidden sm:block">
+          <div class="flex items-start gap-4">
+            <!-- Left: Score circle -->
+            <div class="flex flex-col items-center gap-1 shrink-0">
+              <div
+                class="w-12 h-12 rounded-full flex items-center justify-center text-sm font-bold text-white"
+                :class="getScoreColor(record.investmentScore)"
+              >
+                {{ record.investmentScore }}
+              </div>
+              <span
+                class="px-2 py-0.5 text-[11px] font-medium rounded-full leading-tight"
+                :class="displayRecommendation(record.recommendation).class"
+              >
+                {{ displayRecommendation(record.recommendation).text }}
+              </span>
+            </div>
+            <!-- Center: date + elements + summary -->
+            <div class="flex-1 min-w-0">
+              <div class="flex items-center gap-2 mb-1">
+                <span class="text-sm font-semibold text-white">
+                  {{ formatDate(record.date) }}
+                </span>
+                <span class="text-xs text-gray-500">
+                  {{ formatTime(record.timestamp) }}
+                </span>
+              </div>
+              <!-- 五行能量 -->
+              <div class="flex items-end gap-1.5 mb-1">
+                <div
+                  v-for="(value, key) in record.elements"
+                  :key="key"
+                  class="flex flex-col items-center gap-0.5"
+                >
+                  <div
+                    class="w-7 rounded-full"
+                    :style="{
+                      height: `${Math.max(6, value * 0.3)}px`,
+                      backgroundColor: elementColors[key],
+                    }"
+                  />
+                  <span class="text-[10px] text-gray-500 leading-none">{{
+                    elementLabels[key]
+                  }}</span>
+                </div>
+              </div>
+              <p
+                v-if="record.lunarSummary"
+                class="text-xs text-gray-400/70 line-clamp-1 leading-relaxed"
+              >
+                {{ record.lunarSummary }}
+              </p>
+            </div>
+            <!-- Right: engine scores -->
             <div
-              v-for="(value, key) in record.elements"
-              :key="key"
-              class="w-1.5 rounded-full"
-              :style="{
-                height: `${Math.max(4, value * 0.22)}px`,
-                backgroundColor: elementColors[key],
-              }"
-            />
+              v-if="record.enginesResults && record.enginesResults.length > 0"
+              class="flex flex-col items-end gap-1 shrink-0"
+            >
+              <div class="flex items-center gap-1.5">
+                <span
+                  v-for="engine in record.enginesResults"
+                  :key="engine.engineId"
+                  class="inline-flex items-center gap-1 px-1.5 py-0.5 bg-white/5 rounded text-[11px]"
+                >
+                  <span>{{ engineIcons[engine.engineId] || '⚙️' }}</span>
+                  <span
+                    class="font-medium"
+                    :class="engineColors[engine.engineId] || 'text-gray-400'"
+                    >{{ engine.score }}</span
+                  >
+                </span>
+              </div>
+              <span
+                v-if="record.engineWeightedScore != null"
+                class="text-[11px] text-amber-400/80 font-medium"
+              >
+                加權 {{ record.engineWeightedScore }}
+              </span>
+            </div>
           </div>
-          <span class="text-xs text-gray-600 leading-tight">
-            {{ formatTime(record.timestamp) }}
-          </span>
-          <p
-            v-if="record.lunarSummary"
-            class="absolute -bottom-0.5 left-[160px] text-xs text-gray-400/70 line-clamp-1 leading-relaxed"
-          >
-            {{ record.lunarSummary }}
-          </p>
         </div>
       </div>
     </div>
 
     <!-- Pagination -->
-    <div
-      v-if="totalPages > 1"
-      class="flex items-center justify-between"
-    >
+    <div v-if="totalPages > 1" class="flex items-center justify-between">
       <button
         :disabled="pageIndex === 0"
         class="px-3 py-1.5 text-sm text-gray-500 hover:text-white bg-gray-800/20 hover:bg-gray-800/50 rounded-lg disabled:opacity-25 disabled:cursor-not-allowed transition-all"
@@ -691,17 +751,10 @@ function getScoreColor(score: number): string {
           v-if="showClearConfirm"
           class="fixed inset-0 z-50 flex items-center justify-center p-4"
         >
-          <div
-            class="absolute inset-0 bg-black/60 backdrop-blur-sm"
-            @click="closeClearConfirm"
-          />
+          <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" @click="closeClearConfirm" />
           <div class="card relative w-full max-w-sm !py-6 !px-6 z-10">
-            <h3 class="text-base font-semibold text-white mb-2">
-              確認清除
-            </h3>
-            <p class="text-sm text-gray-400 mb-5">
-              確定要清除所有運勢歷史記錄嗎？此操作無法復原。
-            </p>
+            <h3 class="text-base font-semibold text-white mb-2">確認清除</h3>
+            <p class="text-sm text-gray-400 mb-5">確定要清除所有運勢歷史記錄嗎？此操作無法復原。</p>
             <div class="flex justify-end gap-2">
               <button
                 class="px-4 py-2 text-sm text-gray-400 hover:text-white bg-gray-800/40 hover:bg-gray-800/60 rounded-lg transition-colors"
