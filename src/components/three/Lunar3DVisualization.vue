@@ -76,20 +76,10 @@ const elementDescriptions: Record<ElementType, string> = {
   avoidBars: '忌事柱：紅色柱子代表當日需要送免的事情',
   celestialWheel: '天干地支：外圈地支和內圈天干，表示時空能量',
   fortuneIndicator: '運勢指示器：中心柱子代表綜合投資運勢分數',
-  starField: '星空背景：閃爜的星星製造宇宙氛圍',
+  starField: '星空背景：閃爍的星星製造宇宙氛圍',
 }
 
-// 清理所有動畫
-const cleanupAnimations = () => {
-  animationRefs.clear()
-}
-
-// 註冊動畫循環
-const registerAnimation = (animationFn: () => void) => {
-  animationRefs.add(animationFn)
-  return animationFn
-}
-
+// ── 計算屬性 ──
 // 從 store 獲取數據 - 優化計算屬性
 const lunarData = computed(() => dashboardStore.lunarData)
 
@@ -135,6 +125,16 @@ const fortuneThemeColor = computed(() => {
   if (score >= 35) return 'info'
   return 'danger'
 })
+
+// ── 方法與函式 ──
+const cleanupAnimations = () => {
+  animationRefs.clear()
+}
+
+const registerAnimation = (animationFn: () => void) => {
+  animationRefs.add(animationFn)
+  return animationFn
+}
 
 // 創建月亮組件
 const createMoon = (): THREE.Mesh => {
@@ -550,17 +550,6 @@ const cleanup = () => {
   lunarGroup = null
 }
 
-// 生命週期
-onMounted(async () => {
-  await nextTick()
-  initScene()
-})
-
-onUnmounted(() => {
-  cleanup()
-})
-
-// 鼠標事件處理
 const handleMouseMove = (event: MouseEvent) => {
   const rect = threeContainer.value?.getBoundingClientRect()
   if (!rect) return
@@ -579,18 +568,16 @@ const handleElementLeave = () => {
   hoveredElement.value = null
 }
 
-// 監聽主題變化 - 優化重新創建邏輯
+// ── 監聽器 ──
 watch(isDark, newTheme => {
   if (!scene) return
 
   scene.updateTheme(newTheme)
-  // 延遲重新創建以避免頻繁更新
   nextTick(() => {
     createLunarVisualization()
   })
 })
 
-// 監聽屬性變化 - 優化依賴追蹤
 watch(
   [lunarDate, solarTerm, suitable, avoid, fortuneScore],
   () => {
@@ -600,6 +587,16 @@ watch(
   },
   { deep: true }
 )
+
+// ── 生命週期 ──
+onMounted(async () => {
+  await nextTick()
+  initScene()
+})
+
+onUnmounted(() => {
+  cleanup()
+})
 </script>
 
 <template>

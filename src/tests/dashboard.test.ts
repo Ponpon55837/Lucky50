@@ -148,6 +148,8 @@ describe('useDashboardStore', () => {
       birthTime: '10:30',
       zodiac: '鼠',
       element: '金',
+      nameElement: '金',
+      nameStrokes: 20,
       luckyColors: [],
       luckyNumbers: [],
     }
@@ -164,6 +166,8 @@ describe('useDashboardStore', () => {
           birthTime: '10:30',
           zodiac: '鼠',
           element: '金',
+          nameElement: '金',
+          nameStrokes: 20,
           luckyColors: [],
           luckyNumbers: [],
         })
@@ -200,6 +204,8 @@ describe('useDashboardStore', () => {
         birthTime: '10:30',
         zodiac: '鼠',
         element: '金',
+        nameElement: '金',
+        nameStrokes: 20,
         luckyColors: [],
         luckyNumbers: [],
       }

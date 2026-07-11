@@ -1,11 +1,11 @@
 <script setup lang="ts">
-import { onMounted, computed, watch, defineAsyncComponent } from 'vue'
+import { computed, watch, onMounted, defineAsyncComponent } from 'vue'
 import { useUserStore } from '@/stores/user'
 import { useDashboardStore } from '@/stores/dashboard'
 import { useTheme } from '@/composables/useTheme'
 import type { UserProfileCompat } from '@/services/integratedFortune'
 
-// Lazy load components
+// ── 元件 ──
 const PriceChart = defineAsyncComponent({
   loader: () => import('@/components/charts/PriceChart.vue'),
   loadingComponent: () => import('@/components/ui/Loading.vue'),
@@ -22,11 +22,13 @@ const FortuneCard = defineAsyncComponent({
   loader: () => import('@/components/FortuneCard.vue'),
   loadingComponent: () => import('@/components/ui/Loading.vue'),
 })
-// Store instances
+
+// ── Store 實例 ──
 const userStore = useUserStore()
 const dashboardStore = useDashboardStore()
 const { isDark } = useTheme()
-// 將userStore的profile轉換為UserProfileCompat格式
+
+// ── 計算屬性 ──
 const userProfileCompat = computed((): UserProfileCompat | null => {
   if (!userStore.profile) return null
 
@@ -36,22 +38,19 @@ const userProfileCompat = computed((): UserProfileCompat | null => {
     birthTime: userStore.profile.birthTime || '12:00',
     zodiac: userStore.profile.zodiac,
     element: userStore.profile.element,
+    nameElement: userStore.profile.nameElement,
+    nameStrokes: userStore.profile.nameStrokes,
     luckyColors: [...userStore.profile.luckyColors],
     luckyNumbers: [...userStore.profile.luckyNumbers],
   }
 })
 
-// 重試函數的包裝器
+// ── 方法與函式 ──
 const retryIntegratedFortune = () => {
   return dashboardStore.retryIntegratedFortune(userProfileCompat.value)
 }
 
-onMounted(() => {
-  // 使用轉換後的用戶資料載入dashboard數據
-  dashboardStore.loadAllData(userProfileCompat.value)
-})
-
-// 監聽用戶資料變化，自動重新載入dashboard數據
+// ── 監聽器 ──
 watch(
   userProfileCompat,
   newProfile => {
@@ -61,6 +60,11 @@ watch(
   },
   { deep: true }
 )
+
+// ── 生命週期 ──
+onMounted(() => {
+  dashboardStore.loadAllData(userProfileCompat.value)
+})
 </script>
 
 <template>
@@ -315,6 +319,19 @@ watch(
             <p class="text-gray-300 text-sm mt-1">
               圖中標有 ★ 的是您的本命五行，能量值會根據個人八字和當日運勢動態調整
             </p>
+          </div>
+
+          <!-- 姓名學五行說明 -->
+          <div
+            v-if="userStore.profile?.nameElement && userStore.profile?.nameStrokes"
+            class="mt-2 p-3 bg-purple-500/10 rounded-lg border border-purple-500/20"
+          >
+            <div class="flex items-center gap-2">
+              <span class="text-purple-400 text-sm font-medium">✦ 姓名學五行</span>
+              <span class="text-white font-bold">{{ userStore.profile.nameElement }}</span>
+              <span class="text-gray-400 text-sm">（{{ userStore.profile.nameStrokes }}劃）</span>
+            </div>
+            <p class="text-gray-300 text-sm mt-1">姓名學五行對運勢有輔助影響，與本命五行相互配合</p>
           </div>
         </div>
       </div>

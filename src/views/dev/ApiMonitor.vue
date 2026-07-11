@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 
+// ── 型別定義 ──
 interface ApiCall {
   endpoint: string
   method: string
@@ -9,16 +10,16 @@ interface ApiCall {
   timestamp: string
 }
 
-// 掛在 window 上的監控相關欄位（與 apiCache.ts / finmind.ts 共用同一份協議）
 interface ApiMonitorWindow {
   __apiMonitor?: {
     record: (url: string, method: string, status: number, duration: number) => void
   }
 }
 
+// ── 響應式狀態 ──
 const calls = ref<ApiCall[]>([])
 
-// 掛載到 window 讓應用程式可以記錄 API 呼叫
+// ── 方法與函式 ──
 const apiRecord = {
   record(ep: string, method: string, status: number, duration: number) {
     calls.value.push({

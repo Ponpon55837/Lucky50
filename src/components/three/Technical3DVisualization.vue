@@ -77,23 +77,11 @@ const elementDescriptions: Record<ElementType, string> = {
   particles: '連接粒子：流動粒子連接各指標，表示市場相關性',
 }
 
-// 清理所有動畫
-const cleanupAnimations = () => {
-  animationRefs.clear()
-}
-
-// 註冊動畫循環
-const registerAnimation = (animationFn: () => void) => {
-  animationRefs.add(animationFn)
-  return animationFn
-}
-
-// 從 store 獲取技術指標數據
+// ── 計算屬性 ──
 const indicators = computed(() => {
   return analyticsStore.calculateTechnicalIndicators(dashboardStore.etfData)
 })
 
-// 計算指標顏色
 const rsiColor = computed(() => {
   const rsi = indicators.value.rsi
   if (rsi > 70) return 'text-error-text'
@@ -136,6 +124,16 @@ const overallSignalColor = computed(() => {
   if (signal === '賣出') return 'text-error-text'
   return 'text-accent-text'
 })
+
+// ── 方法與函式 ──
+const cleanupAnimations = () => {
+  animationRefs.clear()
+}
+
+const registerAnimation = (animationFn: () => void) => {
+  animationRefs.add(animationFn)
+  return animationFn
+}
 
 // 創建 RSI 球體
 const createRSISphere = (): THREE.Mesh => {
@@ -407,17 +405,6 @@ const cleanup = () => {
   indicatorGroup = null
 }
 
-// 生命週期
-onMounted(async () => {
-  await nextTick()
-  initScene()
-})
-
-onUnmounted(() => {
-  cleanup()
-})
-
-// 鼠標事件處理
 const handleMouseMove = (event: MouseEvent) => {
   const rect = threeContainer.value?.getBoundingClientRect()
   if (!rect) return
@@ -436,7 +423,7 @@ const handleElementLeave = () => {
   hoveredElement.value = null
 }
 
-// 監聽主題變化
+// ── 監聽器 ──
 watch(isDark, newTheme => {
   if (!scene) return
 
@@ -446,7 +433,6 @@ watch(isDark, newTheme => {
   })
 })
 
-// 監聽指標變化
 watch(
   indicators,
   () => {
@@ -456,6 +442,16 @@ watch(
   },
   { deep: true }
 )
+
+// ── 生命週期 ──
+onMounted(async () => {
+  await nextTick()
+  initScene()
+})
+
+onUnmounted(() => {
+  cleanup()
+})
 </script>
 
 <template>

@@ -44,6 +44,7 @@ tags: [vue3, typescript, pinia, tailwindcss, vite, code-standards]
 - 遵循 Composition API 模式
 - 明確的 Props 型別定義
 - Emits 事件命名採用 kebab-case
+- **頁面級元件**必須遵循 [Script 寫作順序規範](references/page-script-order.md)
 
 ### TypeScript 規範
 
@@ -152,6 +153,7 @@ export function useCounter(initial = 0) {
 - **[Chart.js 整合規範](references/chartjs.md)** - 圖表配置、數據可視化
 - **[Three.js 規範](references/threejs.md)** - 3D 圖形渲染、WebGL 整合
 - **[UI 樣式標準](references/ui-standards.md)** - 頁面佈局、卡片、按鈕、表單、文字系統、響應式中斷點
+- **[頁面 Script 寫作順序](references/page-script-order.md)** - `<script>` 區塊順序、註解格式、完整範例
 
 ## 🔧 開發工具配置
 
@@ -208,10 +210,10 @@ module.exports = {
 
 ### Git Hooks 自動檢查
 
-| Hook | 指令 | 時機 |
-|------|------|------|
-| `pre-commit` | `npx vitest run` | 提交前跑**全部**單元測試 |
-| `pre-push` | `npx vue-tsc --noEmit` | 推送前執行 TypeScript 型別檢查 |
+| Hook         | 指令                   | 時機                           |
+| ------------ | ---------------------- | ------------------------------ |
+| `pre-commit` | `npx vitest run`       | 提交前跑**全部**單元測試       |
+| `pre-push`   | `npx vue-tsc --noEmit` | 推送前執行 TypeScript 型別檢查 |
 
 pre-commit 若偵測到無 `.ts` / `.vue` 檔案變更則會跳過測試。
 

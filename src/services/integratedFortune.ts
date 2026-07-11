@@ -13,6 +13,8 @@ export interface UserProfileCompat {
   birthTime: string
   zodiac: string
   element: string
+  nameElement: string
+  nameStrokes: number
   luckyColors: readonly string[]
   luckyNumbers: readonly number[]
 }
@@ -299,6 +301,14 @@ export class IntegratedFortuneService {
       const userElement = this.mapElementToEnglish(profile.element)
       if (userElement && Object.prototype.hasOwnProperty.call(elements, userElement)) {
         elements[userElement as keyof typeof elements] += 30 // 個人本命五行占最大權重
+      }
+    }
+
+    // 姓名學五行（次要權重）
+    if (profile?.nameElement) {
+      const nameElementEn = this.mapElementToEnglish(profile.nameElement)
+      if (nameElementEn && Object.prototype.hasOwnProperty.call(elements, nameElementEn)) {
+        elements[nameElementEn as keyof typeof elements] += 15 // 姓名學五行占次要權重
       }
     }
 

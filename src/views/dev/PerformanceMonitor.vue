@@ -1,13 +1,13 @@
 <script setup lang="ts">
 import { ref, onUnmounted } from 'vue'
 
+// ── 型別定義 ──
 interface PerfEntry {
   label: string
   duration: number
   timestamp: string
 }
 
-// 掛在 window 上的效能監控相關欄位
 interface PerfMonitorWindow {
   __perfMonitor?: {
     start: (label: string) => void
@@ -15,10 +15,13 @@ interface PerfMonitorWindow {
   }
 }
 
+// ── 響應式狀態 ──
 const entries = ref<PerfEntry[]>([])
 const isRecording = ref(false)
 const logs: { label: string; start: number }[] = []
+const timer = ref<ReturnType<typeof setInterval> | null>(null)
 
+// ── 方法與函式 ──
 function start(label: string) {
   if (!isRecording.value) return
   logs.push({ label, start: performance.now() })
@@ -35,8 +38,6 @@ function end(label: string) {
     timestamp: new Date().toLocaleTimeString('zh-TW'),
   })
 }
-
-const timer = ref<ReturnType<typeof setInterval> | null>(null)
 
 function toggleRecording() {
   isRecording.value = !isRecording.value
@@ -58,11 +59,11 @@ function clearLogs() {
   logs.length = 0
 }
 
+// ── 生命週期 ──
 onUnmounted(() => {
   if (timer.value) clearInterval(timer.value)
 })
 
-// 掛載到 window
 if (typeof window !== 'undefined') {
   ;(window as unknown as PerfMonitorWindow).__perfMonitor = { start, end }
 }

@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import { RouterLink } from 'vue-router'
 import { defineAsyncComponent } from 'vue'
+import { RouterLink } from 'vue-router'
 
-// Lazy load FortuneOrb component
+// ── 元件 ──
 const FortuneOrb = defineAsyncComponent({
   loader: () => import('@/components/FortuneOrb.vue'),
   loadingComponent: () => import('@/components/ui/Loading.vue'),

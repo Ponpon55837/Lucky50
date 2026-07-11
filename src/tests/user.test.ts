@@ -4,13 +4,17 @@ import { useUserStore } from '@/stores/user'
 import type { UserProfile } from '@/types'
 
 const validProfile: UserProfile = {
+  surname: '測',
+  givenName: '試用戶',
   name: '測試用戶',
   birthDate: '1990-01-01',
   birthTime: '10:30',
-  zodiac: '鼠',
+  zodiac: '馬',
   element: '金',
-  luckyColors: ['金色', '白色'],
-  luckyNumbers: [1, 6],
+  nameElement: '火',
+  nameStrokes: 22,
+  luckyColors: ['白色', '金色'],
+  luckyNumbers: [4, 9],
 }
 
 describe('useUserStore', () => {
@@ -117,7 +121,7 @@ describe('useUserStore', () => {
       const info = store.userBasicInfo
       expect(info).not.toBeNull()
       expect(info!.name).toBe('測試用戶')
-      expect(info!.zodiac).toBe('鼠')
+      expect(info!.zodiac).toBe('馬')
       expect(info!.hasLuckyColors).toBe(true)
     })
   })
