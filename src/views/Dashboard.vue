@@ -38,6 +38,8 @@ const userProfileCompat = computed((): UserProfileCompat | null => {
     birthTime: userStore.profile.birthTime || '12:00',
     zodiac: userStore.profile.zodiac,
     element: userStore.profile.element,
+    nameElement: userStore.profile.nameElement,
+    nameStrokes: userStore.profile.nameStrokes,
     luckyColors: [...userStore.profile.luckyColors],
     luckyNumbers: [...userStore.profile.luckyNumbers],
   }
@@ -317,6 +319,19 @@ onMounted(() => {
             <p class="text-gray-300 text-sm mt-1">
               圖中標有 ★ 的是您的本命五行，能量值會根據個人八字和當日運勢動態調整
             </p>
+          </div>
+
+          <!-- 姓名學五行說明 -->
+          <div
+            v-if="userStore.profile?.nameElement && userStore.profile?.nameStrokes"
+            class="mt-2 p-3 bg-purple-500/10 rounded-lg border border-purple-500/20"
+          >
+            <div class="flex items-center gap-2">
+              <span class="text-purple-400 text-sm font-medium">✦ 姓名學五行</span>
+              <span class="text-white font-bold">{{ userStore.profile.nameElement }}</span>
+              <span class="text-gray-400 text-sm">（{{ userStore.profile.nameStrokes }}劃）</span>
+            </div>
+            <p class="text-gray-300 text-sm mt-1">姓名學五行對運勢有輔助影響，與本命五行相互配合</p>
           </div>
         </div>
       </div>

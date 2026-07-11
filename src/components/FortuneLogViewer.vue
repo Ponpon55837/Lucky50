@@ -1,11 +1,14 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
+import { useUserStore } from '@/stores/user'
+import type { FortuneRecord, HistoryQueryOptions, HistoryStats } from '@/types/history'
 import VueDatePicker from '@vuepic/vue-datepicker'
 import '@vuepic/vue-datepicker/dist/main.css'
 import { fortuneHistoryStore } from '@/services/fortuneStore'
+import { IntegratedFortuneService } from '@/services/integratedFortune'
 import { toLocalDateString } from '@/utils/date'
-import type { FortuneRecord, HistoryQueryOptions, HistoryStats } from '@/types/history'
 
+// ── Props / Emits ──
 interface Props {
   pageSize?: number
 }
@@ -18,6 +21,30 @@ const emit = defineEmits<{
   confirmClear: []
 }>()
 
+// ── 常量與設定 ──
+const now = new Date()
+const sixMonthsAgo = new Date(now)
+sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6)
+
+const defaultDateStart = toLocalDateString(sixMonthsAgo)
+const defaultDateEnd = toLocalDateString(now)
+
+const elementColors: Record<string, string> = {
+  metal: '#9CA3AF',
+  wood: '#22C55E',
+  water: '#3B82F6',
+  fire: '#EF4444',
+  earth: '#A16207',
+}
+const elementLabels: Record<string, string> = {
+  metal: '金',
+  wood: '木',
+  water: '水',
+  fire: '火',
+  earth: '土',
+}
+
+// ── 響應式狀態 ──
 const records = ref<FortuneRecord[]>([])
 const total = ref(0)
 const pageIndex = ref(0)
@@ -26,18 +53,12 @@ const stats = ref<HistoryStats | null>(null)
 const filtersExpanded = ref(false)
 const showClearConfirm = ref(false)
 
-const now = new Date()
-const sixMonthsAgo = new Date(now)
-sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6)
-
-const defaultDateStart = toLocalDateString(sixMonthsAgo)
-const defaultDateEnd = toLocalDateString(now)
-
 const filterRecommendation = ref<FortuneRecord['recommendation'] | ''>('')
 const filterDateStart = ref(defaultDateStart)
 const filterDateEnd = ref(defaultDateEnd)
 const searchText = ref('')
 
+// ── 計算屬性 ──
 const hasFilters = computed(
   () =>
     !!filterRecommendation.value ||
@@ -70,51 +91,43 @@ const activeFilterTags = computed(() => {
 
 const totalPages = computed(() => Math.ceil(total.value / props.pageSize))
 
-const displayRecommendation = (
-  rec: FortuneRecord['recommendation']
-): { text: string; class: string } => {
-  const map = {
-    BUY: { text: '買入', class: 'bg-green-500/20 text-green-400 border border-green-500/30' },
-    HOLD: { text: '持有', class: 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/30' },
-    SELL: { text: '賣出', class: 'bg-red-500/20 text-red-400 border border-red-500/30' },
+// ── 生命週期 ──
+onMounted(async () => {
+  await fortuneHistoryStore.init()
+  await Promise.all([loadRecords(), loadStats()])
+
+  const today = toLocalDateString(new Date())
+  const todayRecords = await fortuneHistoryStore.query({
+    pageIndex: 0,
+    dateRange: { start: today, end: today },
+    pageSize: 1,
+  })
+  if (todayRecords.total === 0) {
+    const userStore = useUserStore()
+    const profile = userStore.profile
+    if (profile && profile.name && profile.birthDate) {
+      try {
+        const userProfileCompat = {
+          name: profile.name,
+          birthDate: profile.birthDate,
+          birthTime: profile.birthTime || '12:00',
+          zodiac: profile.zodiac,
+          element: profile.element,
+          nameElement: profile.nameElement,
+          nameStrokes: profile.nameStrokes,
+          luckyColors: [...profile.luckyColors],
+          luckyNumbers: [...profile.luckyNumbers],
+        }
+        await IntegratedFortuneService.calculateIntegratedFortune(userProfileCompat, new Date())
+      } catch {
+        // 計算失敗靜默處理
+      }
+      await Promise.all([loadRecords(), loadStats()])
+    }
   }
-  return map[rec]
-}
+})
 
-const elementColors: Record<string, string> = {
-  metal: '#9CA3AF',
-  wood: '#22C55E',
-  water: '#3B82F6',
-  fire: '#EF4444',
-  earth: '#A16207',
-}
-const elementLabels: Record<string, string> = {
-  metal: '金',
-  wood: '木',
-  water: '水',
-  fire: '火',
-  earth: '土',
-}
-
-const formatDate = (dateStr: string, mobile = false): string => {
-  const d = new Date(dateStr + 'T00:00:00')
-  const mm = String(d.getMonth() + 1).padStart(2, '0')
-  const dd = String(d.getDate()).padStart(2, '0')
-  if (mobile) return `${mm}/${dd}`
-  const w = ['日', '一', '二', '三', '四', '五', '六'][d.getDay()]
-  return `${mm}/${dd} 週${w}`
-}
-
-const formatTime = (timestamp: number): string => {
-  return new Date(timestamp).toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit' })
-}
-
-function getScoreColor(score: number): string {
-  if (score >= 70) return 'bg-emerald-500'
-  if (score >= 40) return 'bg-amber-500'
-  return 'bg-rose-500'
-}
-
+// ── 方法與函式 ──
 async function loadRecords() {
   loading.value = true
   try {
@@ -196,10 +209,36 @@ async function confirmClearAll() {
   loadStats()
 }
 
-onMounted(async () => {
-  await fortuneHistoryStore.init()
-  await Promise.all([loadRecords(), loadStats()])
-})
+// ── 模板輔助 ──
+const displayRecommendation = (
+  rec: FortuneRecord['recommendation']
+): { text: string; class: string } => {
+  const map = {
+    BUY: { text: '買入', class: 'bg-green-500/20 text-green-400 border border-green-500/30' },
+    HOLD: { text: '持有', class: 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/30' },
+    SELL: { text: '賣出', class: 'bg-red-500/20 text-red-400 border border-red-500/30' },
+  }
+  return map[rec]
+}
+
+const formatDate = (dateStr: string, mobile = false): string => {
+  const d = new Date(dateStr + 'T00:00:00')
+  const mm = String(d.getMonth() + 1).padStart(2, '0')
+  const dd = String(d.getDate()).padStart(2, '0')
+  if (mobile) return `${mm}/${dd}`
+  const w = ['日', '一', '二', '三', '四', '五', '六'][d.getDay()]
+  return `${mm}/${dd} 週${w}`
+}
+
+const formatTime = (timestamp: number): string => {
+  return new Date(timestamp).toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit' })
+}
+
+function getScoreColor(score: number): string {
+  if (score >= 70) return 'bg-emerald-500'
+  if (score >= 40) return 'bg-amber-500'
+  return 'bg-rose-500'
+}
 </script>
 
 <template>
