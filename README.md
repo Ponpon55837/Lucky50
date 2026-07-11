@@ -189,50 +189,92 @@ Lucky50/
 ├── .opencode/              # OpenCode 配置與 Skills
 │   └── skills/            # AI 開發技能指引
 │       ├── README.md       # Skills 總覽
-│       ├── agent/          # AI 智慧助理功能說明
 │       ├── code-standards/  # 程式碼規範與開發最佳實踐
 │       ├── git-workflow/   # Git 工作流程規範
 │       ├── vue/           # Vue 3 開發指南
 │       └── github/        # GitHub Copilot 整合指南
 ├── docs/                  # 文檔
 │   └── ERROR_HANDLING.md  # 錯誤處理系統文檔
+├── openspec/              # OpenSpec 變更提案
+│   └── changes/           # 變更提案與規格
 ├── public/                # 靜態資源
 ├── src/
 │   ├── assets/           # 樣式和靜態資源
 │   ├── components/       # Vue 組件
-│   │   ├── layout/      # 佈局組件
 │   │   ├── charts/      # 圖表組件
+│   │   │   ├── PriceChart.vue          # 價格走勢圖
+│   │   │   ├── VolumeChart.vue         # 成交量圖
+│   │   │   └── ElementRadarChart.vue   # 五行雷達圖
 │   │   ├── three/       # Three.js 3D 組件
+│   │   │   ├── Stock3DVisualization.vue
+│   │   │   ├── Fortune3DVisualization.vue
+│   │   │   ├── Lunar3DVisualization.vue
+│   │   │   └── Technical3DVisualization.vue
+│   │   ├── layout/      # 佈局組件
+│   │   │   ├── NavBar.vue
+│   │   │   └── Footer.vue
 │   │   ├── ui/          # UI 組件
-│   │   ├── ErrorBoundary.vue # 錯誤邊界組件
-│   │   ├── ErrorModal.vue    # 錯誤彈窗組件
-│   │   └── FortuneOrb.vue    # 3D 運勢球體
+│   │   │   ├── Toast.vue
+│   │   │   ├── ToastContainer.vue
+│   │   │   └── LazyImage.vue
+│   │   ├── EngineSettingsCard.vue  # 命理引擎設定
+│   │   ├── TenGodsCard.vue         # 八字十神卡片
+│   │   ├── ZiWeiCard.vue           # 紫微斗數卡片
+│   │   ├── FengShuiCard.vue        # 風水方位卡片
+│   │   ├── ErrorBoundary.vue       # 錯誤邊界
+│   │   ├── ErrorModal.vue          # 錯誤彈窗
+│   │   ├── FortuneCard.vue         # 運勢卡片
+│   │   ├── FortuneLogViewer.vue    # 運勢歷史記錄
+│   │   ├── FortuneOrb.vue          # 3D 運勢球體
+│   │   ├── LunarCalendarCard.vue   # 農民曆卡片
+│   │   └── ThemeToggle.vue         # 主題切換
 │   ├── composables/     # Composables
 │   │   ├── useTheme.ts         # 主題切換
 │   │   ├── useToast.ts         # Toast 通知
 │   │   └── useErrorHandler.ts  # 錯誤處理
-│   ├── services/        # API 服務層
-│   │   ├── finmind.ts   # 金融數據服務
-│   │   ├── fortune.ts   # 運勢計算服務
-│   │   └── lunar.ts     # 農曆服務
+│   ├── services/        # 服務層
+│   │   ├── engines/            # 命理引擎系統
+│   │   │   ├── types.ts        # 引擎介面定義
+│   │   │   ├── registry.ts     # 引擎註冊中心
+│   │   │   ├── classic.ts      # 經典命理引擎
+│   │   │   ├── baziTenGods.ts  # 八字十神引擎
+│   │   │   ├── ziWei.ts        # 紫微斗數引擎
+│   │   │   ├── fengShui.ts     # 風水方位引擎
+│   │   │   └── index.ts        # 統一匯出
+│   │   ├── integratedFortune.ts  # 整合運勢計算（含引擎加權）
+│   │   ├── fortune.ts            # 基礎運勢計算
+│   │   ├── lunar.ts              # 農曆服務
+│   │   ├── finmind.ts            # FinMind 金融數據
+│   │   ├── taiwanStock.ts        # 台股交易服務
+│   │   ├── fortuneStore.ts       # IndexedDB 運勢歷史
+│   │   └── apiCache.ts           # API 快取
 │   ├── stores/          # Pinia 狀態管理
-│   │   ├── user.ts      # 用戶狀態
-│   │   └── investment.ts # 投資數據狀態
+│   │   ├── user.ts              # 用戶狀態
+│   │   ├── dashboard.ts         # 儀表板狀態
+│   │   ├── analytics.ts         # 數據分析狀態
+│   │   └── investment.ts        # 投資數據狀態
 │   ├── utils/           # 工具函數
-│   │   └── zodiac.ts    # 生肖/五行計算工具
+│   │   ├── tenGods.ts           # 十神計算工具
+│   │   ├── zodiac.ts            # 生肖/五行計算
+│   │   └── date.ts              # 日期工具
 │   ├── types/           # TypeScript 類型定義
-│   │   ├── error.ts     # 錯誤類型定義
-│   │   └── index.ts     # 主要類型定義
+│   │   ├── index.ts             # 主要類型定義
+│   │   └── error.ts             # 錯誤類型定義
 │   ├── views/           # 頁面組件
-│   │   ├── Home.vue     # 首頁
-│   │   ├── Dashboard.vue # 投資儀表板
-│   │   ├── Profile.vue   # 個人設定（含姓名學五行分析）
-│   │   └── Analytics.vue # 數據分析
+│   │   ├── Home.vue             # 首頁
+│   │   ├── Dashboard.vue        # 投資儀表板
+│   │   ├── Analytics.vue        # 數據分析
+│   │   ├── History.vue          # 運勢歷史
+│   │   ├── Profile.vue          # 個人設定
+│   │   └── dev/                 # 開發工具頁面
+│   │       ├── PerformanceMonitor.vue
+│   │       └── ApiMonitor.vue
+│   ├── tests/           # 單元測試（23 個測試檔，324 個測試）
 │   └── router/          # 路由配置
 ├── .github/
 │   └── copilot-instructions.md # GitHub Copilot 指引
 ├── tailwind.config.js   # TailwindCSS 配置
-├── vite.config.ts      # Vite 配置
+├── vite.config.ts       # Vite 配置
 └── package.json
 ```
 

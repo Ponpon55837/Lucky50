@@ -5,23 +5,39 @@
       <span class="text-white">八字十神分析</span>
     </h3>
 
-    <div v-if="loading" class="text-center py-8 text-gray-400">計算中...</div>
+    <div
+      v-if="loading"
+      class="text-center py-8 text-gray-400"
+    >
+      計算中...
+    </div>
 
-    <div v-else-if="error" class="text-center py-8 text-red-400">
+    <div
+      v-else-if="error"
+      class="text-center py-8 text-red-400"
+    >
       {{ error }}
     </div>
 
     <template v-else-if="result">
       <!-- 綜合分數 -->
       <div class="text-center mb-6">
-        <div class="text-4xl font-bold" :class="scoreColor">
+        <div
+          class="text-4xl font-bold"
+          :class="scoreColor"
+        >
           {{ result.score }}
         </div>
-        <div class="text-sm text-gray-400 mt-1">十神能量分數</div>
+        <div class="text-sm text-gray-400 mt-1">
+          十神能量分數
+        </div>
       </div>
 
       <!-- 四柱十神 -->
-      <div v-if="result.distribution" class="grid grid-cols-4 gap-2 mb-6">
+      <div
+        v-if="result.distribution"
+        class="grid grid-cols-4 gap-2 mb-6"
+      >
         <div
           v-for="(label, key) in pillarLabels"
           :key="key"
@@ -41,28 +57,44 @@
 
       <!-- 投資風格 -->
       <div class="mb-4 p-4 bg-white/5 rounded-lg">
-        <div class="text-sm font-bold text-amber-400 mb-1">投資風格</div>
-        <div class="text-sm text-gray-300" :class="styleColor">
+        <div class="text-sm font-bold text-amber-400 mb-1">
+          投資風格
+        </div>
+        <div
+          class="text-sm text-gray-300"
+          :class="styleColor"
+        >
           {{ result.personality }}
         </div>
       </div>
 
       <!-- 十神統計 -->
-      <div v-if="result.counts" class="grid grid-cols-2 gap-2">
+      <div
+        v-if="result.counts"
+        class="grid grid-cols-2 gap-2"
+      >
         <div
           v-for="(count, god) in result.counts"
           :key="god"
           class="flex justify-between items-center p-2 bg-white/5 rounded text-sm"
         >
           <span class="text-gray-300">{{ god }}</span>
-          <span class="font-bold" :class="count > 0 ? 'text-amber-400' : 'text-gray-500'">
+          <span
+            class="font-bold"
+            :class="count > 0 ? 'text-amber-400' : 'text-gray-500'"
+          >
             {{ count }}
           </span>
         </div>
       </div>
     </template>
 
-    <div v-else class="text-center py-8 text-gray-500">請先設定出生資料</div>
+    <div
+      v-else
+      class="text-center py-8 text-gray-500"
+    >
+      請先設定出生資料
+    </div>
   </div>
 </template>
 

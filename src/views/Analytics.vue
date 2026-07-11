@@ -32,6 +32,10 @@ const Technical3DVisualization = defineAsyncComponent({
   loader: () => import('@/components/three/Technical3DVisualization.vue'),
   loadingComponent: () => import('@/components/ui/Loading.vue'),
 })
+const EngineScoresChart = defineAsyncComponent({
+  loader: () => import('@/components/charts/EngineScoresChart.vue'),
+  loadingComponent: () => import('@/components/ui/Loading.vue'),
+})
 
 // ── Store 實例 ──
 const dashboardStore = useDashboardStore()
@@ -68,6 +72,32 @@ const backtestResults = computed(() => {
 const technicalIndicators = computed(() => {
   return analyticsStore.calculateTechnicalIndicators(dashboardStore.etfData)
 })
+
+// ── 命理引擎資料 ──
+const ENGINE_ICONS: Record<string, string> = {
+  classic: '🏮',
+  'bazi-ten-gods': '🔮',
+  'zi-wei': '⭐',
+  'feng-shui': '🧭',
+}
+const ENGINE_LABELS: Record<string, string> = {
+  classic: '經典命理',
+  'bazi-ten-gods': '八字十神',
+  'zi-wei': '紫微斗數',
+  'feng-shui': '風水方位',
+}
+const ENGINE_WEIGHTS: Record<string, number> = {
+  classic: 30,
+  'bazi-ten-gods': 25,
+  'zi-wei': 20,
+  'feng-shui': 15,
+}
+
+const engineResults = computed(() => dashboardStore.integratedFortune?.enginesResults ?? [])
+const engineWeightedScore = computed(
+  () => dashboardStore.integratedFortune?.engineWeightedScore ?? 0
+)
+const hasEngineData = computed(() => engineResults.value.length > 0)
 
 // ── 方法與函式 ──
 const loadAnalyticsData = async () => {
@@ -334,6 +364,88 @@ onMounted(() => {
         <!-- 技術指標 3D 可視化 -->
         <div class="h-64 md:h-80 rounded-lg overflow-hidden">
           <Technical3DVisualization title="技術指標 3D" />
+        </div>
+      </div>
+
+      <!-- 命理引擎分析 -->
+      <div
+        v-if="hasEngineData"
+        class="card mb-8"
+      >
+        <div class="mb-6">
+          <div class="flex items-center gap-3 mb-2">
+            <div class="w-3 h-3 bg-purple-500 rounded-full" />
+            <h2 class="text-xl font-semibold text-primary">
+              命理引擎分析
+            </h2>
+            <div class="text-sm text-gold-400 bg-gold-500/10 px-3 py-1 rounded-full">
+              加權分數 {{ engineWeightedScore }}
+            </div>
+          </div>
+          <p class="text-sm text-secondary">
+            各命理引擎根據個人八字、五行能量計算的運勢分數與投資建議
+          </p>
+        </div>
+
+        <!-- 引擎分數長條圖 -->
+        <div class="bg-white/5 rounded-lg p-4 mb-6">
+          <EngineScoresChart
+            :results="engineResults"
+            :weights="ENGINE_WEIGHTS"
+            :is-dark="isDark"
+          />
+        </div>
+
+        <!-- 各引擎詳情卡片 -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div
+            v-for="result in engineResults"
+            :key="result.engineId"
+            class="bg-white/5 border border-white/10 rounded-lg p-4"
+          >
+            <div class="flex items-center gap-2 mb-3">
+              <span class="text-lg">{{ ENGINE_ICONS[result.engineId ?? ''] ?? '⚙️' }}</span>
+              <span class="font-semibold text-primary text-sm">
+                {{ ENGINE_LABELS[result.engineId ?? ''] ?? result.engineName }}
+              </span>
+            </div>
+            <div class="space-y-2 text-sm">
+              <div class="flex justify-between">
+                <span class="text-secondary">分數</span>
+                <span
+                  class="font-semibold"
+                  :class="
+                    result.score >= 70
+                      ? 'text-green-400'
+                      : result.score >= 40
+                        ? 'text-yellow-400'
+                        : 'text-red-400'
+                  "
+                >
+                  {{ result.score }}
+                </span>
+              </div>
+              <div class="flex justify-between">
+                <span class="text-secondary">權重</span>
+                <span class="text-secondary">{{ ENGINE_WEIGHTS[result.engineId ?? ''] ?? 0 }}%</span>
+              </div>
+              <div
+                v-if="result.confidence != null"
+                class="flex justify-between"
+              >
+                <span class="text-secondary">信心度</span>
+                <span class="text-secondary">{{ (result.confidence * 100).toFixed(0) }}%</span>
+              </div>
+              <div
+                v-if="result.advice?.length"
+                class="pt-2 border-t border-white/10"
+              >
+                <p class="text-secondary text-xs leading-relaxed">
+                  {{ result.advice[0] }}
+                </p>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 

@@ -5,24 +5,39 @@
       <span class="text-white">紫微斗數分析</span>
     </h3>
 
-    <div v-if="loading" class="text-center py-8 text-gray-400">計算中...</div>
+    <div
+      v-if="loading"
+      class="text-center py-8 text-gray-400"
+    >
+      計算中...
+    </div>
 
-    <div v-else-if="error" class="text-center py-8 text-red-400">
+    <div
+      v-else-if="error"
+      class="text-center py-8 text-red-400"
+    >
       {{ error }}
     </div>
 
     <template v-else-if="result">
       <!-- 綜合分數 -->
       <div class="text-center mb-6">
-        <div class="text-4xl font-bold" :class="scoreColor">
+        <div
+          class="text-4xl font-bold"
+          :class="scoreColor"
+        >
           {{ result.score }}
         </div>
-        <div class="text-sm text-gray-400 mt-1">紫微能量分數</div>
+        <div class="text-sm text-gray-400 mt-1">
+          紫微能量分數
+        </div>
       </div>
 
       <!-- 命主星 -->
       <div class="mb-4 p-4 bg-white/5 rounded-lg text-center">
-        <div class="text-sm text-amber-400 mb-1">命主星</div>
+        <div class="text-sm text-amber-400 mb-1">
+          命主星
+        </div>
         <div class="text-xl font-bold text-white">
           {{ result.dominantStar }}
         </div>
@@ -33,10 +48,17 @@
 
       <!-- 三星宮位 -->
       <div class="space-y-3 mb-4">
-        <div v-for="(palace, name) in result.palaces" :key="name" class="p-3 bg-white/5 rounded-lg">
+        <div
+          v-for="(palace, name) in result.palaces"
+          :key="name"
+          class="p-3 bg-white/5 rounded-lg"
+        >
           <div class="flex justify-between items-center mb-2">
             <span class="font-bold text-sm text-white">{{ name }}</span>
-            <span class="text-sm" :class="palaceScoreColor(palace.score)">
+            <span
+              class="text-sm"
+              :class="palaceScoreColor(palace.score)"
+            >
               {{ palace.score }}分
             </span>
           </div>
@@ -63,14 +85,21 @@
 
       <!-- 風險評估 -->
       <div class="p-3 bg-white/5 rounded-lg">
-        <div class="text-sm font-bold text-amber-400 mb-1">風險評估</div>
+        <div class="text-sm font-bold text-amber-400 mb-1">
+          風險評估
+        </div>
         <div class="text-sm text-gray-300">
           {{ result.riskProfile }}
         </div>
       </div>
     </template>
 
-    <div v-else class="text-center py-8 text-gray-500">請先設定出生資料</div>
+    <div
+      v-else
+      class="text-center py-8 text-gray-500"
+    >
+      請先設定出生資料
+    </div>
   </div>
 </template>
 

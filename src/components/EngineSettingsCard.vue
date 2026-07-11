@@ -5,10 +5,16 @@
       <span class="text-white">命理引擎設定</span>
     </h3>
 
-    <p class="text-sm text-gray-400 mb-4">調整各命理引擎的啟用狀態與權重，影響運勢計算結果</p>
+    <p class="text-sm text-gray-400 mb-4">
+      調整各命理引擎的啟用狀態與權重，影響運勢計算結果
+    </p>
 
     <div class="space-y-4">
-      <div v-for="engine in engines" :key="engine.id" class="p-4 bg-white/5 rounded-lg">
+      <div
+        v-for="engine in engines"
+        :key="engine.id"
+        class="p-4 bg-white/5 rounded-lg"
+      >
         <div class="flex items-center justify-between mb-2">
           <div class="flex items-center gap-2">
             <span class="text-lg">{{ engine.icon }}</span>
@@ -37,7 +43,10 @@
           </button>
         </div>
 
-        <div v-if="engine.enabled" class="mt-3">
+        <div
+          v-if="engine.enabled"
+          class="mt-3"
+        >
           <div class="flex items-center justify-between text-xs text-gray-500 mb-1">
             <span>權重</span>
             <span class="text-amber-400">{{ engine.weight }}%</span>
@@ -50,7 +59,7 @@
             step="5"
             class="w-full h-2 bg-white/10 rounded-lg appearance-none cursor-pointer accent-amber-500"
             @input="e => updateWeight(engine.id, Number((e.target as HTMLInputElement).value))"
-          />
+          >
           <div class="flex justify-between text-xs text-gray-500 mt-1">
             <span>0%</span>
             <span>50%</span>
@@ -76,7 +85,12 @@
       </button>
     </div>
 
-    <div v-if="saved" class="mt-2 text-sm text-green-400">設定已儲存</div>
+    <div
+      v-if="saved"
+      class="mt-2 text-sm text-green-400"
+    >
+      設定已儲存
+    </div>
   </div>
 </template>
 

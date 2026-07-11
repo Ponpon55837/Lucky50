@@ -234,7 +234,9 @@ const onShichenChange = () => {
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
       <!-- Page Header -->
       <div class="mb-6 sm:mb-8">
-        <h1 class="text-xl sm:text-2xl lg:text-3xl font-bold text-white mb-1 sm:mb-2">個人設定</h1>
+        <h1 class="text-xl sm:text-2xl lg:text-3xl font-bold text-white mb-1 sm:mb-2">
+          個人設定
+        </h1>
         <p class="text-xs sm:text-sm lg:text-base text-gray-400">
           設定個人資料以獲得精準的投資運勢分析
         </p>
@@ -245,7 +247,9 @@ const onShichenChange = () => {
         v-if="userStore.profile && userStore.isProfileComplete"
         class="card !py-3 !px-3 sm:!py-4 sm:!px-6 mb-5 sm:mb-6"
       >
-        <h3 class="text-sm sm:text-base font-semibold text-white mb-2 sm:mb-3">當前設定</h3>
+        <h3 class="text-sm sm:text-base font-semibold text-white mb-2 sm:mb-3">
+          當前設定
+        </h3>
         <div class="grid grid-cols-2 gap-1.5 sm:gap-2 text-xs sm:text-sm">
           <div class="flex justify-between">
             <span class="text-gray-500">姓名：</span>
@@ -257,11 +261,9 @@ const onShichenChange = () => {
           </div>
           <div class="flex justify-between">
             <span class="text-gray-500">出生時間：</span>
-            <span class="text-white truncate ml-2"
-              >{{ userStore.profile.birthTime }}（{{
-                timeToShichen(userStore.profile.birthTime)
-              }}）</span
-            >
+            <span class="text-white truncate ml-2">{{ userStore.profile.birthTime }}（{{
+              timeToShichen(userStore.profile.birthTime)
+            }}）</span>
           </div>
           <div class="flex justify-between">
             <span class="text-gray-500">生肖：</span>
@@ -273,9 +275,7 @@ const onShichenChange = () => {
           </div>
           <div class="flex justify-between">
             <span class="text-gray-500">姓名學五行：</span>
-            <span class="text-amber-400 truncate ml-2"
-              >{{ userStore.profile.nameElement }} ({{ userStore.profile.nameStrokes }}畫)</span
-            >
+            <span class="text-amber-400 truncate ml-2">{{ userStore.profile.nameElement }} ({{ userStore.profile.nameStrokes }}畫)</span>
           </div>
         </div>
       </div>
@@ -288,7 +288,10 @@ const onShichenChange = () => {
             <span class="text-gold-400 mr-2">📝</span>
             個人資料
           </h3>
-          <form class="space-y-4 sm:space-y-5" @submit.prevent="saveProfile">
+          <form
+            class="space-y-4 sm:space-y-5"
+            @submit.prevent="saveProfile"
+          >
             <!-- 姓氏 -->
             <div>
               <label
@@ -303,7 +306,7 @@ const onShichenChange = () => {
                 type="text"
                 class="w-full px-2.5 sm:px-3 py-1.5 sm:py-2 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500/50 text-xs sm:text-sm transition-all"
                 placeholder="請輸入姓氏（如：王、歐陽）"
-              />
+              >
             </div>
 
             <!-- 名字 -->
@@ -320,9 +323,12 @@ const onShichenChange = () => {
                 type="text"
                 class="w-full px-2.5 sm:px-3 py-1.5 sm:py-2 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500/50 text-xs sm:text-sm transition-all"
                 placeholder="請輸入名字"
-              />
+              >
               <!-- 姓名學五行即時預覽 -->
-              <p v-if="form.nameElement" class="text-xs text-amber-400/80 mt-1">
+              <p
+                v-if="form.nameElement"
+                class="text-xs text-amber-400/80 mt-1"
+              >
                 姓名學五行：{{ form.nameElement }} ({{ form.nameStrokes }}畫)
               </p>
             </div>
@@ -355,7 +361,11 @@ const onShichenChange = () => {
                   @update:model-value="onDateChange"
                 >
                   <template #input-icon>
-                    <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                    <svg
+                      class="w-4 h-4"
+                      fill="currentColor"
+                      viewBox="0 0 20 20"
+                    >
                       <path
                         fill-rule="evenodd"
                         d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z"
@@ -365,7 +375,10 @@ const onShichenChange = () => {
                   </template>
                 </VueDatePicker>
               </div>
-              <p v-if="form.zodiac" class="text-xs text-amber-400/80 mt-1">
+              <p
+                v-if="form.zodiac"
+                class="text-xs text-amber-400/80 mt-1"
+              >
                 生肖：{{ form.zodiac }}（自動推算）
               </p>
             </div>
@@ -388,7 +401,7 @@ const onShichenChange = () => {
                     :checked="timeMode === 'exact'"
                     class="w-4 h-4 text-amber-500 bg-white/10 border-white/20 focus:ring-amber-500/50"
                     @change="switchTimeMode('exact')"
-                  />
+                  >
                   <span class="text-xs sm:text-sm text-gray-300">精確時間</span>
                 </label>
                 <label class="flex items-center gap-2 cursor-pointer">
@@ -399,7 +412,7 @@ const onShichenChange = () => {
                     :checked="timeMode === 'shichen'"
                     class="w-4 h-4 text-amber-500 bg-white/10 border-white/20 focus:ring-amber-500/50"
                     @change="switchTimeMode('shichen')"
-                  />
+                  >
                   <span class="text-xs sm:text-sm text-gray-300">傳統時辰</span>
                 </label>
               </div>
@@ -429,7 +442,12 @@ const onShichenChange = () => {
                   class="w-full h-[42px] px-2.5 sm:px-3 py-1.5 sm:py-2 bg-white/10 border border-white/20 rounded-lg text-white text-xs sm:text-sm focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500/50 transition-all"
                   @change="onShichenChange"
                 >
-                  <option value="" class="bg-gray-800">選擇時辰</option>
+                  <option
+                    value=""
+                    class="bg-gray-800"
+                  >
+                    選擇時辰
+                  </option>
                   <option
                     v-for="shichen in shichenList"
                     :key="shichen.name"
@@ -440,7 +458,9 @@ const onShichenChange = () => {
                   </option>
                 </select>
               </div>
-              <p class="text-xs text-gray-400 mt-1">精確時間有助於更準確的命理分析</p>
+              <p class="text-xs text-gray-400 mt-1">
+                精確時間有助於更準確的命理分析
+              </p>
             </div>
 
             <!-- 生肖（自動推算，唯讀） -->
@@ -473,10 +493,16 @@ const onShichenChange = () => {
                 姓名學五行（基於姓名筆畫）
               </label>
               <div class="p-2.5 sm:p-3 bg-white/5 rounded-lg">
-                <span v-if="form.nameElement" class="text-amber-400 font-medium text-xs sm:text-sm">
+                <span
+                  v-if="form.nameElement"
+                  class="text-amber-400 font-medium text-xs sm:text-sm"
+                >
                   {{ form.nameElement }} ({{ form.nameStrokes }}畫)
                 </span>
-                <span v-else class="text-gray-500 text-xs sm:text-sm"> 請先填寫姓氏與名字 </span>
+                <span
+                  v-else
+                  class="text-gray-500 text-xs sm:text-sm"
+                > 請先填寫姓氏與名字 </span>
               </div>
             </div>
 
