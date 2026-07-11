@@ -1,5 +1,46 @@
 # Changelog
 
+## [2026-07-11] 引擎結果寫入歷史 + 運勢記錄卡片重設計 + 修復
+
+### Bug Fix: classic.ts 缺少 engineId
+
+- `ClassicFortuneEngine.calculate()` 回傳值補上 `engineId: 'classic'`
+- 修復 Analytics 頁面經典命理權重顯示為 0% 的問題
+
+### Bug Fix: Analytics 頁面 hardcoded 權重
+
+- `ENGINE_WEIGHTS` 改為從 `metaphysicsRegistry` 動態讀取，反映使用者即時調整
+
+### EngineSettingsCard 權重加總指示器
+
+- 新增權重加總條圖 + 狀態文字（100% 完美 / 接近 / 偏差）
+- 條圖 0-150% 範圍，超過 150% 截斷顯示
+- 顏色：綠色 100%、琥珀色 80-120%、紅色超出範圍
+
+### 歷史記錄引擎資料 (`src/services/integratedFortune.ts`, `src/types/history.ts`)
+
+- `EngineResultSummary` 型別：engineId、engineName、score、weight
+- `FortuneRecord` 新增 `enginesResults` 與 `engineWeightedScore` 欄位
+- `recordFortuneHistory()` 計算時從 registry 取得各引擎權重，一併寫入歷史
+
+### FortuneLogViewer 卡片佈局重設計 (`src/components/FortuneLogViewer.vue`)
+
+**Mobile：**
+
+- 分數圓形放大至 11×11，日期/時間/建議徽章左側排列
+- 五行能量條改為垂直長條 + 底部標籤（scale 0.28）
+- 引擎分數改為個別 chips（圖標 + 分數 + 權重%），加權分數獨立 badge
+- 農曆摘要行數從 1 行改為 2 行
+
+**Desktop：**
+
+- 三欄佈局：左側分數圓形 + 建議徽章 | 中間日期/五行/摘要 | 右側引擎分數
+- 五行能量條加高（scale 0.3），底部標籤
+- 引擎分數 chips + 加權分數置於右側
+- 農曆摘要置於中欄底部
+
+---
+
 ## [2026-07-11] 命理引擎整合至核心運勢計算 + Profile 雙欄重構
 
 ### 命理引擎整合 (`src/services/engines/`)

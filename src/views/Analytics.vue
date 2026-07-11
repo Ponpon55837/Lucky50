@@ -6,6 +6,7 @@ import { useUserStore } from '@/stores/user'
 import { useTheme } from '@/composables/useTheme'
 import { FinMindService } from '@/services/finmind'
 import { toLocalDateString } from '@/utils/date'
+import { metaphysicsRegistry } from '@/services/engines'
 
 // ── 元件 ──
 const PriceChart = defineAsyncComponent({
@@ -86,12 +87,13 @@ const ENGINE_LABELS: Record<string, string> = {
   'zi-wei': '紫微斗數',
   'feng-shui': '風水方位',
 }
-const ENGINE_WEIGHTS: Record<string, number> = {
-  classic: 30,
-  'bazi-ten-gods': 25,
-  'zi-wei': 20,
-  'feng-shui': 15,
-}
+const ENGINE_WEIGHTS = computed(() => {
+  const weights: Record<string, number> = {}
+  for (const id of ['classic', 'bazi-ten-gods', 'zi-wei', 'feng-shui']) {
+    weights[id] = metaphysicsRegistry.getEngineById(id)?.getWeight() ?? 0
+  }
+  return weights
+})
 
 const engineResults = computed(() => dashboardStore.integratedFortune?.enginesResults ?? [])
 const engineWeightedScore = computed(
@@ -159,9 +161,7 @@ onMounted(() => {
           </div>
           <!-- 全局時間區間選擇器 -->
           <div class="flex flex-col sm:items-end gap-2 w-full sm:w-auto">
-            <div class="text-sm text-secondary text-center sm:text-right">
-              分析時間區間
-            </div>
+            <div class="text-sm text-secondary text-center sm:text-right">分析時間區間</div>
             <div class="grid grid-cols-3 sm:flex gap-2 w-full sm:w-auto">
               <button
                 v-for="period in periods"
@@ -204,9 +204,7 @@ onMounted(() => {
         <div class="card mb-6">
           <div class="flex items-center gap-3 mb-4">
             <div class="w-3 h-3 bg-gold-500 rounded-full" />
-            <h2 class="text-xl font-semibold text-primary">
-              農民曆智慧策略
-            </h2>
+            <h2 class="text-xl font-semibold text-primary">農民曆智慧策略</h2>
             <div class="text-sm text-gold-400 bg-gold-500/10 px-3 py-1 rounded-full">
               優於市場表現
             </div>
@@ -217,9 +215,7 @@ onMounted(() => {
               <div class="text-2xl sm:text-3xl font-bold text-green-400 mb-1">
                 +{{ backtestResults.lunar.annualReturn }}%
               </div>
-              <div class="text-sm text-secondary mb-1">
-                年化報酬率
-              </div>
+              <div class="text-sm text-secondary mb-1">年化報酬率</div>
               <div class="text-xs text-green-400/60">
                 vs 市場 {{ statistics.annualReturn >= 0 ? '+' : '' }}{{ statistics.annualReturn }}%
               </div>
@@ -229,36 +225,24 @@ onMounted(() => {
               <div class="text-2xl sm:text-3xl font-bold text-blue-400 mb-1">
                 +{{ backtestResults.lunar.totalReturn }}%
               </div>
-              <div class="text-sm text-secondary mb-1">
-                {{ selectedPeriod }}累積報酬
-              </div>
-              <div class="text-xs text-blue-400/60">
-                期間總收益
-              </div>
+              <div class="text-sm text-secondary mb-1">{{ selectedPeriod }}累積報酬</div>
+              <div class="text-xs text-blue-400/60">期間總收益</div>
             </div>
 
             <div class="text-center">
               <div class="text-2xl sm:text-3xl font-bold text-purple-400 mb-1">
                 {{ backtestResults.lunar.sharpeRatio }}
               </div>
-              <div class="text-sm text-secondary mb-1">
-                夏普比率
-              </div>
-              <div class="text-xs text-purple-400/60">
-                風險調整後收益
-              </div>
+              <div class="text-sm text-secondary mb-1">夏普比率</div>
+              <div class="text-xs text-purple-400/60">風險調整後收益</div>
             </div>
 
             <div class="text-center">
               <div class="text-2xl sm:text-3xl font-bold text-gold-400 mb-1">
                 {{ backtestResults.lunar.winRate }}%
               </div>
-              <div class="text-sm text-secondary mb-1">
-                交易勝率
-              </div>
-              <div class="text-xs text-gold-400/60">
-                成功交易比例
-              </div>
+              <div class="text-sm text-secondary mb-1">交易勝率</div>
+              <div class="text-xs text-gold-400/60">成功交易比例</div>
             </div>
           </div>
         </div>
@@ -271,14 +255,14 @@ onMounted(() => {
           >
             <div class="flex items-center gap-2 mb-3">
               <div class="w-2 h-2 bg-gold-500 rounded-full" />
-              <h3 class="font-semibold text-gold-400">
-                農民曆智慧策略
-              </h3>
+              <h3 class="font-semibold text-gold-400">農民曆智慧策略</h3>
             </div>
             <div class="space-y-2 text-sm">
               <div class="flex justify-between">
                 <span class="text-secondary">年化報酬</span>
-                <span class="text-green-400 font-semibold">+{{ backtestResults.lunar.annualReturn }}%</span>
+                <span class="text-green-400 font-semibold"
+                  >+{{ backtestResults.lunar.annualReturn }}%</span
+                >
               </div>
               <div class="flex justify-between">
                 <span class="text-secondary">最大回撤</span>
@@ -295,14 +279,14 @@ onMounted(() => {
           <div class="card border border-white/10">
             <div class="flex items-center gap-2 mb-3">
               <div class="w-2 h-2 bg-blue-500 rounded-full" />
-              <h3 class="font-semibold text-blue-400">
-                買入持有策略
-              </h3>
+              <h3 class="font-semibold text-blue-400">買入持有策略</h3>
             </div>
             <div class="space-y-2 text-sm">
               <div class="flex justify-between">
                 <span class="text-secondary">年化報酬</span>
-                <span class="text-green-400 font-semibold">+{{ backtestResults.buyHold.annualReturn }}%</span>
+                <span class="text-green-400 font-semibold"
+                  >+{{ backtestResults.buyHold.annualReturn }}%</span
+                >
               </div>
               <div class="flex justify-between">
                 <span class="text-secondary">最大回撤</span>
@@ -319,14 +303,14 @@ onMounted(() => {
           <div class="card border border-white/10">
             <div class="flex items-center gap-2 mb-3">
               <div class="w-2 h-2 bg-green-500 rounded-full" />
-              <h3 class="font-semibold text-green-400">
-                定期定額策略
-              </h3>
+              <h3 class="font-semibold text-green-400">定期定額策略</h3>
             </div>
             <div class="space-y-2 text-sm">
               <div class="flex justify-between">
                 <span class="text-secondary">年化報酬</span>
-                <span class="text-green-400 font-semibold">+{{ backtestResults.dca.annualReturn }}%</span>
+                <span class="text-green-400 font-semibold"
+                  >+{{ backtestResults.dca.annualReturn }}%</span
+                >
               </div>
               <div class="flex justify-between">
                 <span class="text-secondary">最大回撤</span>
@@ -368,16 +352,11 @@ onMounted(() => {
       </div>
 
       <!-- 命理引擎分析 -->
-      <div
-        v-if="hasEngineData"
-        class="card mb-8"
-      >
+      <div v-if="hasEngineData" class="card mb-8">
         <div class="mb-6">
           <div class="flex items-center gap-3 mb-2">
             <div class="w-3 h-3 bg-purple-500 rounded-full" />
-            <h2 class="text-xl font-semibold text-primary">
-              命理引擎分析
-            </h2>
+            <h2 class="text-xl font-semibold text-primary">命理引擎分析</h2>
             <div class="text-sm text-gold-400 bg-gold-500/10 px-3 py-1 rounded-full">
               加權分數 {{ engineWeightedScore }}
             </div>
@@ -389,11 +368,7 @@ onMounted(() => {
 
         <!-- 引擎分數長條圖 -->
         <div class="bg-white/5 rounded-lg p-4 mb-6">
-          <EngineScoresChart
-            :results="engineResults"
-            :weights="ENGINE_WEIGHTS"
-            :is-dark="isDark"
-          />
+          <EngineScoresChart :results="engineResults" :weights="ENGINE_WEIGHTS" :is-dark="isDark" />
         </div>
 
         <!-- 各引擎詳情卡片 -->
@@ -427,19 +402,15 @@ onMounted(() => {
               </div>
               <div class="flex justify-between">
                 <span class="text-secondary">權重</span>
-                <span class="text-secondary">{{ ENGINE_WEIGHTS[result.engineId ?? ''] ?? 0 }}%</span>
+                <span class="text-secondary"
+                  >{{ ENGINE_WEIGHTS[result.engineId ?? ''] ?? 0 }}%</span
+                >
               </div>
-              <div
-                v-if="result.confidence != null"
-                class="flex justify-between"
-              >
+              <div v-if="result.confidence != null" class="flex justify-between">
                 <span class="text-secondary">信心度</span>
                 <span class="text-secondary">{{ (result.confidence * 100).toFixed(0) }}%</span>
               </div>
-              <div
-                v-if="result.advice?.length"
-                class="pt-2 border-t border-white/10"
-              >
+              <div v-if="result.advice?.length" class="pt-2 border-t border-white/10">
                 <p class="text-secondary text-xs leading-relaxed">
                   {{ result.advice[0] }}
                 </p>
@@ -454,9 +425,7 @@ onMounted(() => {
         <!-- 價格走勢圖 -->
         <div class="card">
           <div class="mb-6">
-            <h2 class="text-xl font-semibold text-primary mb-2">
-              價格走勢分析
-            </h2>
+            <h2 class="text-xl font-semibold text-primary mb-2">價格走勢分析</h2>
             <p class="text-sm text-secondary">
               基於 <span class="text-gold-400 font-medium">{{ selectedPeriod }}</span>
               歷史數據的價格與成交量分析
@@ -472,10 +441,7 @@ onMounted(() => {
                 <span>載入 {{ selectedPeriod }} 數據中...</span>
               </div>
             </div>
-            <PriceChart
-              :etf-data="filteredEtfData"
-              :is-dark="isDark"
-            />
+            <PriceChart :etf-data="filteredEtfData" :is-dark="isDark" />
           </div>
         </div>
 
@@ -483,9 +449,7 @@ onMounted(() => {
           <!-- 成交量分析 -->
           <div class="card">
             <div class="mb-6">
-              <h2 class="text-xl font-semibold text-primary mb-2">
-                成交量分析
-              </h2>
+              <h2 class="text-xl font-semibold text-primary mb-2">成交量分析</h2>
               <p class="text-sm text-secondary">
                 <span class="text-gold-400 font-medium">{{ selectedPeriod }}</span>
                 期間的成交量變化趨勢
@@ -514,12 +478,8 @@ onMounted(() => {
                 ]"
               >
                 <div class="text-center">
-                  <p class="text-secondary mb-2">
-                    無 {{ selectedPeriod }} 成交量數據
-                  </p>
-                  <p class="text-secondary text-sm opacity-70">
-                    請檢查數據連線或選擇其他時間段
-                  </p>
+                  <p class="text-secondary mb-2">無 {{ selectedPeriod }} 成交量數據</p>
+                  <p class="text-secondary text-sm opacity-70">請檢查數據連線或選擇其他時間段</p>
                 </div>
               </div>
             </div>
@@ -528,9 +488,7 @@ onMounted(() => {
           <!-- 技術指標摘要 -->
           <div class="card">
             <div class="mb-6">
-              <h2 class="text-xl font-semibold text-primary mb-2">
-                技術指標摘要
-              </h2>
+              <h2 class="text-xl font-semibold text-primary mb-2">技術指標摘要</h2>
               <p class="text-sm text-secondary">
                 基於 <span class="text-gold-400 font-medium">{{ selectedPeriod }}</span>
                 數據的技術分析指標
@@ -544,9 +502,7 @@ onMounted(() => {
                 ]"
               >
                 <div>
-                  <div class="text-sm text-secondary">
-                    RSI (相對強弱指數)
-                  </div>
+                  <div class="text-sm text-secondary">RSI (相對強弱指數)</div>
                   <div class="text-lg font-semibold text-yellow-400">
                     {{ technicalIndicators.rsi.toFixed(1) }}
                   </div>
@@ -578,9 +534,7 @@ onMounted(() => {
                 ]"
               >
                 <div>
-                  <div class="text-sm text-secondary">
-                    MACD
-                  </div>
+                  <div class="text-sm text-secondary">MACD</div>
                   <div
                     class="text-lg font-semibold"
                     :class="technicalIndicators.macd >= 0 ? 'text-green-400' : 'text-red-400'"
@@ -602,9 +556,7 @@ onMounted(() => {
               </div>
 
               <div :class="['p-4 rounded-lg', isDark ? 'bg-gray-800/50' : 'bg-slate-100/80']">
-                <div class="text-sm text-secondary mb-2">
-                  布林通道位置
-                </div>
+                <div class="text-sm text-secondary mb-2">布林通道位置</div>
                 <div class="flex justify-center">
                   <div
                     :class="[
@@ -628,15 +580,15 @@ onMounted(() => {
               </div>
 
               <div :class="['p-4 rounded-lg', isDark ? 'bg-gray-800/50' : 'bg-slate-100/80']">
-                <div class="text-sm text-secondary mb-2">
-                  KD 指標
-                </div>
+                <div class="text-sm text-secondary mb-2">KD 指標</div>
                 <div class="flex justify-between">
                   <div>
                     <span class="text-blue-400">K: {{ technicalIndicators.kd.k.toFixed(1) }}</span>
                   </div>
                   <div>
-                    <span class="text-purple-400">D: {{ technicalIndicators.kd.d.toFixed(1) }}</span>
+                    <span class="text-purple-400"
+                      >D: {{ technicalIndicators.kd.d.toFixed(1) }}</span
+                    >
                   </div>
                   <div
                     :class="[
@@ -659,9 +611,7 @@ onMounted(() => {
         <!-- 運勢與績效相關性 -->
         <div class="card">
           <div class="mb-6">
-            <h2 class="text-xl font-semibold text-primary mb-2">
-              運勢與投資績效相關性
-            </h2>
+            <h2 class="text-xl font-semibold text-primary mb-2">運勢與投資績效相關性</h2>
             <p class="text-sm text-secondary">
               分析 <span class="text-gold-400 font-medium">{{ selectedPeriod }}</span>
               期間運勢指標與實際投資表現的關聯度
@@ -669,9 +619,7 @@ onMounted(() => {
           </div>
           <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div class="space-y-4">
-              <h3 class="text-lg font-medium text-gold-400">
-                運勢分數分佈
-              </h3>
+              <h3 class="text-lg font-medium text-gold-400">運勢分數分佈</h3>
               <div class="space-y-2">
                 <div class="flex justify-between">
                   <span class="text-secondary">高運勢 (80+)</span>
@@ -689,9 +637,7 @@ onMounted(() => {
             </div>
 
             <div class="space-y-4">
-              <h3 class="text-lg font-medium text-gold-400">
-                平均報酬率
-              </h3>
+              <h3 class="text-lg font-medium text-gold-400">平均報酬率</h3>
               <div class="space-y-2">
                 <div class="flex justify-between">
                   <span class="text-secondary">高運勢日</span>
@@ -717,27 +663,31 @@ onMounted(() => {
             </div>
 
             <div class="space-y-4">
-              <h3 class="text-lg font-medium text-gold-400">
-                成功率
-              </h3>
+              <h3 class="text-lg font-medium text-gold-400">成功率</h3>
               <div class="space-y-2">
                 <div class="flex justify-between">
                   <span class="text-secondary">BUY 建議</span>
-                  <span class="text-green-400">{{
-                    Math.min(Math.max(Math.round(75 + statistics.sharpeRatio * 5), 60), 90)
-                  }}%</span>
+                  <span class="text-green-400"
+                    >{{
+                      Math.min(Math.max(Math.round(75 + statistics.sharpeRatio * 5), 60), 90)
+                    }}%</span
+                  >
                 </div>
                 <div class="flex justify-between">
                   <span class="text-secondary">HOLD 建議</span>
-                  <span class="text-yellow-400">{{
-                    Math.min(Math.max(Math.round(65 + statistics.sharpeRatio * 3), 55), 80)
-                  }}%</span>
+                  <span class="text-yellow-400"
+                    >{{
+                      Math.min(Math.max(Math.round(65 + statistics.sharpeRatio * 3), 55), 80)
+                    }}%</span
+                  >
                 </div>
                 <div class="flex justify-between">
                   <span class="text-secondary">SELL 建議</span>
-                  <span class="text-red-400">{{
-                    Math.min(Math.max(Math.round(70 + statistics.sharpeRatio * 2), 60), 85)
-                  }}%</span>
+                  <span class="text-red-400"
+                    >{{
+                      Math.min(Math.max(Math.round(70 + statistics.sharpeRatio * 2), 60), 85)
+                    }}%</span
+                  >
                 </div>
               </div>
             </div>
