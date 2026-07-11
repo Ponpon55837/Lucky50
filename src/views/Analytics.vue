@@ -354,6 +354,19 @@ onMounted(() => {
         </div>
       </div>
 
+      <!-- 農民曆與技術指標 3D 區域 -->
+      <div class="grid grid-cols-1 xl:grid-cols-2 gap-6 mb-8">
+        <!-- 農民曆 3D 可視化 -->
+        <div class="h-64 md:h-80 rounded-lg overflow-hidden">
+          <Lunar3DVisualization title="農民曆 3D" />
+        </div>
+
+        <!-- 技術指標 3D 可視化 -->
+        <div class="h-64 md:h-80 rounded-lg overflow-hidden">
+          <Technical3DVisualization title="技術指標 3D" />
+        </div>
+      </div>
+
       <!-- 命理引擎分析 -->
       <div
         v-if="hasEngineData"
@@ -433,19 +446,6 @@ onMounted(() => {
               </div>
             </div>
           </div>
-        </div>
-      </div>
-
-      <!-- 農民曆與技術指標 3D 區域 -->
-      <div class="grid grid-cols-1 xl:grid-cols-2 gap-6 mb-8">
-        <!-- 農民曆 3D 可視化 -->
-        <div class="h-64 md:h-80 rounded-lg overflow-hidden">
-          <Lunar3DVisualization title="農民曆 3D" />
-        </div>
-
-        <!-- 技術指標 3D 可視化 -->
-        <div class="h-64 md:h-80 rounded-lg overflow-hidden">
-          <Technical3DVisualization title="技術指標 3D" />
         </div>
       </div>
 
