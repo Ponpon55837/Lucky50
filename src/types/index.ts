@@ -1,9 +1,18 @@
 export interface UserProfile {
+  /** 姓氏（支援複姓） */
+  surname: string
+  /** 名字 */
+  givenName: string
+  /** 完整姓名（自動組合 = surname + givenName） */
   name: string
   birthDate: string
   birthTime: string
   zodiac: string
   element: string
+  /** 姓名學五行（由姓名筆畫計算） */
+  nameElement: string
+  /** 姓名學總筆畫數 */
+  nameStrokes: number
   luckyColors: string[]
   luckyNumbers: number[]
 }

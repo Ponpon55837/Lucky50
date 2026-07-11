@@ -65,18 +65,7 @@ const elementDescriptions: Record<ElementType, string> = {
   particles: '市場氛圍：粒子流動表示市場活躍度',
 }
 
-// 清理所有動畫
-const cleanupAnimations = () => {
-  animationRefs.clear()
-}
-
-// 註冊動畫循環
-const registerAnimation = (animationFn: () => void) => {
-  animationRefs.add(animationFn)
-  return animationFn
-}
-
-// 從 store 獲取數據 - 優化計算屬性
+// ── 計算屬性 ──
 const etfData = computed(() => analyticsStore.getAdjustedEtfData(dashboardStore.etfData))
 const fortuneScore = computed(() => dashboardStore.unifiedInvestmentScore)
 
@@ -113,7 +102,16 @@ const fortuneEffect = computed(() => {
   return '不佳 ❌'
 })
 
-// 鼠標事件處理
+// ── 方法與函式 ──
+const cleanupAnimations = () => {
+  animationRefs.clear()
+}
+
+const registerAnimation = (animationFn: () => void) => {
+  animationRefs.add(animationFn)
+  return animationFn
+}
+
 const handleMouseMove = (event: MouseEvent) => {
   const rect = threeContainer.value?.getBoundingClientRect()
   if (!rect) return
@@ -396,7 +394,7 @@ const cleanup = () => {
   fortuneOrb = null
 }
 
-// 監聽數據變化
+// ── 監聽器 ──
 watch(
   etfData,
   () => {
@@ -413,7 +411,6 @@ watch(fortuneScore, () => {
   }
 })
 
-// 監聽主題變化
 watch(isDark, newIsDark => {
   if (scene) {
     scene.updateTheme(newIsDark)
@@ -423,6 +420,7 @@ watch(isDark, newIsDark => {
   }
 })
 
+// ── 生命週期 ──
 onMounted(() => {
   nextTick(() => {
     initScene()

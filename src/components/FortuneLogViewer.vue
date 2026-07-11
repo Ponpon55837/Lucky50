@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
+import VueDatePicker from '@vuepic/vue-datepicker'
+import '@vuepic/vue-datepicker/dist/main.css'
 import { fortuneHistoryStore } from '@/services/fortuneStore'
 import { toLocalDateString } from '@/utils/date'
 import type { FortuneRecord, HistoryQueryOptions, HistoryStats } from '@/types/history'
@@ -333,18 +335,32 @@ onMounted(async () => {
 
           <!-- Date range -->
           <div class="flex items-center gap-2">
-            <input
+            <VueDatePicker
               v-model="filterDateStart"
-              type="date"
-              class="flex-1 px-2 py-2 text-sm bg-gray-800/40 border border-gray-700/60 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-amber-500/50 focus:border-amber-500/50 [color-scheme:dark] transition-all"
-              @change="applyFilters"
+              :locale="'zh-TW'"
+              :max-date="new Date(filterDateEnd)"
+              :min-date="new Date(1900, 0, 1)"
+              :enable-time-picker="false"
+              :dark="true"
+              :format="'yyyy年MM月dd日'"
+              :auto-apply="true"
+              placeholder="開始日期"
+              class="flex-1"
+              @update:model-value="applyFilters"
             />
             <span class="text-gray-600 shrink-0 text-sm">~</span>
-            <input
+            <VueDatePicker
               v-model="filterDateEnd"
-              type="date"
-              class="flex-1 px-2 py-2 text-sm bg-gray-800/40 border border-gray-700/60 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-amber-500/50 focus:border-amber-500/50 [color-scheme:dark] transition-all"
-              @change="applyFilters"
+              :locale="'zh-TW'"
+              :max-date="new Date()"
+              :min-date="new Date(filterDateStart)"
+              :enable-time-picker="false"
+              :dark="true"
+              :format="'yyyy年MM月dd日'"
+              :auto-apply="true"
+              placeholder="結束日期"
+              class="flex-1"
+              @update:model-value="applyFilters"
             />
           </div>
 
@@ -398,18 +414,32 @@ onMounted(async () => {
               </button>
             </div>
             <div class="flex items-center gap-1">
-              <input
+              <VueDatePicker
                 v-model="filterDateStart"
-                type="date"
-                class="w-auto px-2 py-1.5 text-sm bg-gray-800/40 border border-gray-700/60 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-amber-500/50 focus:border-amber-500/50 [color-scheme:dark] transition-all"
-                @change="applyFilters"
+                :locale="'zh-TW'"
+                :max-date="new Date(filterDateEnd)"
+                :min-date="new Date(1900, 0, 1)"
+                :enable-time-picker="false"
+                :dark="true"
+                :format="'yyyy年MM月dd日'"
+                :auto-apply="true"
+                placeholder="開始日期"
+                class="w-auto"
+                @update:model-value="applyFilters"
               />
               <span class="text-gray-600 shrink-0 text-sm">~</span>
-              <input
+              <VueDatePicker
                 v-model="filterDateEnd"
-                type="date"
-                class="w-auto px-2 py-1.5 text-sm bg-gray-800/40 border border-gray-700/60 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-amber-500/50 focus:border-amber-500/50 [color-scheme:dark] transition-all"
-                @change="applyFilters"
+                :locale="'zh-TW'"
+                :max-date="new Date()"
+                :min-date="new Date(filterDateStart)"
+                :enable-time-picker="false"
+                :dark="true"
+                :format="'yyyy年MM月dd日'"
+                :auto-apply="true"
+                placeholder="結束日期"
+                class="w-auto"
+                @update:model-value="applyFilters"
               />
             </div>
             <button

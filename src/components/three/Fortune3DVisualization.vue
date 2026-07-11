@@ -109,18 +109,16 @@ const investmentAdviceColor = computed(() => {
   return 'text-error-text'
 })
 
-// 清理所有動畫
+// ── 方法與函式 ──
 const cleanupAnimations = () => {
   animationRefs.clear()
 }
 
-// 註冊動畫循環
 const registerAnimation = (animationFn: () => void) => {
   animationRefs.add(animationFn)
   return animationFn
 }
 
-// 鼠標事件處理
 const handleMouseMove = (event: MouseEvent) => {
   const rect = threeContainer.value?.getBoundingClientRect()
   if (!rect) return
@@ -413,17 +411,7 @@ const cleanup = () => {
   fortuneGroup = null
 }
 
-// 生命週期
-onMounted(async () => {
-  await nextTick()
-  initScene()
-})
-
-onUnmounted(() => {
-  cleanup()
-})
-
-// 監聽主題變化
+// ── 監聽器 ──
 watch(isDark, newTheme => {
   if (!scene) return
 
@@ -433,7 +421,6 @@ watch(isDark, newTheme => {
   })
 })
 
-// 監聽屬性變化 - 優化依賴追蹤
 watch(
   [zodiac, element, fortuneScore, investmentScore, lunarDate],
   () => {
@@ -443,6 +430,16 @@ watch(
   },
   { deep: true }
 )
+
+// ── 生命週期 ──
+onMounted(async () => {
+  await nextTick()
+  initScene()
+})
+
+onUnmounted(() => {
+  cleanup()
+})
 </script>
 
 <template>

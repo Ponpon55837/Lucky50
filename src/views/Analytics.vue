@@ -7,7 +7,7 @@ import { useTheme } from '@/composables/useTheme'
 import { FinMindService } from '@/services/finmind'
 import { toLocalDateString } from '@/utils/date'
 
-// Lazy load components
+// ── 元件 ──
 const PriceChart = defineAsyncComponent({
   loader: () => import('@/components/charts/PriceChart.vue'),
   loadingComponent: () => import('@/components/ui/Loading.vue'),
@@ -33,79 +33,61 @@ const Technical3DVisualization = defineAsyncComponent({
   loadingComponent: () => import('@/components/ui/Loading.vue'),
 })
 
+// ── Store 實例 ──
 const dashboardStore = useDashboardStore()
 const analyticsStore = useAnalyticsStore()
 const { isDark } = useTheme()
 
+// ── 響應式狀態 ──
 const loading = ref(true)
 const error = ref<string | null>(null)
 
-// 使用 analytics store 的狀態
+// ── 計算屬性 ──
 const selectedPeriod = computed({
   get: () => analyticsStore.selectedPeriod,
   set: (value: string) => analyticsStore.setSelectedPeriod(value),
 })
 const periods = analyticsStore.periods
 
-// 計算篩選後的 ETF 數據
 const filteredEtfData = computed(() => {
   return analyticsStore.getAdjustedEtfData(dashboardStore.etfData)
 })
 
-// 計算統計數據
 const statistics = computed(() => {
   return analyticsStore.calculateStatistics(dashboardStore.etfData)
 })
 
-// 計算運勢分佈數據
 const fortuneDistribution = computed(() => {
   return analyticsStore.calculateFortuneDistribution(dashboardStore.etfData)
 })
 
-// 計算策略回測數據 - 使用穩定的計算方法
 const backtestResults = computed(() => {
   return analyticsStore.calculateBacktestResults(statistics.value, dashboardStore.etfData)
 })
 
-// 使用 analytics store 的技術指標計算
 const technicalIndicators = computed(() => {
   return analyticsStore.calculateTechnicalIndicators(dashboardStore.etfData)
 })
 
-// 監聽期間變化，重新載入數據
-watch(
-  () => selectedPeriod.value,
-  async () => {
-    await loadAnalyticsData()
-  },
-  { immediate: false }
-)
-
+// ── 方法與函式 ──
 const loadAnalyticsData = async () => {
   loading.value = true
 
   try {
-    // 根據當前選擇的時間段載入對應的數據
     const endDate = toLocalDateString(new Date())
     const days = analyticsStore.getPeriodDays(selectedPeriod.value)
     const startDate = toLocalDateString(new Date(Date.now() - days * 24 * 60 * 60 * 1000))
 
-    // 載入 ETF 數據
     const etfData = await FinMindService.getETFData(startDate, endDate)
-
-    // 設置數據到 dashboard store
     dashboardStore.setETFData(etfData)
 
-    // 只載入農民曆和運勢數據，避免覆蓋ETF數據
     const userStore = useUserStore()
     if (userStore.profile) {
-      // 只載入農民曆和整合運勢，不要載入ETF數據
       await Promise.allSettled([
         dashboardStore.loadLunarData(new Date()),
         dashboardStore.loadIntegratedFortune(userStore.profile, new Date()),
       ])
     } else {
-      // 如果沒有用戶資料，只載入農民曆
       await dashboardStore.loadLunarData(new Date())
     }
   } catch (err) {
@@ -116,6 +98,16 @@ const loadAnalyticsData = async () => {
   }
 }
 
+// ── 監聽器 ──
+watch(
+  () => selectedPeriod.value,
+  async () => {
+    await loadAnalyticsData()
+  },
+  { immediate: false }
+)
+
+// ── 生命週期 ──
 onMounted(() => {
   loadAnalyticsData()
 })

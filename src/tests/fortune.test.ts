@@ -35,12 +35,16 @@ describe('FortuneService', () => {
 
     // 準備測試用的用戶資料
     testProfile = {
+      surname: '測',
+      givenName: '試用戶',
       name: '測試用戶',
       birthDate: '1990-01-01',
       birthTime: '10:30',
-      zodiac: '鼠',
+      zodiac: '馬',
       element: '金',
-      luckyColors: ['金色', '白色'],
+      nameElement: '火',
+      nameStrokes: 22,
+      luckyColors: ['白色', '金色'],
       luckyNumbers: [1, 6],
     }
   })

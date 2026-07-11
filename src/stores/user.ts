@@ -6,13 +6,17 @@ export const useUserStore = defineStore(
   'user',
   () => {
     const profile = shallowRef<UserProfile>({
+      surname: '',
+      givenName: '',
       name: '',
       birthDate: '',
       birthTime: '',
       zodiac: '',
       element: '',
-      luckyNumbers: [],
+      nameElement: '',
+      nameStrokes: 0,
       luckyColors: [],
+      luckyNumbers: [],
     })
 
     watch(
@@ -77,13 +81,17 @@ export const useUserStore = defineStore(
 
     const clearProfile = () => {
       profile.value = {
+        surname: '',
+        givenName: '',
         name: '',
         birthDate: '',
         birthTime: '',
         zodiac: '',
         element: '',
-        luckyNumbers: [],
+        nameElement: '',
+        nameStrokes: 0,
         luckyColors: [],
+        luckyNumbers: [],
       }
     }
 

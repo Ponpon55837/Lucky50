@@ -1,11 +1,11 @@
 <script setup lang="ts">
-import { onMounted, computed, watch, defineAsyncComponent } from 'vue'
+import { computed, watch, onMounted, defineAsyncComponent } from 'vue'
 import { useUserStore } from '@/stores/user'
 import { useDashboardStore } from '@/stores/dashboard'
 import { useTheme } from '@/composables/useTheme'
 import type { UserProfileCompat } from '@/services/integratedFortune'
 
-// Lazy load components
+// ── 元件 ──
 const PriceChart = defineAsyncComponent({
   loader: () => import('@/components/charts/PriceChart.vue'),
   loadingComponent: () => import('@/components/ui/Loading.vue'),
@@ -22,11 +22,13 @@ const FortuneCard = defineAsyncComponent({
   loader: () => import('@/components/FortuneCard.vue'),
   loadingComponent: () => import('@/components/ui/Loading.vue'),
 })
-// Store instances
+
+// ── Store 實例 ──
 const userStore = useUserStore()
 const dashboardStore = useDashboardStore()
 const { isDark } = useTheme()
-// 將userStore的profile轉換為UserProfileCompat格式
+
+// ── 計算屬性 ──
 const userProfileCompat = computed((): UserProfileCompat | null => {
   if (!userStore.profile) return null
 
@@ -41,17 +43,12 @@ const userProfileCompat = computed((): UserProfileCompat | null => {
   }
 })
 
-// 重試函數的包裝器
+// ── 方法與函式 ──
 const retryIntegratedFortune = () => {
   return dashboardStore.retryIntegratedFortune(userProfileCompat.value)
 }
 
-onMounted(() => {
-  // 使用轉換後的用戶資料載入dashboard數據
-  dashboardStore.loadAllData(userProfileCompat.value)
-})
-
-// 監聽用戶資料變化，自動重新載入dashboard數據
+// ── 監聽器 ──
 watch(
   userProfileCompat,
   newProfile => {
@@ -61,6 +58,11 @@ watch(
   },
   { deep: true }
 )
+
+// ── 生命週期 ──
+onMounted(() => {
+  dashboardStore.loadAllData(userProfileCompat.value)
+})
 </script>
 
 <template>
