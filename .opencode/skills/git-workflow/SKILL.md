@@ -4,8 +4,8 @@ description: Git 分支命名與工作流程規範
 license: MIT
 compatibility: opencode
 metadata:
-  version: '1.2.0'
-  updated: '2026-01-20'
+  version: '1.3.0'
+  updated: '2026-07-18'
   audience: developers
   workflow: git
   language: zh-TW
@@ -19,25 +19,20 @@ metadata:
 
 ## ⚠️ 開始前必讀
 
-**🔴 在任何程式碼修改前，必須先執行以下步驟：**
+**開始修改前先確認工作樹與分支狀態。只有使用者要求建立分支或目前工作流需要時，才執行分支操作：**
 
 ```bash
-# 1. 確認當前在 main 分支
-git branch
+# 建議先做唯讀檢查
+git status --short
+git branch --show-current
 
-# 2. 如果不在 main，切換到 main
-git checkout main
-
-# 3. 拉取最新代碼
-git pull origin main
-
-# 4. 建立新的功能分支
+# 確認後再依需求建立分支
 git checkout -b <type>/<developer-name>/<feature-description>
 ```
 
-**❌ 絕對禁止**：直接在 main 分支上進行任何修改！
+**不要擅自切換分支、拉取遠端或覆寫既有工作。若目前分支已有使用者變更，保留並在交付時說明。**
 
-**✅ 正確流程**：永遠從 main 建立新分支 → 在新分支上開發 → 提交 → 推送 → 建立 PR
+**建議流程**：確認目前分支與工作樹 → 必要時建立分支 → 開發 → 驗證 → 依使用者指示提交或推送。
 
 ## 何時使用我
 

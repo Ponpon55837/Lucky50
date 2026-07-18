@@ -1,10 +1,10 @@
-# README.md 強制維護機制
+# README.md 維護機制
 
-## 🚨 核心原則
+## 核心原則
 
-**任何變更完成後，必須立即執行以下強制流程：**
+**只有變更影響使用方式、公開功能、目錄結構或開發流程時，才需要同步 README：**
 
-### 1️⃣ 立即檢查 README.md 影響範圍
+### 1️⃣ 檢查 README.md 影響範圍
 
 #### 需要檢查的 README 檔案清單：
 
@@ -27,7 +27,7 @@ git status --porcelain
 git diff --name-only HEAD~1 | grep -E "(README|\.md)"
 ```
 
-### 2️⃣ 立即更新對應區段
+### 2️⃣ 更新對應區段（若受影響）
 
 #### 變更類型與對應更新：
 
@@ -41,14 +41,14 @@ git diff --name-only HEAD~1 | grep -E "(README|\.md)"
 | **新增 API 端點**    | `docs/api.md`、`README.md`              | API 列表、使用範例、錯誤處理    |
 | **更新建置流程**     | `README.md`、`CONTRIBUTING.md`          | 建置指令、部署步驟、開發環境    |
 
-#### 立即更新檢查清單：
+#### 更新檢查清單：
 
 - [ ] 確認哪些 README 檔案需要更新
 - [ ] 識別受影響的具體區段
 - [ ] 準備更新內容草稿
 - [ ] 確認更新內容的準確性
 
-### 3️⃣ 完整驗證更新內容
+### 3️⃣ 驗證更新內容（若工具已安裝）
 
 #### 格式驗證：
 
@@ -84,9 +84,9 @@ code README.md
 - [ ] **格式統一性**：標題、列表、程式碼塊格式一致
 - [ ] **語言一致性**：使用繁體中文，符合專案語境
 
-### 4️⃣ 提交包含 README.md 更新的 Commit
+### 4️⃣ 與相關變更一併提交（若有 README 變更）
 
-#### 🚨 重要規則：絕不單獨提交 README.md！
+#### 重要規則：README 變更應與相關功能或規範變更一起交付；純文件修正可獨立提交。
 
 **正確的 Commit 模式：**
 
@@ -104,7 +104,7 @@ git add .opencode/skills/new-skill/ .opencode/skills/README.md
 git commit -m "feat: 新增 vue skill 並更新 skills 說明文檔"
 ```
 
-**❌ 錯誤的 Commit 模式：**
+**❌ 不理想的 Commit 模式：**
 
 ```bash
 # 功能開發
@@ -118,9 +118,7 @@ git commit -m "docs: 更新 README.md"  # ❌ 這樣做會被 Git hooks 攔截
 
 ## 🔄 自動化檢查機制
 
-### Git Hooks 整合
-
-在現有的 Git hooks 中加入 README.md 強制檢查：
+在 Git hooks 中加入 README.md 檢查（若需要）：
 
 ```bash
 # .githooks/pre-commit
@@ -133,20 +131,20 @@ README_CHANGED=$(git diff --cached --name-only | grep -E "README|\.md$" | wc -l)
 if [ "$CODE_CHANGED" -gt 0 ] && [ "$README_CHANGED" -eq 0 ]; then
     echo "❌ 檢測到程式碼變更但沒有對應的 README.md 更新！"
     echo ""
-    echo "🔥 請立即執行 README.md 強制維護流程："
+    echo "請執行 README.md 維護流程："
     echo "   1️⃣ 檢查受影響的 README 檔案"
     echo "   2️⃣ 更新對應的說明區段"
     echo "   3️⃣ 驗證更新內容的正確性"
     echo "   4️⃣ 與程式碼變更一起提交"
     echo ""
-    echo "📚 請參考：.opencode/skills/github/README.md"
+    echo "參考：.opencode/skills/github/README.md"
     exit 1
 fi
 
 echo "✅ README.md 維護檢查通過"
 ```
 
-### 持續整合（CI）檢查
+### 持續整合（CI）檢查（可選）
 
 在 GitHub Actions 中加入自動檢查：
 
@@ -174,7 +172,7 @@ jobs:
           echo "檢查 README.md 維護狀態..."
 ```
 
-## 📋 緊急處理流程
+## 處理流程
 
 ### 忘記更新 README.md 怎麼辦？
 
@@ -216,7 +214,7 @@ git push origin <feature-branch>
 5. **最終驗證**：檢查格式、連結、內容正確性
 6. **提交變更**：程式碼 + 文檔 在同一個 commit
 
-### 團隊協作規範
+## 團隊協作規範
 
 **Code Review 重點：**
 
@@ -227,7 +225,7 @@ git push origin <feature-branch>
 
 **新人入職培訓：**
 
-- 學習 README.md 強制維護機制
+- 學習 README.md 維護機制
 - 練習立即更新文檔的習慣
 - 熟悉自動化檢查工具的使用
 

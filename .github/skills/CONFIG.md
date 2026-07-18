@@ -8,8 +8,8 @@
 
 ```
 Lucky50/
-├── .github/skills/              # GitHub Copilot Agent Skills
-│   ├── agent.md              → ../../.opencode/skills/agent.md
+├── .github/skills/              # GitHub Copilot Agent Skills（符號連結）
+│   ├── agent.md              → ../../.opencode/skills/AGENT.md
 │   ├── code-standards.md     → ../../.opencode/skills/code-standards/SKILL.md
 │   ├── vue.md               → ../../.opencode/skills/vue/SKILL.md
 │   ├── git-workflow.md      → ../../.opencode/skills/git-workflow/SKILL.md
@@ -17,27 +17,33 @@ Lucky50/
 │   ├── soft-routing.md      → ../../.opencode/skills/github/soft-routing.md
 │   └── CONFIG.md            # 本配置檔案
 │
-├── .opencode/skills/             # OpenCode Agent Skills（主要維護點）
-│   ├── agent.md             ← ../../.github/skills/agent.md
-│   ├── code-standards/      ← ../../.github/skills/code-standards.md
-│   │   ├── SKILL.md        # 主要技能文檔
-│   │   └── references/     # 詳細參考文檔
+├── .opencode/skills/             # OpenCode Agent Skills（唯一維護點）
+│   ├── AGENT.md              # AI 助手指南
+│   ├── code-standards/
+│   │   ├── SKILL.md          # 主要技能文檔
+│   │   └── references/       # 詳細參考文檔
 │   │       ├── api.md
+│   │       ├── chartjs.md
 │   │       ├── components.md
 │   │       ├── composables.md
 │   │       ├── error-handling.md
-│   │       ├── chartjs.md
-│   │       └── threejs.md
-│   ├── vue/                ← ../../.github/skills/vue.md
-│   │   └── SKILL.md
-│   ├── git-workflow/       ← ../../.github/skills/git-workflow.md
-│   │   └── SKILL.md
-│   ├── github/             ← ../../.github/skills/github-integration.md
+│   │       ├── page-script-order.md
+│   │       ├── threejs.md
+│   │       └── ui-standards.md
+│   ├── vue/
 │   │   ├── SKILL.md
-│   │   └── soft-routing.md ← ../../.github/skills/soft-routing.md
-│   └── soft-routing.md     → ../../.opencode/skills/github/soft-routing.md
+│   │   └── references/
+│   │       ├── components.md
+│   │       ├── composables.md
+│   │       ├── testing.md
+│   │       └── utils-client.md
+│   ├── git-workflow/
+│   │   └── SKILL.md
+│   └── github/
+│       ├── SKILL.md
+│       └── soft-routing.md
 │
-└── 符號連結實現雙向同步
+└── .github/skills/ 透過符號連結讀取 .opencode/skills/（單向同步）
 ```
 
 ### 🛠️ 實作方式
@@ -45,25 +51,22 @@ Lucky50/
 #### 符號連結配置（軟路由實現）
 
 ```bash
-# GitHub Copilot Skills → OpenCode Skills（主要方向）
+# GitHub Copilot Skills → OpenCode Skills（單向：.opencode/skills/ 為唯一維護點）
 cd .github/skills
-ln -s ../../.opencode/skills/agent.md ./agent.md
+ln -s ../../.opencode/skills/AGENT.md ./agent.md
 ln -s ../../.opencode/skills/code-standards/SKILL.md ./code-standards.md
 ln -s ../../.opencode/skills/vue/SKILL.md ./vue.md
 ln -s ../../.opencode/skills/git-workflow/SKILL.md ./git-workflow.md
 ln -s ../../.opencode/skills/github/SKILL.md ./github-integration.md
 ln -s ../../.opencode/skills/github/soft-routing.md ./soft-routing.md
-
-# OpenCode Skills ← GitHub Copilot Skills（反向同步）
-cd .opencode/skills
-ln -s ../../.github/skills/agent.md ./agent.md
-ln -s ../../.github/skills/soft-routing.md ./github/soft-routing.md
 ```
 
-#### 雙向同步優勢
+> **不建立反向符號連結。** `.opencode/skills/` 是唯一維護點，所有內容直接在此目錄修改；`.github/skills/` 只透過符號連結讀取。
+
+#### 單向同步優勢
 
 ✅ **單一維護點**：只需維護 `.opencode/skills/` 實作
-✅ **自動同步**：GitHub Copilot 和 OpenCode 都會載入相同內容
+✅ **自動同步**：GitHub Copilot 透過符號連結載入相同內容
 ✅ **版本一致性**：確保兩個 AI 系統使用相同版本的技能
 ✅ **性能優化**：避免重複檔案和內容不一致
 ✅ **開發體驗**：無縫整合，無需手動同步
@@ -72,17 +75,17 @@ ln -s ../../.github/skills/soft-routing.md ./github/soft-routing.md
 
 | GitHub Copilot 技能     | OpenCode 實作                              | 觸發關鍵詞                                      | 主要功能                                  | 映射類型    |
 | ----------------------- | ------------------------------------------ | ----------------------------------------------- | ----------------------------------------- | ----------- |
-| `agent.md`              | `.opencode/skills/agent.md`                | AI, agent, 智慧助理                             | AI 功能總覽、技能整合指引                 | 📁 直接映射 |
+| `agent.md`              | `.opencode/skills/AGENT.md`                | AI, agent, 智慧助理                             | AI 助手指南、架構邊界、協作指引           | 📁 直接映射 |
 | `code-standards.md`     | `.opencode/skills/code-standards/SKILL.md` | code-standards, coding, development, 規範, 開發 | 程式碼規範、技術棧標準、開發最佳實踐      | 📁 直接映射 |
 | `vue.md`                | `.opencode/skills/vue/SKILL.md`            | vue, component, composable, composition         | Vue 3 開發指南、Composition API、測試實踐 | 📁 直接映射 |
 | `git-workflow.md`       | `.opencode/skills/git-workflow/SKILL.md`   | git, commit, branch, workflow, pr               | Git 分支管理、提交規範、工作流程          | 📁 直接映射 |
 | `github-integration.md` | `.opencode/skills/github/`                 | github, copilot, skill, integration             | GitHub Copilot 整合、README 維護機制      | 📁 直接映射 |
 | `soft-routing.md`       | `.opencode/skills/github/soft-routing.md`  | routing, 智能, 觸發, 載入, 決策樹               | 智慧路由機制、觸發詞識別、技能組合        | 📁 直接映射 |
-| `CONFIG.md`             | 配置說明                                   | config, mapping, 設定, 雙向                     | 系統配置、映射關係、使用指南              | 📋 元數據   |
+| `CONFIG.md`             | 配置說明                                   | config, mapping, 設定, 單向                     | 系統配置、映射關係、使用指南              | 📋 元數據   |
 
 ## 🤖 AI 系統載入機制
 
-### 🔄 雙向載入流程
+### 🔄 載入流程
 
 ```mermaid
 graph TD
@@ -175,7 +178,7 @@ graph TD
 ```bash
 # 建立符號連結
 cd .github/skills
-ln -s ../../.opencode/skills/agent.md .
+ln -s ../../.opencode/skills/AGENT.md ./agent.md
 ln -s ../../.opencode/skills/code-standards/SKILL.md ./code-standards.md
 ln -s ../../.opencode/skills/vue/SKILL.md ./vue.md
 ln -s ../../.opencode/skills/git-workflow/SKILL.md ./git-workflow.md
