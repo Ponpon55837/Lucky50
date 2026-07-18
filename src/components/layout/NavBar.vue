@@ -72,9 +72,16 @@ const closeMobile = () => {
         </div>
 
         <!-- 移動版選單按鈕 -->
-        <div class="md:hidden flex items-center space-x-2">
+        <div class="md:hidden flex items-center space-x-2 flex-shrink-0">
           <ThemeToggle />
-          <button class="mobile-menu-btn" @click="toggleMobile">
+          <button
+            type="button"
+            class="mobile-menu-btn"
+            aria-label="開啟導覽選單"
+            :aria-expanded="mobileOpen"
+            aria-controls="mobile-navigation"
+            @click="toggleMobile"
+          >
             <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path
                 v-if="!mobileOpen"
@@ -105,7 +112,7 @@ const closeMobile = () => {
       leave-from-class="menu-leave-from"
       leave-to-class="menu-leave-to"
     >
-      <div v-if="mobileOpen" class="mobile-menu">
+      <div v-if="mobileOpen" id="mobile-navigation" class="mobile-menu">
         <div class="px-4 pt-2 pb-3 space-y-1">
           <RouterLink
             to="/"
@@ -161,6 +168,7 @@ const closeMobile = () => {
   position: sticky;
   top: 0;
   z-index: 50;
+  overflow: hidden;
   transition: background 0.3s ease;
 }
 
@@ -171,6 +179,7 @@ const closeMobile = () => {
   text-decoration: none;
   color: var(--primary-text);
   font-weight: 600;
+  flex-shrink: 0;
   transition: color 0.2s ease;
 }
 
@@ -193,6 +202,13 @@ const closeMobile = () => {
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
+}
+
+/* 手機版 Logo 文字縮小，避免擠壓右側按鈕 */
+@media (max-width: 640px) {
+  .logo-text {
+    font-size: 1.25rem;
+  }
 }
 
 .nav-link {
