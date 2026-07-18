@@ -261,7 +261,10 @@ function getScoreColor(score: number): string {
 <template>
   <div class="space-y-4 sm:space-y-5">
     <!-- Stats -->
-    <div v-if="stats && stats.totalRecords > 0" class="card !py-2.5 !px-3 sm:!py-3 sm:!px-6">
+    <div
+      v-if="stats && stats.totalRecords > 0"
+      class="card !py-2.5 !px-3 sm:!py-3 sm:!px-6"
+    >
       <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1.5 sm:gap-2">
         <div class="flex flex-wrap items-center gap-2 text-[11px] sm:text-sm">
           <div class="flex items-center gap-1">
@@ -284,7 +287,10 @@ function getScoreColor(score: number): string {
         <div class="flex items-center gap-2">
           <span class="text-gray-600 text-[11px]">
             共 {{ stats.totalRecords }} 筆
-            <span v-if="stats.dateRange" class="hidden sm:inline">
+            <span
+              v-if="stats.dateRange"
+              class="hidden sm:inline"
+            >
               · {{ stats.dateRange.earliest }} ~ {{ stats.dateRange.latest }}
             </span>
           </span>
@@ -320,10 +326,16 @@ function getScoreColor(score: number): string {
                 d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"
               />
             </svg>
-            <div v-if="activeFilterTags.length === 0" class="text-xs text-gray-500 truncate">
+            <div
+              v-if="activeFilterTags.length === 0"
+              class="text-xs text-gray-500 truncate"
+            >
               篩選條件
             </div>
-            <div v-else class="flex items-center gap-1 overflow-hidden">
+            <div
+              v-else
+              class="flex items-center gap-1 overflow-hidden"
+            >
               <span
                 v-for="(tag, i) in activeFilterTags"
                 :key="i"
@@ -351,7 +363,10 @@ function getScoreColor(score: number): string {
         </button>
 
         <!-- Expanded filters (mobile) -->
-        <div v-show="filtersExpanded" class="mt-3 space-y-2 border-t border-white/5 pt-3">
+        <div
+          v-show="filtersExpanded"
+          class="mt-3 space-y-2 border-t border-white/5 pt-3"
+        >
           <div class="flex gap-2">
             <input
               v-model="searchText"
@@ -359,7 +374,7 @@ function getScoreColor(score: number): string {
               placeholder="搜尋"
               class="flex-1 min-w-0 px-3 py-2 text-sm bg-gray-800/40 border border-gray-700/60 rounded-lg text-white placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-amber-500/50 focus:border-amber-500/50 transition-all"
               @keyup.enter="applyFilters"
-            />
+            >
             <button
               class="px-4 py-2 text-sm font-medium text-white bg-amber-600 hover:bg-amber-500 rounded-lg transition-colors shrink-0"
               @click="applyFilters"
@@ -440,7 +455,7 @@ function getScoreColor(score: number): string {
               placeholder="搜尋"
               class="flex-1 min-w-0 px-3 py-2 text-sm bg-gray-800/40 border border-gray-700/60 rounded-lg text-white placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-amber-500/50 focus:border-amber-500/50 transition-all"
               @keyup.enter="applyFilters"
-            />
+            >
             <button
               class="px-4 py-2 text-sm font-medium text-white bg-amber-600 hover:bg-amber-500 rounded-lg transition-colors shrink-0"
               @click="applyFilters"
@@ -529,7 +544,11 @@ function getScoreColor(score: number): string {
             <div class="ml-auto w-8 h-3 bg-white/5 rounded animate-pulse" />
           </div>
           <div class="flex items-center gap-1 pl-[52px]">
-            <div v-for="e in 5" :key="e" class="w-5 h-1 bg-white/5 rounded-full animate-pulse" />
+            <div
+              v-for="e in 5"
+              :key="e"
+              class="w-5 h-1 bg-white/5 rounded-full animate-pulse"
+            />
           </div>
         </div>
         <!-- Desktop list skeleton -->
@@ -551,14 +570,20 @@ function getScoreColor(score: number): string {
     </div>
 
     <!-- Empty state -->
-    <div v-else-if="records.length === 0" class="card !py-12">
+    <div
+      v-else-if="records.length === 0"
+      class="card !py-12"
+    >
       <div class="text-center text-gray-500">
         {{ hasFilters ? '沒有符合條件的記錄' : '尚無歷史記錄' }}
       </div>
     </div>
 
     <!-- Records List -->
-    <div v-else class="space-y-3 sm:space-y-0 sm:divide-y sm:divide-gray-800/60 sm:overflow-hidden">
+    <div
+      v-else
+      class="space-y-3 sm:space-y-0 sm:divide-y sm:divide-gray-800/60 sm:overflow-hidden"
+    >
       <div
         v-for="record in records"
         :key="record.id"
@@ -619,7 +644,10 @@ function getScoreColor(score: number): string {
               class="inline-flex items-center gap-1 px-1.5 py-0.5 bg-white/5 rounded text-[10px]"
             >
               <span>{{ engineIcons[engine.engineId] || '⚙️' }}</span>
-              <span class="font-medium" :class="engineColors[engine.engineId] || 'text-gray-400'">{{
+              <span
+                class="font-medium"
+                :class="engineColors[engine.engineId] || 'text-gray-400'"
+              >{{
                 engine.score
               }}</span>
               <span class="text-gray-600">{{ engine.weight }}%</span>
@@ -709,8 +737,7 @@ function getScoreColor(score: number): string {
                   <span
                     class="font-medium"
                     :class="engineColors[engine.engineId] || 'text-gray-400'"
-                    >{{ engine.score }}</span
-                  >
+                  >{{ engine.score }}</span>
                 </span>
               </div>
               <span
@@ -726,7 +753,10 @@ function getScoreColor(score: number): string {
     </div>
 
     <!-- Pagination -->
-    <div v-if="totalPages > 1" class="flex items-center justify-between">
+    <div
+      v-if="totalPages > 1"
+      class="flex items-center justify-between"
+    >
       <button
         :disabled="pageIndex === 0"
         class="px-3 py-1.5 text-sm text-gray-500 hover:text-white bg-gray-800/20 hover:bg-gray-800/50 rounded-lg disabled:opacity-25 disabled:cursor-not-allowed transition-all"
@@ -751,10 +781,17 @@ function getScoreColor(score: number): string {
           v-if="showClearConfirm"
           class="fixed inset-0 z-50 flex items-center justify-center p-4"
         >
-          <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" @click="closeClearConfirm" />
+          <div
+            class="absolute inset-0 bg-black/60 backdrop-blur-sm"
+            @click="closeClearConfirm"
+          />
           <div class="card relative w-full max-w-sm !py-6 !px-6 z-10">
-            <h3 class="text-base font-semibold text-white mb-2">確認清除</h3>
-            <p class="text-sm text-gray-400 mb-5">確定要清除所有運勢歷史記錄嗎？此操作無法復原。</p>
+            <h3 class="text-base font-semibold text-white mb-2">
+              確認清除
+            </h3>
+            <p class="text-sm text-gray-400 mb-5">
+              確定要清除所有運勢歷史記錄嗎？此操作無法復原。
+            </p>
             <div class="flex justify-end gap-2">
               <button
                 class="px-4 py-2 text-sm text-gray-400 hover:text-white bg-gray-800/40 hover:bg-gray-800/60 rounded-lg transition-colors"

@@ -131,10 +131,7 @@ const goHome = () => {
     <slot v-if="!hasError" />
 
     <!-- 錯誤畫面 -->
-    <div
-      v-else
-      class="error-fallback"
-    >
+    <div v-else class="error-fallback">
       <div class="error-container">
         <div class="error-icon">
           <svg
@@ -145,23 +142,9 @@ const goHome = () => {
             stroke="currentColor"
             stroke-width="2"
           >
-            <circle
-              cx="12"
-              cy="12"
-              r="10"
-            />
-            <line
-              x1="12"
-              y1="8"
-              x2="12"
-              y2="12"
-            />
-            <line
-              x1="12"
-              y1="16"
-              x2="12.01"
-              y2="16"
-            />
+            <circle cx="12" cy="12" r="10" />
+            <line x1="12" y1="8" x2="12" y2="12" />
+            <line x1="12" y1="16" x2="12.01" y2="16" />
           </svg>
         </div>
 
@@ -172,10 +155,7 @@ const goHome = () => {
           {{ errorMessage }}
         </p>
 
-        <div
-          v-if="showDetails && error"
-          class="error-details"
-        >
+        <div v-if="showDetails && error" class="error-details">
           <details>
             <summary>錯誤詳情</summary>
             <pre>{{ errorDetails }}</pre>
@@ -183,25 +163,9 @@ const goHome = () => {
         </div>
 
         <div class="error-actions">
-          <button
-            class="btn-retry"
-            @click="retry"
-          >
-            重試
-          </button>
-          <button
-            class="btn-home"
-            @click="goHome"
-          >
-            返回首頁
-          </button>
-          <button
-            v-if="showReset"
-            class="btn-reset"
-            @click="reset"
-          >
-            清除錯誤
-          </button>
+          <button class="btn-retry" @click="retry">重試</button>
+          <button class="btn-home" @click="goHome">返回首頁</button>
+          <button v-if="showReset" class="btn-reset" @click="reset">清除錯誤</button>
         </div>
       </div>
     </div>
@@ -220,16 +184,18 @@ const goHome = () => {
   justify-content: center;
   min-height: 400px;
   padding: 2rem;
-  background: linear-gradient(135deg, #fef5f5 0%, #fef0f0 100%);
+  background: linear-gradient(135deg, rgba(239, 68, 68, 0.05) 0%, rgba(239, 68, 68, 0.02) 100%);
 }
 
 .error-container {
   max-width: 600px;
   text-align: center;
-  background: white;
+  background: var(--card-bg);
+  backdrop-filter: blur(20px);
   padding: 3rem;
   border-radius: 16px;
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+  border: 1px solid var(--border-light);
+  box-shadow: 0 10px 40px var(--shadow-medium);
 }
 
 .error-icon {
@@ -262,13 +228,13 @@ const goHome = () => {
 .error-title {
   font-size: 1.5rem;
   font-weight: 600;
-  color: #1f2937;
+  color: var(--primary-text);
   margin-bottom: 1rem;
 }
 
 .error-message {
   font-size: 1rem;
-  color: #6b7280;
+  color: var(--secondary-text);
   margin-bottom: 2rem;
   line-height: 1.6;
 }
@@ -281,24 +247,25 @@ const goHome = () => {
 .error-details summary {
   cursor: pointer;
   font-weight: 500;
-  color: #4b5563;
+  color: var(--secondary-text);
   margin-bottom: 0.5rem;
   user-select: none;
 }
 
 .error-details summary:hover {
-  color: #1f2937;
+  color: var(--primary-text);
 }
 
 .error-details pre {
-  background: #f9fafb;
+  background: var(--surface-bg);
   padding: 1rem;
   border-radius: 8px;
   font-size: 0.875rem;
   overflow-x: auto;
-  color: #374151;
+  color: var(--secondary-text);
   max-height: 300px;
   overflow-y: auto;
+  border: 1px solid var(--border-light);
 }
 
 .error-actions {
@@ -341,12 +308,13 @@ const goHome = () => {
 }
 
 .btn-reset {
-  background: #f3f4f6;
-  color: #6b7280;
+  background: var(--surface-bg);
+  color: var(--secondary-text);
+  border: 1px solid var(--border-light);
 }
 
 .btn-reset:hover {
-  background: #e5e7eb;
-  color: #374151;
+  background: var(--card-bg);
+  color: var(--primary-text);
 }
 </style>

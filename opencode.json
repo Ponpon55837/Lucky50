@@ -12,9 +12,16 @@
       }
     }
   },
-  "instructions": ["AGENT.md", "ARCHITECTURE.md"],
+  "instructions": ["AGENTS.md", "ARCHITECTURE.md"],
   "formatter": {
     "prettier": {}
   },
-  "plugin": ["opencode-morph-fast-apply", "opencode-dynamic-context-pruning"]
+  "plugin": ["opencode-morph-fast-apply", "opencode-dynamic-context-pruning"],
+  "mcp": {
+    "tmux-bridge": {
+      "type": "local",
+      "command": ["npx", "-y", "tmux-bridge-mcp"],
+      "enabled": true
+    }
+  }
 }

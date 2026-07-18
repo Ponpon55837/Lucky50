@@ -19,10 +19,7 @@ const closeMobile = () => {
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
       <div class="flex justify-between items-center h-16">
         <!-- Logo -->
-        <RouterLink
-          to="/"
-          class="logo-link"
-        >
+        <RouterLink to="/" class="logo-link">
           <div class="logo-icon" />
           <span class="logo-text">Lucky50</span>
         </RouterLink>
@@ -33,6 +30,7 @@ const closeMobile = () => {
             to="/"
             class="nav-link"
             :class="{ active: $route.name === 'home' }"
+            :aria-current="$route.name === 'home' ? 'page' : undefined"
           >
             首頁
           </RouterLink>
@@ -40,6 +38,7 @@ const closeMobile = () => {
             to="/dashboard"
             class="nav-link"
             :class="{ active: $route.name === 'dashboard' }"
+            :aria-current="$route.name === 'dashboard' ? 'page' : undefined"
           >
             投資儀表板
           </RouterLink>
@@ -47,6 +46,7 @@ const closeMobile = () => {
             to="/history"
             class="nav-link"
             :class="{ active: $route.name === 'history' }"
+            :aria-current="$route.name === 'history' ? 'page' : undefined"
           >
             運勢歷史
           </RouterLink>
@@ -54,6 +54,7 @@ const closeMobile = () => {
             to="/analytics"
             class="nav-link"
             :class="{ active: $route.name === 'analytics' }"
+            :aria-current="$route.name === 'analytics' ? 'page' : undefined"
           >
             數據分析
           </RouterLink>
@@ -61,6 +62,7 @@ const closeMobile = () => {
             to="/profile"
             class="nav-link"
             :class="{ active: $route.name === 'profile' }"
+            :aria-current="$route.name === 'profile' ? 'page' : undefined"
           >
             個人設定
           </RouterLink>
@@ -72,16 +74,8 @@ const closeMobile = () => {
         <!-- 移動版選單按鈕 -->
         <div class="md:hidden flex items-center space-x-2">
           <ThemeToggle />
-          <button
-            class="mobile-menu-btn"
-            @click="toggleMobile"
-          >
-            <svg
-              class="w-6 h-6"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
+          <button class="mobile-menu-btn" @click="toggleMobile">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path
                 v-if="!mobileOpen"
                 stroke-linecap="round"
@@ -103,48 +97,59 @@ const closeMobile = () => {
     </div>
 
     <!-- 移動版選單 -->
-    <div
-      v-show="mobileOpen"
-      class="mobile-menu"
+    <Transition
+      enter-active-class="menu-enter-active"
+      enter-from-class="menu-enter-from"
+      enter-to-class="menu-enter-to"
+      leave-active-class="menu-leave-active"
+      leave-from-class="menu-leave-from"
+      leave-to-class="menu-leave-to"
     >
-      <div class="px-4 pt-2 pb-3 space-y-1">
-        <RouterLink
-          to="/"
-          class="mobile-nav-link"
-          @click="closeMobile"
-        >
-          首頁
-        </RouterLink>
-        <RouterLink
-          to="/dashboard"
-          class="mobile-nav-link"
-          @click="closeMobile"
-        >
-          投資儀表板
-        </RouterLink>
-        <RouterLink
-          to="/history"
-          class="mobile-nav-link"
-          @click="closeMobile"
-        >
-          運勢歷史
-        </RouterLink>
-        <RouterLink
-          to="/analytics"
-          class="mobile-nav-link"
-          @click="closeMobile"
-        >
-          數據分析
-        </RouterLink>
-        <RouterLink
-          to="/profile"
-          class="mobile-nav-link"
-          @click="closeMobile"
-        >
-          個人設定
-        </RouterLink>
+      <div v-if="mobileOpen" class="mobile-menu">
+        <div class="px-4 pt-2 pb-3 space-y-1">
+          <RouterLink
+            to="/"
+            class="mobile-nav-link"
+            :aria-current="$route.name === 'home' ? 'page' : undefined"
+            @click="closeMobile"
+          >
+            首頁
+          </RouterLink>
+          <RouterLink
+            to="/dashboard"
+            class="mobile-nav-link"
+            :aria-current="$route.name === 'dashboard' ? 'page' : undefined"
+            @click="closeMobile"
+          >
+            投資儀表板
+          </RouterLink>
+          <RouterLink
+            to="/history"
+            class="mobile-nav-link"
+            :aria-current="$route.name === 'history' ? 'page' : undefined"
+            @click="closeMobile"
+          >
+            運勢歷史
+          </RouterLink>
+          <RouterLink
+            to="/analytics"
+            class="mobile-nav-link"
+            :aria-current="$route.name === 'analytics' ? 'page' : undefined"
+            @click="closeMobile"
+          >
+            數據分析
+          </RouterLink>
+          <RouterLink
+            to="/profile"
+            class="mobile-nav-link"
+            :aria-current="$route.name === 'profile' ? 'page' : undefined"
+            @click="closeMobile"
+          >
+            個人設定
+          </RouterLink>
+        </div>
       </div>
-    </div>
+    </Transition>
   </nav>
 </template>
 
@@ -247,6 +252,27 @@ const closeMobile = () => {
 .mobile-nav-link:hover {
   color: var(--primary-text);
   background: var(--surface-bg);
+}
+
+/* 移動版選單過渡動畫 */
+.menu-enter-active,
+.menu-leave-active {
+  transition:
+    opacity 0.2s ease,
+    transform 0.2s ease;
+  transform-origin: top;
+}
+
+.menu-enter-from,
+.menu-leave-to {
+  opacity: 0;
+  transform: translateY(-8px);
+}
+
+.menu-enter-to,
+.menu-leave-from {
+  opacity: 1;
+  transform: translateY(0);
 }
 
 /* 淺色模式導航欄優化 */
