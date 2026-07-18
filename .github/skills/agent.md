@@ -1,1 +1,1 @@
-../../.opencode/skills/agent.md
+../../.opencode/skills/AGENT.md

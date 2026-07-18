@@ -1,7 +1,7 @@
 ---
 name: lucky50-code-standards
 description: Lucky50 程式碼規範與開發標準 - 提供完整的技術棧規範、開發流程和最佳實踐指引
-version: 1.0.0
+version: 1.3.0
 tags: [vue3, typescript, pinia, tailwindcss, vite, code-standards]
 ---
 
@@ -33,7 +33,7 @@ tags: [vue3, typescript, pinia, tailwindcss, vite, code-standards]
 - **狀態管理**: Pinia
 - **樣式框架**: Tailwind CSS
 - **建置工具**: Vite
-- **套件管理**: pnpm（本專案統一使用 pnpm，禁止使用 npm 或 yarn）
+- **套件管理**: 優先使用 pnpm；若執行環境只提供其他套件管理器，先確認 lockfile 與 CI 相容性。
 - **測試框架**: Vitest + Vue Test Utils
 
 ## 🏗️ 開發規範
@@ -49,7 +49,7 @@ tags: [vue3, typescript, pinia, tailwindcss, vite, code-standards]
 ### TypeScript 規範
 
 - 嚴格模式啟用
-- 所有變數必須有型別
+- 讓 TypeScript 推導可判斷的型別；對公開介面、Props、API 資料與複雜狀態明確標註型別
 - Interface 定義優先於 type
 - 避免 any 類型使用
 
@@ -76,15 +76,16 @@ src/
 
 ## 🎯 開發流程
 
-### 0. 每次任務完成強制自我檢查
+### 0. 變更完成後的驗證
 
-**所有變更完成後，必須執行以下三步驟：**
+**依變更風險選擇必要的驗證：**
 
-- [ ] **單元測試** - `pnpm vitest run` 確認全部綠燈
-- [ ] **文件更新** - 更新 `CHANGELOG.md` 記錄變更；如有影響 `AGENTS.md` 的專案狀態也要同步
-- [ ] **Skill 同步** - 若變更涉及新的工作流程或規範，更新 `.opencode/skills/` 下對應的 `SKILL.md`
+- [ ] **單元測試** - 執行受影響測試；跨模組或高風險變更再執行 `pnpm run test:run`
+- [ ] **型別與建置** - 變更涉及型別、路由或建置設定時執行 `pnpm run build:tsc`
+- [ ] **文件同步** - 只有當使用方式、規範或專案狀態改變時，才更新 README、CHANGELOG 或 AGENTS.md
+- [ ] **Skill 同步** - 只有當工作流程或規範改變時，才更新對應 skill
 
-> 此為強制性檢查，不可跳過。
+> 若未執行某項驗證，交付時需說明原因與未覆蓋的風險。
 
 ### 1. 組件開發
 
@@ -210,7 +211,7 @@ module.exports = {
 
 ### 套件管理器
 
-> **⚠️ 本專案統一使用 `pnpm`**，所有指令請用 `pnpm` 執行，禁止使用 `npm` 或 `yarn`。
+> 優先使用 `pnpm`；若執行環境只提供其他套件管理器，先確認 lockfile 與 CI 相容性。
 
 ### 手動 / CI 測試指令
 

@@ -412,7 +412,7 @@ Lucky50/
 
 ### 相關文檔
 
-- **開發規範**：`.opencode/skills/lucky50-dev/SKILL.md`
+- **開發規範**：`.opencode/skills/code-standards/SKILL.md`
 - **Git 工作流程**：`.opencode/skills/git-workflow/SKILL.md`
 - **AI 助手規則**：`AGENTS.md`
 - **Git Hooks 詳細說明**：`.githooks/README.md`
