@@ -11,7 +11,11 @@
     </p>
 
     <div class="space-y-4">
-      <div v-for="engine in engines" :key="engine.id" class="p-4 bg-white/5 rounded-lg">
+      <div
+        v-for="engine in engines"
+        :key="engine.id"
+        class="p-4 bg-white/5 rounded-lg"
+      >
         <div class="flex items-center justify-between mb-2">
           <div class="flex items-center gap-2">
             <span class="text-lg">{{ engine.icon }}</span>
@@ -40,7 +44,10 @@
           </button>
         </div>
 
-        <div v-if="engine.enabled" class="mt-3">
+        <div
+          v-if="engine.enabled"
+          class="mt-3"
+        >
           <div class="flex items-center justify-between text-xs text-gray-500 mb-1">
             <span>權重</span>
             <span class="text-amber-400">{{ engine.weight }}%</span>
@@ -53,7 +60,7 @@
             step="5"
             class="w-full h-2 bg-white/10 rounded-lg appearance-none cursor-pointer accent-amber-500"
             @input="e => updateWeight(engine.id, Number((e.target as HTMLInputElement).value))"
-          />
+          >
           <div class="flex justify-between text-xs text-gray-500 mt-1">
             <span>0%</span>
             <span>50%</span>
@@ -67,7 +74,10 @@
     <div class="mt-5 p-3 bg-white/5 rounded-lg">
       <div class="flex items-center justify-between mb-1.5">
         <span class="text-xs text-gray-400">啟用引擎的權重加總</span>
-        <span class="text-sm font-bold" :class="weightStatus.color">{{ weightStatus.label }}</span>
+        <span
+          class="text-sm font-bold"
+          :class="weightStatus.color"
+        >{{ weightStatus.label }}</span>
       </div>
       <div class="w-full h-2 bg-white/10 rounded-full overflow-hidden">
         <div
@@ -78,20 +88,22 @@
       </div>
       <div class="flex justify-between text-[10px] text-gray-600 mt-1">
         <span>0%</span>
-        <span :class="totalWeight === 100 ? 'text-green-500 font-bold' : 'text-gray-600'"
-          >100%</span
-        >
+        <span :class="totalWeight === 100 ? 'text-green-500 font-bold' : 'text-gray-600'">100%</span>
         <span>150%</span>
       </div>
       <p class="text-[11px] text-gray-500 mt-2 leading-relaxed">
-        <template v-if="totalWeight === 100"> 權重加總恰好為 100%，各引擎按比例貢獻。 </template>
+        <template v-if="totalWeight === 100">
+          權重加總恰好為 100%，各引擎按比例貢獻。
+        </template>
         <template v-else-if="totalWeight > 0 && totalWeight < 100">
           加總不足 100% 時，系統會自動正規化（按比例放大），不影響排序結果。
         </template>
         <template v-else-if="totalWeight > 100">
           加總超過 100% 時，系統會自動正規化（按比例縮小），不影響排序結果。
         </template>
-        <template v-else> 所有引擎已關閉，運勢將使用基礎分數。 </template>
+        <template v-else>
+          所有引擎已關閉，運勢將使用基礎分數。
+        </template>
       </p>
     </div>
 
@@ -111,7 +123,12 @@
       </button>
     </div>
 
-    <div v-if="saved" class="mt-2 text-sm text-green-400">設定已儲存</div>
+    <div
+      v-if="saved"
+      class="mt-2 text-sm text-green-400"
+    >
+      設定已儲存
+    </div>
   </div>
 </template>
 

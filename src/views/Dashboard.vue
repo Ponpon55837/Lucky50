@@ -150,7 +150,7 @@ onMounted(() => {
 
         <!-- 0050 即時資訊 -->
         <div class="card">
-          <h2 class="text-lg sm:text-xl font-semibold text-white mb-4">
+          <h2 class="text-base sm:text-lg font-semibold text-white mb-4">
             元大台灣50 (0050)
           </h2>
           <div
@@ -220,7 +220,7 @@ onMounted(() => {
 
         <!-- 交易時段建議 -->
         <div class="card">
-          <h2 class="text-xl font-semibold text-white mb-4">
+          <h2 class="text-base sm:text-lg font-semibold text-white mb-4">
             交易時段建議
           </h2>
           <div
@@ -332,7 +332,7 @@ onMounted(() => {
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <!-- 價格走勢圖 -->
         <div class="card">
-          <h2 class="text-xl font-semibold text-white mb-4">
+          <h2 class="text-base sm:text-lg font-semibold text-white mb-4">
             價格走勢
           </h2>
           <div
@@ -358,7 +358,7 @@ onMounted(() => {
 
         <!-- 五行能量圖 -->
         <div class="card">
-          <h2 class="text-xl font-semibold text-white mb-4">
+          <h2 class="text-base sm:text-lg font-semibold text-white mb-4">
             五行能量分析
           </h2>
           <ElementRadarChart
