@@ -32,3 +32,8 @@ public/static/
 *.swp
 *.swo
 *~
+# agent-bridge:start
+.ai-bridge/
+.ai-bridge.local.yaml
+.mcp.json
+# agent-bridge:end
