@@ -23,3 +23,12 @@ dist/
 build/
 out/
 public/static/
+
+# AI Workflow runtime 產物
+.ai/
+.mcp.json
+
+# 編輯器暫存檔
+*.swp
+*.swo
+*~
