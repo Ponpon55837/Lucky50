@@ -6,16 +6,15 @@ const { isDark, toggleTheme } = useTheme()
 
 <template>
   <button
+    type="button"
     class="theme-toggle-btn"
     :class="{ 'is-dark': isDark }"
+    :aria-label="isDark ? '切換至淺色模式' : '切換至深色模式'"
     :title="isDark ? '切換至淺色模式' : '切換至深色模式'"
     @click="toggleTheme"
   >
     <div class="toggle-icon">
-      <transition
-        name="icon-fade"
-        mode="out-in"
-      >
+      <transition name="icon-fade" mode="out-in">
         <svg
           v-if="isDark"
           key="sun"
@@ -136,11 +135,14 @@ const { isDark, toggleTheme } = useTheme()
   color: #1d4ed8;
 }
 
-/* 響應式設計 */
-@media (max-width: 640px) {
+/* 響應式設計：768px 以下（對齊 NavBar md 斷點）隱藏文字，僅顯示圖標 */
+@media (max-width: 767px) {
   .theme-toggle-btn {
-    padding: 0.5rem;
-    min-width: 2.5rem;
+    width: 2.5rem;
+    height: 2.5rem;
+    padding: 0;
+    justify-content: center;
+    flex-shrink: 0;
   }
 
   .toggle-text {
