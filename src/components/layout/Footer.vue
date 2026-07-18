@@ -50,7 +50,7 @@ const showTermsModal = ref(false)
         class="border-t border-white/10 mt-8 pt-8 flex flex-col sm:flex-row justify-between items-center"
       >
         <p class="text-gray-400 text-sm">
-          © 2025 農民曆智慧投資系統. All rights reserved.
+          © {{ new Date().getFullYear() }} 農民曆智慧投資系統. All rights reserved.
         </p>
         <div class="flex space-x-4 mt-4 sm:mt-0">
           <button

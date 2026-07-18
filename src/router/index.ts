@@ -2,6 +2,9 @@ import { createRouter, createWebHistory } from 'vue-router'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
+  scrollBehavior() {
+    return { top: 0 }
+  },
   routes: [
     {
       path: '/',
@@ -64,6 +67,15 @@ const router = createRouter({
       meta: {
         title: 'API 監控 - 農民曆智慧投資',
         description: '開發者 API 監控面板',
+      },
+    },
+    {
+      path: '/:pathMatch(.*)*',
+      name: 'not-found',
+      component: () => import('@/views/NotFound.vue'),
+      meta: {
+        title: '頁面未找到 - 農民曆智慧投資',
+        description: '您要找的頁面不存在',
       },
     },
   ],

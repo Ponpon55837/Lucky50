@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "tmux-bridge": {
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+        "-y",
+        "tmux-bridge-mcp"
+      ],
+      "env": {}
+    }
+  }
+}
