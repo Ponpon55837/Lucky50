@@ -1,0 +1,22 @@
+project:
+  name: dual-example
+  root: .
+  orchestrator_runtime: codex
+
+session:
+  name: dual-ai
+  pane_count: 2
+
+agents:
+  - id: codex
+    runtime: codex
+    pane: 0
+    role: orchestrator
+  - id: implementer-a
+    runtime: opencode
+    pane: 1
+    role: implementation
+
+workflow:
+  notification: mailbox
+  require_local_verification: true
