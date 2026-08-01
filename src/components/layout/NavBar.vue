@@ -19,13 +19,16 @@ const closeMobile = () => {
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
       <div class="flex justify-between items-center h-16">
         <!-- Logo -->
-        <RouterLink to="/" class="logo-link">
+        <RouterLink
+          to="/"
+          class="logo-link"
+        >
           <div class="logo-icon" />
           <span class="logo-text">Lucky50</span>
         </RouterLink>
 
-        <!-- 桌面版導航 -->
-        <div class="hidden md:flex items-center space-x-6">
+        <!-- 桌面版導航：768–1023px（平板）空間不足以放下 5 個連結，改在 lg 斷點才切換 -->
+        <div class="hidden lg:flex items-center space-x-4 xl:space-x-6">
           <RouterLink
             to="/"
             class="nav-link"
@@ -72,7 +75,7 @@ const closeMobile = () => {
         </div>
 
         <!-- 移動版選單按鈕 -->
-        <div class="md:hidden flex items-center space-x-2 flex-shrink-0">
+        <div class="lg:hidden flex items-center space-x-2 flex-shrink-0">
           <ThemeToggle />
           <button
             type="button"
@@ -82,7 +85,12 @@ const closeMobile = () => {
             aria-controls="mobile-navigation"
             @click="toggleMobile"
           >
-            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg
+              class="w-6 h-6"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
               <path
                 v-if="!mobileOpen"
                 stroke-linecap="round"
@@ -112,7 +120,11 @@ const closeMobile = () => {
       leave-from-class="menu-leave-from"
       leave-to-class="menu-leave-to"
     >
-      <div v-if="mobileOpen" id="mobile-navigation" class="mobile-menu">
+      <div
+        v-if="mobileOpen"
+        id="mobile-navigation"
+        class="mobile-menu"
+      >
         <div class="px-4 pt-2 pb-3 space-y-1">
           <RouterLink
             to="/"
@@ -225,6 +237,14 @@ const closeMobile = () => {
 .nav-link:hover {
   color: var(--primary-text);
   background: var(--surface-bg);
+}
+
+.nav-link:focus-visible,
+.mobile-nav-link:focus-visible,
+.logo-link:focus-visible,
+.mobile-menu-btn:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.4);
 }
 
 .nav-link.active {

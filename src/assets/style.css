@@ -163,6 +163,12 @@
     transform: translateY(0);
   }
 
+  .btn-primary:focus-visible,
+  .btn-secondary:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.4);
+  }
+
   .btn-secondary {
     background: var(--surface-bg);
     color: var(--primary-text);
