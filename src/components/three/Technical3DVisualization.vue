@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, onUnmounted, watch, computed, nextTick } from 'vue'
 import * as THREE from 'three'
-import { ThreeJSScene, createThemeGlowMaterial, getThemeColor } from '@/utils/three-scene'
+import { ThreeJSScene, createThemeGlowMaterial, getThemeColor, disposeObject3D } from '@/utils/three-scene'
 import { useVisibleOnce } from '@/composables/useVisibleOnce'
 import { useTheme } from '@/composables/useTheme'
 import { useDashboardStore } from '@/stores/dashboard'
@@ -49,8 +49,6 @@ const ANIMATION_CONFIG = {
   },
 } as const
 
-type AnimationRefs = Set<() => void>
-
 const { title = '技術指標 3D' } = defineProps<Props>()
 
 const { isDark } = useTheme()
@@ -58,7 +56,6 @@ const dashboardStore = useDashboardStore()
 const analyticsStore = useAnalyticsStore()
 
 // 動畫管理
-const animationRefs: AnimationRefs = new Set()
 const threeContainer = ref<HTMLElement>()
 let scene: ThreeJSScene | null = null
 let indicatorGroup: THREE.Group | null = null
@@ -127,13 +124,23 @@ const overallSignalColor = computed(() => {
 })
 
 // ── 方法與函式 ──
+// 每次重建可視化內容時遞增世代編號，讓上一輪註冊的動畫迴圈在下一幀自動停止，
+// 避免舊物件的 requestAnimationFrame 迴圈永久殘留（過去卡頓會隨使用時間變嚴重的主因）
+let animationGeneration = 0
+
 const cleanupAnimations = () => {
-  animationRefs.clear()
+  animationGeneration++
 }
 
-const registerAnimation = (animationFn: () => void) => {
-  animationRefs.add(animationFn)
-  return animationFn
+// 註冊一個每幀執行的更新函式；回傳 false 可提前結束該迴圈（例如一次性動畫完成後）
+const registerAnimation = (update: () => boolean | void) => {
+  const generation = animationGeneration
+  const loop = () => {
+    if (generation !== animationGeneration) return
+    if (update() === false) return
+    requestAnimationFrame(loop)
+  }
+  loop()
 }
 
 // 創建 RSI 球體
@@ -155,20 +162,13 @@ const createRSISphere = (): THREE.Mesh => {
   sphere.position.set(position.x, position.y, position.z)
 
   // RSI 脈動動畫
-  const animate = () => {
-    if (!sphere.parent) return
-
+  registerAnimation(() => {
     const time = Date.now() * pulseSpeed
     const scale = 1 + Math.sin(time) * pulseScale
     const intensity = Math.abs(rsi - 50) / 50
     sphere.scale.setScalar(scale * (1 + intensity * 0.2))
     sphere.rotation.y += 0.01
-
-    requestAnimationFrame(animate)
-  }
-
-  registerAnimation(animate)
-  animate()
+  })
 
   return sphere
 }
@@ -188,29 +188,20 @@ const createMACDBar = (): THREE.Mesh => {
   const bar = new THREE.Mesh(geometry, material)
   bar.position.set(0, height / 2, 0)
 
-  // MACD 上升動畫
+  // MACD 上升動畫，完成後接續振盪動畫
   bar.scale.y = 0
-  const animateMACD = () => {
+  registerAnimation(() => {
     bar.scale.y += (1 - bar.scale.y) * 0.08
-    if (Math.abs(1 - bar.scale.y) > 0.01) {
-      requestAnimationFrame(animateMACD)
-    } else {
-      // 開始振盪動畫
-      const oscillate = () => {
-        if (!bar.parent) return
-
+    if (Math.abs(1 - bar.scale.y) <= 0.01) {
+      registerAnimation(() => {
         const time = Date.now() * 0.002
         const offset = Math.sin(time) * oscillateScale
         bar.scale.y = 1 + offset * Math.abs(macd)
         bar.rotation.y += rotationSpeed
-
-        requestAnimationFrame(oscillate)
-      }
-      registerAnimation(oscillate)
-      oscillate()
+      })
+      return false
     }
-  }
-  animateMACD()
+  })
 
   return bar
 }
@@ -234,21 +225,14 @@ const createBollingerRing = (): THREE.Mesh => {
   ring.rotation.x = Math.PI / 4
 
   // 布林帶旋轉動畫
-  const animate = () => {
-    if (!ring.parent) return
-
+  registerAnimation(() => {
     ring.rotation.x += rotationSpeed.x
     ring.rotation.y += rotationSpeed.y
     ring.rotation.z += rotationSpeed.z
 
     const time = Date.now() * 0.001
     ring.position.y = Math.sin(time) * 0.3
-
-    requestAnimationFrame(animate)
-  }
-
-  registerAnimation(animate)
-  animate()
+  })
 
   return ring
 }
@@ -284,19 +268,12 @@ const createKDOscillator = (): THREE.Group => {
   group.position.set(position.x, position.y, position.z)
 
   // KD 線條擺動動畫
-  const animate = () => {
-    if (!group.parent) return
-
+  registerAnimation(() => {
     const time = Date.now() * 0.002
     kLine.rotation.z = Math.sin(time) * swingAmplitude + (kd.k / 100 - 0.5) * 0.5
     dLine.rotation.z = Math.sin(time + 0.5) * swingAmplitude + (kd.d / 100 - 0.5) * 0.5
     group.rotation.y += 0.005
-
-    requestAnimationFrame(animate)
-  }
-
-  registerAnimation(animate)
-  animate()
+  })
 
   return group
 }
@@ -335,9 +312,7 @@ const createKDParticles = (kColor: number, dColor: number): THREE.Points => {
   const particles = new THREE.Points(geometry, material)
 
   // 粒子流動動畫
-  const animate = () => {
-    if (!particles.parent) return
-
+  registerAnimation(() => {
     const positions = particles.geometry.attributes.position.array as Float32Array
     const time = Date.now() * 0.001
 
@@ -347,12 +322,7 @@ const createKDParticles = (kColor: number, dColor: number): THREE.Points => {
       positions[i3 + 2] += Math.cos(time + i * 0.15) * flowSpeed * 0.5
     }
     particles.geometry.attributes.position.needsUpdate = true
-
-    requestAnimationFrame(animate)
-  }
-
-  registerAnimation(animate)
-  animate()
+  })
 
   return particles
 }
@@ -361,7 +331,8 @@ const createKDParticles = (kColor: number, dColor: number): THREE.Points => {
 const createIndicators = () => {
   if (!scene || !indicatorGroup) return
 
-  // 清空現有內容和動畫
+  // 清空現有內容前先釋放 GPU 資源，避免每次重建都累積記憶體
+  disposeObject3D(indicatorGroup)
   indicatorGroup.clear()
   cleanupAnimations()
 

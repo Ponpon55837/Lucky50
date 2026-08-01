@@ -29,6 +29,23 @@ export const ThemeColors = {
   },
 }
 
+// 遞迴釋放 mesh 的幾何體與材質，避免記憶體/GPU 資源累積
+// 元件在每次資料變動重建場景內容時（而不只是卸載時）都應呼叫，否則舊物件的
+// 幾何體/材質會持續累積在 GPU 記憶體中，是長時間使用後越來越卡頓的常見成因
+export function disposeObject3D(obj: THREE.Object3D) {
+  obj.traverse(child => {
+    if (child instanceof THREE.Mesh || child instanceof THREE.Points || child instanceof THREE.Line) {
+      child.geometry?.dispose()
+      const material = child.material
+      if (Array.isArray(material)) {
+        material.forEach(m => m.dispose())
+      } else {
+        material?.dispose()
+      }
+    }
+  })
+}
+
 export class ThreeJSScene {
   private scene: THREE.Scene
   private camera: THREE.PerspectiveCamera
@@ -141,23 +158,14 @@ export class ThreeJSScene {
 
     objectsToRemove.forEach(obj => {
       this.scene.remove(obj)
-      this.disposeObject(obj)
+      disposeObject3D(obj)
     })
   }
 
-  // 遞迴釋放 mesh 的幾何體與材質，避免記憶體/GPU 資源累積
-  private disposeObject(obj: THREE.Object3D) {
-    obj.traverse(child => {
-      if (child instanceof THREE.Mesh) {
-        child.geometry?.dispose()
-        const material = child.material
-        if (Array.isArray(material)) {
-          material.forEach(m => m.dispose())
-        } else {
-          material?.dispose()
-        }
-      }
-    })
+  // 從場景移除物件並釋放其幾何體/材質，供元件在重建可視化內容時呼叫
+  removeAndDispose(object: THREE.Object3D) {
+    this.scene.remove(object)
+    disposeObject3D(object)
   }
 
   // 獲取相機

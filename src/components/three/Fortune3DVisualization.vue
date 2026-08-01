@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, onUnmounted, watch, computed, nextTick } from 'vue'
 import * as THREE from 'three'
-import { ThreeJSScene, createThemeGlowMaterial, getThemeColor } from '@/utils/three-scene'
+import { ThreeJSScene, createThemeGlowMaterial, getThemeColor, disposeObject3D } from '@/utils/three-scene'
 import { useVisibleOnce } from '@/composables/useVisibleOnce'
 import { useTheme } from '@/composables/useTheme'
 import { useDashboardStore } from '@/stores/dashboard'
@@ -41,8 +41,6 @@ const ANIMATION_CONFIG = {
   },
 } as const
 
-type AnimationRefs = Set<() => void>
-
 const { title = '生肖運勢 3D 展示' } = defineProps<Props>()
 
 const { isDark } = useTheme()
@@ -50,7 +48,6 @@ const dashboardStore = useDashboardStore()
 const userStore = useUserStore()
 
 // 動畫管理
-const animationRefs: AnimationRefs = new Set()
 const threeContainer = ref<HTMLElement>()
 let scene: ThreeJSScene | null = null
 let fortuneGroup: THREE.Group | null = null
@@ -111,13 +108,23 @@ const investmentAdviceColor = computed(() => {
 })
 
 // ── 方法與函式 ──
+// 每次重建可視化內容時遞增世代編號，讓上一輪註冊的動畫迴圈在下一幀自動停止，
+// 避免舊物件的 requestAnimationFrame 迴圈永久殘留（過去卡頓會隨使用時間變嚴重的主因）
+let animationGeneration = 0
+
 const cleanupAnimations = () => {
-  animationRefs.clear()
+  animationGeneration++
 }
 
-const registerAnimation = (animationFn: () => void) => {
-  animationRefs.add(animationFn)
-  return animationFn
+// 註冊一個每幀執行的更新函式；回傳 false 可提前結束該迴圈（例如一次性動畫完成後）
+const registerAnimation = (update: () => boolean | void) => {
+  const generation = animationGeneration
+  const loop = () => {
+    if (generation !== animationGeneration) return
+    if (update() === false) return
+    requestAnimationFrame(loop)
+  }
+  loop()
 }
 
 const handleMouseMove = (event: MouseEvent) => {
@@ -167,21 +174,14 @@ const createZodiacSphere = (): THREE.Mesh => {
   sphere.position.set(0, 1, 0)
 
   // 生肖球體脈動和旋轉動畫
-  const animate = () => {
-    if (!sphere.parent) return
-
+  registerAnimation(() => {
     const time = Date.now() * pulseSpeed
     const scale = 1 + Math.sin(time) * pulseScale
     sphere.scale.setScalar(scale)
     sphere.rotation.x += rotationSpeed.x
     sphere.rotation.y += rotationSpeed.y
     sphere.rotation.z += rotationSpeed.z
-
-    requestAnimationFrame(animate)
-  }
-
-  registerAnimation(animate)
-  animate()
+  })
 
   return sphere
 }
@@ -208,17 +208,10 @@ const createElementRings = (): THREE.Mesh[] => {
     ring.rotation.z = (i * Math.PI) / 4
 
     // 每個環不同速度旋轉
-    const animate = () => {
-      if (!ring.parent) return
-
+    registerAnimation(() => {
       ring.rotation.z += (0.01 + i * 0.005) * (i % 2 === 0 ? 1 : -1)
       ring.rotation.y += 0.003 * (i + 1)
-
-      requestAnimationFrame(animate)
-    }
-
-    registerAnimation(animate)
-    animate()
+    })
     rings.push(ring)
   }
 
@@ -247,29 +240,20 @@ const createInvestmentBars = (): THREE.Mesh[] => {
     const angle = (i / count) * Math.PI * 2
     bar.position.set(Math.cos(angle) * baseRadius, height / 2 - 1, Math.sin(angle) * baseRadius)
 
-    // 柱狀圖上升動畫
+    // 柱狀圖上升動畫，完成後接續波動動畫
     bar.scale.y = 0
     setTimeout(() => {
-      const animateBar = () => {
+      registerAnimation(() => {
         bar.scale.y += (1 - bar.scale.y) * 0.08
-        if (Math.abs(1 - bar.scale.y) > 0.01) {
-          requestAnimationFrame(animateBar)
-        } else {
-          // 開始波動動畫
-          const oscillate = () => {
-            if (!bar.parent) return
-
+        if (Math.abs(1 - bar.scale.y) <= 0.01) {
+          registerAnimation(() => {
             const time = Date.now() * 0.003 + i
             const offset = Math.sin(time) * 0.1
             bar.scale.y = 1 + offset
-
-            requestAnimationFrame(oscillate)
-          }
-          registerAnimation(oscillate)
-          oscillate()
+          })
+          return false
         }
-      }
-      animateBar()
+      })
     }, i * animationDelay)
 
     bars.push(bar)
@@ -328,9 +312,7 @@ const createElementalParticles = (): THREE.Points => {
   const particles = new THREE.Points(geometry, material)
 
   // 粒子螺旋運動動畫
-  const animate = () => {
-    if (!particles.parent) return
-
+  registerAnimation(() => {
     const positions = particles.geometry.attributes.position.array as Float32Array
     const time = Date.now() * 0.001
 
@@ -353,12 +335,7 @@ const createElementalParticles = (): THREE.Points => {
 
     particles.geometry.attributes.position.needsUpdate = true
     particles.rotation.y += 0.002
-
-    requestAnimationFrame(animate)
-  }
-
-  registerAnimation(animate)
-  animate()
+  })
 
   return particles
 }
@@ -367,7 +344,8 @@ const createElementalParticles = (): THREE.Points => {
 const createFortuneVisualization = () => {
   if (!scene || !fortuneGroup) return
 
-  // 清空現有內容和動畫
+  // 清空現有內容前先釋放 GPU 資源，避免每次重建都累積記憶體
+  disposeObject3D(fortuneGroup)
   fortuneGroup.clear()
   cleanupAnimations()
 
@@ -422,15 +400,12 @@ watch(isDark, newTheme => {
   })
 })
 
-watch(
-  [zodiac, element, fortuneScore, investmentScore, lunarDate],
-  () => {
-    nextTick(() => {
-      createFortuneVisualization()
-    })
-  },
-  { deep: true }
-)
+// 監聽的都是字串/數字型 computed，非物件/陣列，不需要 deep 追蹤
+watch([zodiac, element, fortuneScore, investmentScore, lunarDate], () => {
+  nextTick(() => {
+    createFortuneVisualization()
+  })
+})
 
 // ── 生命週期 ──
 // 只在元件捲動進入可視範圍時才初始化 WebGL 場景，避免同頁多個 3D 卡片一次全部搶佔資源
