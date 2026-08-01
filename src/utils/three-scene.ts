@@ -36,6 +36,7 @@ export class ThreeJSScene {
   private container: HTMLElement
   private animationId: number | null = null
   private isDark: boolean = true
+  private boundHandleResize = this.handleResize.bind(this)
 
   constructor(
     container: HTMLElement,
@@ -80,7 +81,7 @@ export class ThreeJSScene {
     this.animate()
 
     // 監聽窗口大小變化
-    window.addEventListener('resize', this.handleResize.bind(this))
+    window.addEventListener('resize', this.boundHandleResize)
   }
 
   private setupLights() {
@@ -129,7 +130,7 @@ export class ThreeJSScene {
     this.scene.remove(object)
   }
 
-  // 清空場景（除了光照）
+  // 清空場景（除了光照），並釋放幾何體與材質的 GPU 資源
   clearScene() {
     const objectsToRemove: THREE.Object3D[] = []
     this.scene.traverse(child => {
@@ -140,6 +141,22 @@ export class ThreeJSScene {
 
     objectsToRemove.forEach(obj => {
       this.scene.remove(obj)
+      this.disposeObject(obj)
+    })
+  }
+
+  // 遞迴釋放 mesh 的幾何體與材質，避免記憶體/GPU 資源累積
+  private disposeObject(obj: THREE.Object3D) {
+    obj.traverse(child => {
+      if (child instanceof THREE.Mesh) {
+        child.geometry?.dispose()
+        const material = child.material
+        if (Array.isArray(material)) {
+          material.forEach(m => m.dispose())
+        } else {
+          material?.dispose()
+        }
+      }
     })
   }
 
@@ -175,7 +192,7 @@ export class ThreeJSScene {
       cancelAnimationFrame(this.animationId)
     }
 
-    window.removeEventListener('resize', this.handleResize.bind(this))
+    window.removeEventListener('resize', this.boundHandleResize)
 
     this.clearScene()
     this.renderer.dispose()

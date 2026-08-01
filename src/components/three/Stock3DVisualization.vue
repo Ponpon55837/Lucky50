@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, watch, computed, nextTick } from 'vue'
+import { ref, onUnmounted, watch, computed, nextTick } from 'vue'
 import * as THREE from 'three'
 import { ThreeJSScene, createThemeGlowMaterial, getThemeColor } from '@/utils/three-scene'
 import { useTheme } from '@/composables/useTheme'
+import { useVisibleOnce } from '@/composables/useVisibleOnce'
 import { useDashboardStore } from '@/stores/dashboard'
 import { useAnalyticsStore } from '@/stores/analytics'
 import type { ETFData } from '@/types'
@@ -421,11 +422,17 @@ watch(isDark, newIsDark => {
 })
 
 // ── 生命週期 ──
-onMounted(() => {
-  nextTick(() => {
-    initScene()
-  })
-})
+// 只在元件捲動進入可視範圍時才初始化 WebGL 場景，避免同頁多個 3D 卡片一次全部搶佔資源
+const { isVisible } = useVisibleOnce(threeContainer)
+watch(
+  isVisible,
+  visible => {
+    if (visible) {
+      nextTick(() => initScene())
+    }
+  },
+  { immediate: true }
+)
 
 onUnmounted(() => {
   cleanup()
