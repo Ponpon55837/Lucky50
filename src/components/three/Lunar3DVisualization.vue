@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, onUnmounted, watch, computed, nextTick } from 'vue'
 import * as THREE from 'three'
-import { ThreeJSScene, createThemeGlowMaterial, getThemeColor } from '@/utils/three-scene'
+import { ThreeJSScene, createThemeGlowMaterial, getThemeColor, disposeObject3D } from '@/utils/three-scene'
 import { useVisibleOnce } from '@/composables/useVisibleOnce'
 import { useTheme } from '@/composables/useTheme'
 import { useDashboardStore } from '@/stores/dashboard'
@@ -43,7 +43,6 @@ const ANIMATION_CONFIG = {
 } as const
 
 type FortuneLevel = '大吉' | '吉' | '平' | '忌'
-type AnimationRefs = Set<() => void>
 
 const { title = '農民曆 3D 展示' } = defineProps<Props>()
 
@@ -51,7 +50,6 @@ const { isDark } = useTheme()
 const dashboardStore = useDashboardStore()
 
 // 動畫管理
-const animationRefs: AnimationRefs = new Set()
 const threeContainer = ref<HTMLElement>()
 let scene: ThreeJSScene | null = null
 let lunarGroup: THREE.Group | null = null
@@ -128,13 +126,23 @@ const fortuneThemeColor = computed(() => {
 })
 
 // ── 方法與函式 ──
+// 每次重建可視化內容時遞增世代編號，讓上一輪註冊的動畫迴圈在下一幀自動停止，
+// 避免舊物件的 requestAnimationFrame 迴圈永久殘留（過去卡頓會隨使用時間變嚴重的主因）
+let animationGeneration = 0
+
 const cleanupAnimations = () => {
-  animationRefs.clear()
+  animationGeneration++
 }
 
-const registerAnimation = (animationFn: () => void) => {
-  animationRefs.add(animationFn)
-  return animationFn
+// 註冊一個每幀執行的更新函式；回傳 false 可提前結束該迴圈（例如一次性動畫完成後）
+const registerAnimation = (update: () => boolean | void) => {
+  const generation = animationGeneration
+  const loop = () => {
+    if (generation !== animationGeneration) return
+    if (update() === false) return
+    requestAnimationFrame(loop)
+  }
+  loop()
 }
 
 // 創建月亮組件
@@ -148,21 +156,14 @@ const createMoon = (): THREE.Mesh => {
   moon.position.set(0, 1.5, 0)
 
   // 統一的月亮動畫
-  const animate = () => {
-    if (!moon.parent) return
-
+  registerAnimation(() => {
     const time = Date.now() * 0.001
     const scale = 1 + Math.sin(time * breathSpeed) * breathScale
     moon.scale.setScalar(scale)
     moon.rotation.x += rotationSpeed.x
     moon.rotation.y += rotationSpeed.y
     moon.rotation.z += rotationSpeed.z
-
-    requestAnimationFrame(animate)
-  }
-
-  registerAnimation(animate)
-  animate()
+  })
 
   return moon
 }
@@ -188,17 +189,10 @@ const createSolarTermRings = (): THREE.Mesh[] => {
     ring.rotation.z = (layer * Math.PI) / 6
 
     // 環形動畫
-    const animate = () => {
-      if (!ring.parent) return
-
+    registerAnimation(() => {
       ring.rotation.z += (0.005 + layer * 0.003) * (layer % 2 === 0 ? 1 : -1)
       ring.rotation.y += 0.002 * (layer + 1)
-
-      requestAnimationFrame(animate)
-    }
-
-    registerAnimation(animate)
-    animate()
+    })
     rings.push(ring)
   }
 
@@ -241,26 +235,18 @@ const createIndicatorBars = (
     const delay = isUpward ? i * 200 : i * 250 + 1000
 
     setTimeout(() => {
-      const animateScale = () => {
+      registerAnimation(() => {
         bar.scale.y += (1 - bar.scale.y) * 0.06
-        if (Math.abs(1 - bar.scale.y) > 0.01) {
-          requestAnimationFrame(animateScale)
-        } else {
+        if (Math.abs(1 - bar.scale.y) <= 0.01) {
           // 輕微搖擺
-          const sway = () => {
-            if (!bar.parent) return
-
+          registerAnimation(() => {
             const time = Date.now() * 0.002 + i + (isUpward ? 0 : Math.PI)
             bar.rotation.z = Math.sin(time) * 0.08
             bar.rotation.x = Math.cos(time * 0.7) * 0.05
-
-            requestAnimationFrame(sway)
-          }
-          registerAnimation(sway)
-          sway()
+          })
+          return false
         }
-      }
-      animateScale()
+      })
     }, delay)
 
     bars.push(bar)
@@ -282,20 +268,13 @@ const createFortuneIndicator = (): THREE.Mesh => {
   indicator.position.set(0, -1.5, 2.0)
 
   // 脈動動畫
-  const animate = () => {
-    if (!indicator.parent) return
-
+  registerAnimation(() => {
     const time = Date.now() * 0.003
     const intensity = isExcellent ? 1.2 : score >= 65 ? 1.0 : score >= 35 ? 0.8 : 0.6
     const scale = 1 + Math.sin(time) * 0.1 * intensity
     indicator.scale.setScalar(scale)
     indicator.rotation.y += 0.01 * intensity
-
-    requestAnimationFrame(animate)
-  }
-
-  registerAnimation(animate)
-  animate()
+  })
 
   return indicator
 }
@@ -322,9 +301,7 @@ const createCelestialWheel = (): THREE.Mesh[] => {
     )
 
     // 地支動畫
-    const animate = () => {
-      if (!branch.parent) return
-
+    registerAnimation(() => {
       const time = Date.now() * 0.001 + i * 0.5
       branch.rotation.x += 0.008 + i * 0.001
       branch.rotation.y += 0.012 + i * 0.002
@@ -334,12 +311,7 @@ const createCelestialWheel = (): THREE.Mesh[] => {
       const orbitTime = Date.now() * 0.0003 + (i * Math.PI * 2) / branches.count
       branch.position.x = Math.cos(orbitTime) * branches.radius
       branch.position.z = Math.sin(orbitTime) * branches.radius
-
-      requestAnimationFrame(animate)
-    }
-
-    registerAnimation(animate)
-    animate()
+    })
     celestialObjects.push(branch)
   }
 
@@ -359,9 +331,7 @@ const createCelestialWheel = (): THREE.Mesh[] => {
     )
 
     // 天干反向旋轉
-    const animate = () => {
-      if (!stem.parent) return
-
+    registerAnimation(() => {
       const time = Date.now() * 0.001 + i * 0.6
       stem.rotation.x += 0.015 - i * 0.001
       stem.rotation.y -= 0.018 + i * 0.002
@@ -374,12 +344,7 @@ const createCelestialWheel = (): THREE.Mesh[] => {
       const orbitTime = -Date.now() * 0.0005 + (i * Math.PI * 2) / stems.count
       stem.position.x = Math.cos(orbitTime) * stems.radius
       stem.position.z = Math.sin(orbitTime) * stems.radius
-
-      requestAnimationFrame(animate)
-    }
-
-    registerAnimation(animate)
-    animate()
+    })
     celestialObjects.push(stem)
   }
 
@@ -439,9 +404,7 @@ const createEnhancedStarField = (): THREE.Points => {
   const starField = new THREE.Points(geometry, material)
 
   // 星空旋轉和閃爍動畫
-  const animate = () => {
-    if (!starField.parent) return
-
+  registerAnimation(() => {
     starField.rotation.y += 0.0003
     starField.rotation.x += 0.0001
     starField.rotation.z += 0.0002
@@ -467,12 +430,7 @@ const createEnhancedStarField = (): THREE.Points => {
 
     starField.geometry.attributes.color.needsUpdate = true
     starField.geometry.attributes.size.needsUpdate = true
-
-    requestAnimationFrame(animate)
-  }
-
-  registerAnimation(animate)
-  animate()
+  })
 
   return starField
 }
@@ -481,7 +439,8 @@ const createEnhancedStarField = (): THREE.Points => {
 const createLunarVisualization = () => {
   if (!scene || !lunarGroup) return
 
-  // 清空現有內容和動畫
+  // 清空現有內容前先釋放 GPU 資源，避免每次重建都累積記憶體
+  disposeObject3D(lunarGroup)
   lunarGroup.clear()
   cleanupAnimations()
 
@@ -579,15 +538,12 @@ watch(isDark, newTheme => {
   })
 })
 
-watch(
-  [lunarDate, solarTerm, suitable, avoid, fortuneScore],
-  () => {
-    nextTick(() => {
-      createLunarVisualization()
-    })
-  },
-  { deep: true }
-)
+// suitable/avoid 是 computed，資料變動時會回傳全新陣列參照，不需要 deep 追蹤
+watch([lunarDate, solarTerm, suitable, avoid, fortuneScore], () => {
+  nextTick(() => {
+    createLunarVisualization()
+  })
+})
 
 // ── 生命週期 ──
 // 只在元件捲動進入可視範圍時才初始化 WebGL 場景，避免同頁多個 3D 卡片一次全部搶佔資源

@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { computed, shallowRef, watch } from 'vue'
+import { computed, shallowRef } from 'vue'
 import type { UserProfile } from '@/types'
 
 export const useUserStore = defineStore(
@@ -18,18 +18,6 @@ export const useUserStore = defineStore(
       luckyColors: [],
       luckyNumbers: [],
     })
-
-    watch(
-      () => profile.value,
-      (newValue, oldValue) => {
-        console.log('UserStore - profile 狀態變化:', {
-          old: oldValue,
-          new: newValue,
-          timestamp: new Date().toLocaleTimeString(),
-        })
-      },
-      { immediate: true, deep: true }
-    )
 
     const isProfileComplete = computed(() => {
       const p = profile.value

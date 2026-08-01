@@ -63,15 +63,12 @@ const retryIntegratedFortune = () => {
 }
 
 // ── 監聽器 ──
-watch(
-  userProfileCompat,
-  newProfile => {
-    if (newProfile) {
-      dashboardStore.refreshData(newProfile)
-    }
-  },
-  { deep: true }
-)
+// userProfileCompat 是 computed，資料變動時會回傳全新物件參照，不需要 deep 追蹤
+watch(userProfileCompat, newProfile => {
+  if (newProfile) {
+    dashboardStore.refreshData(newProfile)
+  }
+})
 
 // ── 生命週期 ──
 onMounted(() => {

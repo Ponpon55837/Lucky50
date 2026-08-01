@@ -17,6 +17,10 @@ export const useAnalyticsStore = defineStore('analytics', () => {
   // 回測結果緩存
   const backtestCache = new Map<string, BacktestCache>()
 
+  // 調整後 ETF 數據緩存：Analytics 頁面會有多個元件（4 個 3D 視覺化 + 圖表）
+  // 針對同一份 etfData 各自呼叫 getAdjustedEtfData，沒有緩存會造成重複排序/映射
+  let adjustedEtfDataCache: { hash: string; data: ETFData[] } | null = null
+
   // 共用的每日報酬率計算函數（消除 DRY 違規）
   const calculateDailyReturns = (data: ETFData[]): number[] => {
     return data.slice(1).reduce((acc: number[], item: ETFData, index: number) => {
@@ -82,13 +86,23 @@ export const useAnalyticsStore = defineStore('analytics', () => {
   const getAdjustedEtfData = (etfData: ETFData[]) => {
     if (!etfData.length) return []
 
-    const data = etfData.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+    // 同一份 etfData 常被多個元件（4 個 3D 視覺化 + 各種統計計算）重複呼叫，
+    // 命中緩存可省去重複的排序與映射
+    const hash = generateDataHash(etfData)
+    if (adjustedEtfDataCache && adjustedEtfDataCache.hash === hash) {
+      return adjustedEtfDataCache.data
+    }
+
+    // 使用複本排序，避免直接 mutate 傳入的 store 陣列
+    const data = [...etfData].sort(
+      (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
+    )
 
     // 2025/6/18 0050 進行 1 拆 4，調整歷史價格以保持連續性
     const splitDate = new Date('2025-06-18')
     const splitRatio = 4
 
-    return data.map((item: ETFData) => {
+    const result = data.map((item: ETFData) => {
       const itemDate = new Date(item.date)
       if (itemDate < splitDate) {
         // 分拆前的價格需要除以分拆比例來調整
@@ -103,6 +117,9 @@ export const useAnalyticsStore = defineStore('analytics', () => {
       }
       return item
     })
+
+    adjustedEtfDataCache = { hash, data: result }
+    return result
   }
 
   // 計算統計數據

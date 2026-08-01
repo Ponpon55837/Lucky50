@@ -133,7 +133,7 @@ watch(
       timeMode.value = matched ? 'shichen' : 'exact'
     }
   },
-  { immediate: true, deep: true }
+  { immediate: true }
 )
 
 watchEffect(() => {

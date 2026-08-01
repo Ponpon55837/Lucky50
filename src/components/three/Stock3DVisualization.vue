@@ -35,8 +35,6 @@ const ANIMATION_CONFIG = {
   },
 } as const
 
-type AnimationRefs = Set<() => void>
-
 const { title = '股價 3D 動態' } = defineProps<Props>()
 
 // 使用 stores
@@ -45,7 +43,6 @@ const analyticsStore = useAnalyticsStore()
 const { isDark } = useTheme()
 
 // 動畫管理
-const animationRefs: AnimationRefs = new Set()
 const threeContainer = ref<HTMLElement>()
 let scene: ThreeJSScene | null = null
 let priceLineGroup: THREE.Group | null = null
@@ -104,13 +101,23 @@ const fortuneEffect = computed(() => {
 })
 
 // ── 方法與函式 ──
+// 每次重建可視化內容時遞增世代編號，讓上一輪註冊的動畫迴圈在下一幀自動停止，
+// 避免舊物件的 requestAnimationFrame 迴圈永久殘留（過去卡頓會隨使用時間變嚴重的主因）
+let animationGeneration = 0
+
 const cleanupAnimations = () => {
-  animationRefs.clear()
+  animationGeneration++
 }
 
-const registerAnimation = (animationFn: () => void) => {
-  animationRefs.add(animationFn)
-  return animationFn
+// 註冊一個每幀執行的更新函式；回傳 false 可提前結束該迴圈（例如一次性動畫完成後）
+const registerAnimation = (update: () => boolean | void) => {
+  const generation = animationGeneration
+  const loop = () => {
+    if (generation !== animationGeneration) return
+    if (update() === false) return
+    requestAnimationFrame(loop)
+  }
+  loop()
 }
 
 const handleMouseMove = (event: MouseEvent) => {
@@ -168,13 +175,10 @@ const createVolumeBar = (x: number, data: ETFData, index: number): THREE.Mesh =>
   // 添加上升動畫
   bar.scale.y = 0
   setTimeout(() => {
-    const animateBar = () => {
+    registerAnimation(() => {
       bar.scale.y += (1 - bar.scale.y) * 0.08
-      if (Math.abs(1 - bar.scale.y) > 0.01) {
-        requestAnimationFrame(animateBar)
-      }
-    }
-    animateBar()
+      if (Math.abs(1 - bar.scale.y) <= 0.01) return false
+    })
   }, index * 100)
 
   return bar
@@ -214,9 +218,7 @@ const createParticleBackground = (): THREE.Points => {
   const particles = new THREE.Points(geometry, material)
 
   // 粒子漂浮動畫
-  const animate = () => {
-    if (!particles.parent) return
-
+  registerAnimation(() => {
     const positions = particles.geometry.attributes.position.array as Float32Array
     for (let i = 0; i < count; i++) {
       const i3 = i * 3
@@ -225,12 +227,7 @@ const createParticleBackground = (): THREE.Points => {
     }
     particles.geometry.attributes.position.needsUpdate = true
     particles.rotation.y += 0.003
-
-    requestAnimationFrame(animate)
-  }
-
-  registerAnimation(animate)
-  animate()
+  })
 
   return particles
 }
@@ -253,17 +250,10 @@ const createFortuneOrb = (): THREE.Mesh => {
   orb.position.set(position.x, position.y, position.z)
 
   // 旋轉動畫
-  const animate = () => {
-    if (!orb.parent) return
-
+  registerAnimation(() => {
     orb.rotation.x += rotationSpeed
     orb.rotation.y += rotationSpeed
-
-    requestAnimationFrame(animate)
-  }
-
-  registerAnimation(animate)
-  animate()
+  })
 
   return orb
 }
@@ -272,9 +262,9 @@ const createFortuneOrb = (): THREE.Mesh => {
 const createPriceLine = () => {
   if (!scene || etfData.value.length === 0) return
 
-  // 清除舊的價格線和動畫
+  // 清除舊的價格線、動畫與 GPU 資源，避免每次重建都累積記憶體
   if (priceLineGroup) {
-    scene.removeFromScene(priceLineGroup)
+    scene.removeAndDispose(priceLineGroup)
   }
   cleanupAnimations()
 
@@ -304,18 +294,11 @@ const createPriceLine = () => {
     const sphere = createPriceSphere(x, y, z, data.close, index)
 
     // 統一的脈動動畫
-    const animate = () => {
-      if (!sphere.parent) return
-
+    registerAnimation(() => {
       const time = Date.now() * ANIMATION_CONFIG.priceSphere.pulseSpeed + index * 0.3
       const scale = 1 + Math.sin(time) * ANIMATION_CONFIG.priceSphere.pulseScale
       sphere.scale.setScalar(scale)
-
-      requestAnimationFrame(animate)
-    }
-
-    registerAnimation(animate)
-    animate()
+    })
     priceLineGroup!.add(sphere)
 
     // 添加成交量柱狀圖
@@ -362,7 +345,7 @@ const createVisualization = () => {
 
   // 重新創建運勢球
   if (fortuneOrb) {
-    scene.removeFromScene(fortuneOrb)
+    scene.removeAndDispose(fortuneOrb)
   }
   fortuneOrb = createFortuneOrb()
   scene.addToScene(fortuneOrb)
@@ -396,15 +379,13 @@ const cleanup = () => {
 }
 
 // ── 監聽器 ──
-watch(
-  etfData,
-  () => {
-    if (scene) {
-      createVisualization()
-    }
-  },
-  { deep: true }
-)
+// etfData 是 computed，每次重新計算都會回傳全新陣列參照，淺層 watch 即可偵測變化，
+// 不需要 deep（深層追蹤大型陣列每個元素反而增加不必要的效能負擔）
+watch(etfData, () => {
+  if (scene) {
+    createVisualization()
+  }
+})
 
 watch(fortuneScore, () => {
   if (scene) {
