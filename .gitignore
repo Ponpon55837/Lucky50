@@ -27,6 +27,7 @@ public/static/
 # AI Workflow runtime 產物
 .ai/
 .mcp.json
+.codex
 
 # 編輯器暫存檔
 *.swp
@@ -37,3 +38,8 @@ public/static/
 .ai-bridge.local.yaml
 .mcp.json
 # agent-bridge:end
+opencode.json
+.mcp.json
+.mcp.json
+.mcp.json
+opencode.json

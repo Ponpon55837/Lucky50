@@ -80,10 +80,8 @@ export class FortuneHistoryStore {
   async append(record: FortuneRecord): Promise<void> {
     await this.ensureInitialized()
 
-    // 查找是否已有同日同用戶的記錄
-    const existing = this.memoryCache.find(
-      r => r.date === record.date && r.userProfileHash === record.userProfileHash
-    )
+    // 先查記憶體快取，再回查 IndexedDB，避免快取逐出後重複新增。
+    const existing = await this.findExistingRecord(record)
 
     if (existing) {
       // 更新既有記錄
@@ -109,10 +107,28 @@ export class FortuneHistoryStore {
   async appendBatch(records: FortuneRecord[]): Promise<void> {
     await this.ensureInitialized()
 
+    if (records.length === 0) return
+
+    // 以目前 IndexedDB 資料建立 ID 索引，確保批次內的重複 ID
+    // 遵循「最後一筆更新既有記錄」的規則。批次寫入維持原有語意，
+    // 不以日期＋使用者條件互相去重。
+    const persistedRecords = await this.getAllFromIDB()
+    const recordsById = new Map(persistedRecords.map(record => [record.id, record]))
+    const pendingRecords = new Map<number, FortuneRecord>()
+
+    for (const record of records) {
+      const existingById = recordsById.get(record.id)
+      const id = existingById?.id ?? record.id
+      const normalizedRecord = { ...record, id }
+
+      recordsById.set(id, normalizedRecord)
+      pendingRecords.set(id, normalizedRecord)
+    }
+
     const tx = this.db!.transaction(STORE_NAME, 'readwrite')
     const store = tx.objectStore(STORE_NAME)
 
-    for (const record of records) {
+    for (const record of pendingRecords.values()) {
       store.put(record)
     }
 
@@ -121,14 +137,10 @@ export class FortuneHistoryStore {
       tx.onerror = () => reject(tx.error)
     })
 
-    // 更新記憶體快取
-    this.memoryCache.push(...records)
-    if (this.memoryCache.length > MAX_MEMORY_CACHE) {
-      this.memoryCache = this.memoryCache.slice(-MAX_MEMORY_CACHE)
-    }
-
-    // 更新 totalCount
-    this.totalCount += records.length
+    // 以 IndexedDB 實際資料同步快取與總筆數，避免批次重複資料造成計數偏差。
+    const updatedRecords = await this.getAllFromIDB()
+    this.memoryCache = updatedRecords.slice(-MAX_MEMORY_CACHE)
+    this.totalCount = updatedRecords.length
     await this.setMetadata('totalCount', this.totalCount)
   }
 
@@ -280,6 +292,26 @@ export class FortuneHistoryStore {
     if (!this.initialized) {
       await this.init()
     }
+  }
+
+  private getRecordIdentity(record: FortuneRecord): string {
+    return `${record.date}:${record.userProfileHash}`
+  }
+
+  private async findExistingRecord(record: FortuneRecord): Promise<FortuneRecord | undefined> {
+    const cached = this.memoryCache.find(
+      current =>
+        current.id === record.id ||
+        this.getRecordIdentity(current) === this.getRecordIdentity(record)
+    )
+    if (cached) return cached
+
+    const persistedRecords = await this.getAllFromIDB()
+    return persistedRecords.find(
+      current =>
+        current.id === record.id ||
+        this.getRecordIdentity(current) === this.getRecordIdentity(record)
+    )
   }
 
   private async writeToIDB(record: FortuneRecord): Promise<void> {

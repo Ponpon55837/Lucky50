@@ -22,6 +22,16 @@
       "type": "local",
       "command": ["npx", "-y", "tmux-bridge-mcp"],
       "enabled": true
+    },
+    "dce": {
+      "type": "local",
+      "command": [
+        "node",
+        "/Users/ponpon55837/sideProject/Developer-Context-Engine/services/host/bin/dce-mcp.mjs",
+        "--root",
+        "."
+      ],
+      "enabled": true
     }
   }
 }
