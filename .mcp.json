@@ -8,6 +8,14 @@
         "tmux-bridge-mcp"
       ],
       "env": {}
+    },
+    "dce": {
+      "command": "node",
+      "args": [
+        "/Users/ponpon55837/sideProject/Developer-Context-Engine/services/host/bin/dce-mcp.mjs",
+        "--root",
+        "${CLAUDE_PROJECT_DIR:-.}"
+      ]
     }
   }
 }
