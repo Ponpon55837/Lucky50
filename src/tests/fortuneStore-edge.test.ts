@@ -389,4 +389,83 @@ describe('FortuneHistoryStore 邊界與錯誤情境', () => {
       expect(result.records).toEqual([])
     })
   })
+
+  describe('appendBatch 修復後新邏輯分支', () => {
+    it('空批次應直接早退，不改變 totalCount 與資料', async () => {
+      await store.append(makeRecord({ id: 1, date: '2024-01-15' }))
+
+      await store.appendBatch([])
+
+      expect(await store.getTotalCount()).toBe(1)
+      const result = await store.query({ pageIndex: 0, pageSize: 10 })
+      expect(result.total).toBe(1)
+      expect(result.records[0].id).toBe(1)
+    })
+
+    it('批次內重複 id 應以最後一筆覆寫，totalCount 不重複計算', async () => {
+      await store.appendBatch([
+        makeRecord({ id: 1, date: '2024-01-15', investmentScore: 30, overallScore: 30 }),
+        makeRecord({ id: 1, date: '2024-01-16', investmentScore: 90, overallScore: 90 }),
+      ])
+
+      expect(await store.getTotalCount()).toBe(1)
+      const result = await store.query({ pageIndex: 0, pageSize: 10 })
+      expect(result.total).toBe(1)
+      expect(result.records[0].id).toBe(1)
+      expect(result.records[0].investmentScore).toBe(90)
+      expect(result.records[0].date).toBe('2024-01-16')
+    })
+
+    it('批次 id 與既有資料衝突時應更新既有記錄而非新增', async () => {
+      await store.append(makeRecord({ id: 1, date: '2024-01-15', investmentScore: 70 }))
+      await store.appendBatch([makeRecord({ id: 1, date: '2024-01-15', investmentScore: 99 })])
+
+      expect(await store.getTotalCount()).toBe(1)
+      const result = await store.query({ pageIndex: 0, pageSize: 10 })
+      expect(result.records.length).toBe(1)
+      expect(result.records[0].id).toBe(1)
+      expect(result.records[0].investmentScore).toBe(99)
+    })
+
+    it('批次同日不同 id 不去重（對比 append 的去重語意）', async () => {
+      await store.appendBatch([
+        makeRecord({ id: 1, date: '2024-01-15' }),
+        makeRecord({ id: 2, date: '2024-01-15' }),
+      ])
+
+      expect(await store.getTotalCount()).toBe(2)
+      const result = await store.query({
+        pageIndex: 0,
+        pageSize: 10,
+        dateRange: { start: '2024-01-15', end: '2024-01-15' },
+      })
+      expect(result.total).toBe(2)
+    })
+
+    it('批次不同 id 應累加既有資料且總筆數一致', async () => {
+      await store.append(makeRecord({ id: 1, date: '2024-01-15' }))
+      await store.appendBatch([
+        makeRecord({ id: 2, date: '2024-01-16' }),
+        makeRecord({ id: 3, date: '2024-01-17' }),
+      ])
+
+      expect(await store.getTotalCount()).toBe(3)
+      const result = await store.query({ pageIndex: 0, pageSize: 10 })
+      expect(result.total).toBe(3)
+      expect(result.records.map(r => r.id).sort()).toEqual([1, 2, 3])
+    })
+
+    it('批次重複 id 與 append 混用後，append 應依 date+hash 身分去重更新', async () => {
+      await store.appendBatch([
+        makeRecord({ id: 1, date: '2024-01-15' }),
+        makeRecord({ id: 1, date: '2024-01-16' }),
+      ])
+      await store.append(makeRecord({ id: 5, date: '2024-01-16', userProfileHash: 'hash1' }))
+
+      expect(await store.getTotalCount()).toBe(1)
+      const result = await store.query({ pageIndex: 0, pageSize: 10 })
+      expect(result.total).toBe(1)
+      expect(result.records[0].id).toBe(1)
+    })
+  })
 })
