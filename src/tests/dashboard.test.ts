@@ -1,6 +1,9 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { setActivePinia, createPinia } from 'pinia'
 import { useDashboardStore } from '@/stores/dashboard'
+import { FinMindService } from '@/services/finmind'
+import { IntegratedFortuneService } from '@/services/integratedFortune'
+import { lunarService } from '@/services/lunar'
 
 vi.mock('@/services/lunar', () => ({
   lunarService: {
@@ -248,6 +251,76 @@ describe('useDashboardStore', () => {
         },
       ])
       expect(store.etfData).toHaveLength(1)
+    })
+  })
+
+  describe('Pinia Colada 快取', () => {
+    const profile = {
+      name: '用戶',
+      birthDate: '1990-01-01',
+      birthTime: '10:30',
+      zodiac: '鼠',
+      element: '金',
+      nameElement: '金',
+      nameStrokes: 20,
+      luckyColors: [],
+      luckyNumbers: [],
+    }
+
+    it('staleTime 內重複載入 ETF 只打一次 API', async () => {
+      await store.loadETFData()
+      await store.loadETFData()
+      expect(FinMindService.getETFData).toHaveBeenCalledTimes(1)
+    })
+
+    it('並發載入同一範圍會去重', async () => {
+      await Promise.all([store.loadETFData(), store.loadETFData(), store.loadETFData()])
+      expect(FinMindService.getETFData).toHaveBeenCalledTimes(1)
+    })
+
+    it('force 重新整理會略過快取', async () => {
+      await store.loadETFData()
+      await store.retryETFData()
+      expect(FinMindService.getETFData).toHaveBeenCalledTimes(2)
+    })
+
+    it('不再額外呼叫 checkAPIStatus 探測請求', async () => {
+      await store.loadETFData()
+      expect(FinMindService.checkAPIStatus).not.toHaveBeenCalled()
+    })
+
+    it('同一天農民曆只計算一次', async () => {
+      const date = new Date('2024-01-15')
+      await store.loadLunarData(date)
+      await store.loadLunarData(new Date('2024-01-15T18:00:00'))
+      expect(lunarService.getLunarData).toHaveBeenCalledTimes(1)
+    })
+
+    it('個人資料變動產生不同查詢鍵', async () => {
+      const date = new Date('2024-01-15')
+      await store.loadIntegratedFortune(profile, date)
+      await store.loadIntegratedFortune(profile, date)
+      expect(IntegratedFortuneService.calculateIntegratedFortune).toHaveBeenCalledTimes(1)
+      await store.loadIntegratedFortune({ ...profile, birthTime: '11:30' }, date)
+      expect(IntegratedFortuneService.calculateIntegratedFortune).toHaveBeenCalledTimes(2)
+    })
+
+    it('引擎設定變更後查詢鍵改變，自動重新計算', async () => {
+      const date = new Date('2024-01-15')
+      await store.loadIntegratedFortune(profile, date)
+      localStorage.setItem(
+        'lucky50-engine-settings',
+        JSON.stringify({ classic: { enabled: false, weight: 0 } })
+      )
+      await store.loadIntegratedFortune(profile, date)
+      expect(IntegratedFortuneService.calculateIntegratedFortune).toHaveBeenCalledTimes(2)
+      localStorage.removeItem('lucky50-engine-settings')
+    })
+
+    it('loadETFRange 載入指定範圍', async () => {
+      await store.loadETFRange('2024-01-01', '2024-01-31')
+      expect(FinMindService.getETFData).toHaveBeenCalledWith('2024-01-01', '2024-01-31')
+      expect(store.etfData).toHaveLength(2)
     })
   })
 })

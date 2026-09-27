@@ -19,6 +19,7 @@
   },
   "dependencies": {
     "@heroicons/vue": "^2.2.0",
+    "@pinia/colada": "^1.4.6",
     "@tweenjs/tween.js": "^25.0.0",
     "@vuepic/vue-datepicker": "^11.0.2",
     "axios": "^1.6.0",

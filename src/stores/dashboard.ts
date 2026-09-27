@@ -1,39 +1,19 @@
 import { defineStore } from 'pinia'
 import { ref, computed, shallowRef } from 'vue'
-import { toLocalDateString } from '@/utils/date'
 import type { LunarData, InvestmentAdvice } from '@/services/lunar'
 import type { IntegratedFortuneData, UserProfileCompat } from '@/services/integratedFortune'
 import type { ETFData } from '@/types'
+import { useQueryCache } from '@pinia/colada'
+import {
+  etfRangeQuery,
+  lunarDayQuery,
+  integratedFortuneQuery,
+  dateRangeFromToday,
+  queryKeys,
+} from '@/queries'
 
-// 動態 import 服務層 — 避免將重型依賴（lunar-javascript, axios, 4 engines）打包進 main chunk
-// 使用 any 因為 LunarService 未 export，動態 import 型別推導會造成循環引用
-let _lunarService: any = null // eslint-disable-line @typescript-eslint/no-explicit-any
-let _integratedFortuneService: any = null // eslint-disable-line @typescript-eslint/no-explicit-any
-let _finMindService: any = null // eslint-disable-line @typescript-eslint/no-explicit-any
-
-async function getLunarService() {
-  if (!_lunarService) {
-    const mod = await import('@/services/lunar')
-    _lunarService = mod.lunarService
-  }
-  return _lunarService
-}
-
-async function getIntegratedFortuneService() {
-  if (!_integratedFortuneService) {
-    const mod = await import('@/services/integratedFortune')
-    _integratedFortuneService = mod.IntegratedFortuneService
-  }
-  return _integratedFortuneService
-}
-
-async function getFinMindService() {
-  if (!_finMindService) {
-    const mod = await import('@/services/finmind')
-    _finMindService = mod.FinMindService
-  }
-  return _finMindService
-}
+// 儀表板預設顯示最近 30 天行情
+const DASHBOARD_ETF_DAYS = 30
 
 // 工具函數 - 直接在 store 中定義
 const formatDate = (date: Date): string => {
@@ -52,6 +32,25 @@ const formatVolume = (volume: number): string => {
 }
 
 export const useDashboardStore = defineStore('dashboard', () => {
+  // Pinia Colada query cache：負責快取、去重與失效；本 store 只保留畫面需要的衍生狀態
+  const queryCache = useQueryCache()
+
+  /**
+   * 執行查詢：force=false 時 staleTime 內直接回傳快取（refresh），force=true 時強制重新抓取（fetch）
+   */
+  const runQuery = async <T>(
+    options: Parameters<typeof queryCache.ensure<T>>[0],
+    force = false
+  ): Promise<T> => {
+    const entry = queryCache.ensure(options)
+    const state = force ? await queryCache.fetch(entry) : await queryCache.refresh(entry)
+    if (state.status === 'error') throw state.error
+    return state.data as T
+  }
+
+  // 每類資源的請求序號：只接受最後一次請求的結果，避免快速切換日期時舊回應覆蓋新資料
+  const requestSeq = { lunar: 0, fortune: 0, etf: 0 }
+
   // ===== 狀態 =====
 
   // 農民曆相關狀態
@@ -100,25 +99,22 @@ export const useDashboardStore = defineStore('dashboard', () => {
 
   // ETF最新價格資料
   const latestPrice = computed(() => {
-    if (etfData.value.length === 0) return null
-    return etfData.value[etfData.value.length - 1]
+    const data = etfData.value
+    return data.length > 0 ? data[data.length - 1] : null
   })
 
-  // 價格變化
-  const priceChange = computed(() => {
-    if (etfData.value.length < 2) return 0
-    const current = etfData.value[etfData.value.length - 1]
-    const previous = etfData.value[etfData.value.length - 2]
-    return current.close - previous.close
+  // 價格變化只計算一次，供 priceChange / priceChangePercent 共用
+  const priceMetrics = computed(() => {
+    const data = etfData.value
+    if (data.length < 2) return { change: 0, percent: 0 }
+    const current = data[data.length - 1].close
+    const previous = data[data.length - 2].close
+    const change = current - previous
+    return { change, percent: previous ? (change / previous) * 100 : 0 }
   })
 
-  // 價格變化百分比
-  const priceChangePercent = computed(() => {
-    if (etfData.value.length < 2) return 0
-    const current = etfData.value[etfData.value.length - 1]
-    const previous = etfData.value[etfData.value.length - 2]
-    return ((current.close - previous.close) / previous.close) * 100
-  })
+  const priceChange = computed(() => priceMetrics.value.change)
+  const priceChangePercent = computed(() => priceMetrics.value.percent)
 
   // 價格變化顏色
   const priceChangeColor = computed(() => {
@@ -129,15 +125,17 @@ export const useDashboardStore = defineStore('dashboard', () => {
   // ===== 方法 =====
 
   // 載入農民曆資料
-  const loadLunarData = async (date: Date = new Date()) => {
+  const loadLunarData = async (date: Date = new Date(), force = false) => {
+    const seq = ++requestSeq.lunar
     try {
       lunarLoading.value = true
       lunarError.value = null
       currentDate.value = date
 
-      const svc = await getLunarService()
-      lunarData.value = svc.getLunarData(date)
-      investmentAdvice.value = svc.getInvestmentAdvice(date)
+      const result = await runQuery(lunarDayQuery(date), force)
+      if (seq !== requestSeq.lunar) return
+      lunarData.value = result.lunarData
+      investmentAdvice.value = result.investmentAdvice
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : String(error)
       console.error('載入農民曆資料失敗:', errorMessage)
@@ -151,7 +149,8 @@ export const useDashboardStore = defineStore('dashboard', () => {
   // 載入整合運勢資料
   const loadIntegratedFortune = async (
     userProfile: UserProfileCompat | null,
-    date: Date = new Date()
+    date: Date = new Date(),
+    force = false
   ) => {
     if (!userProfile) {
       fortuneError.value = '請先設定個人資料'
@@ -179,6 +178,7 @@ export const useDashboardStore = defineStore('dashboard', () => {
       throw new Error(errorMsg)
     }
 
+    const seq = ++requestSeq.fortune
     try {
       fortuneLoading.value = true
       fortuneError.value = null
@@ -191,8 +191,9 @@ export const useDashboardStore = defineStore('dashboard', () => {
         birthTime: userProfile.birthTime,
       })
 
-      const svc = await getIntegratedFortuneService()
-      integratedFortune.value = await svc.calculateIntegratedFortune(userProfile, date)
+      const result = await runQuery(integratedFortuneQuery({ profile: userProfile, date }), force)
+      if (seq !== requestSeq.fortune) return
+      integratedFortune.value = result
 
       console.log(
         'DashboardStore - 整合運勢資料載入完成，投資分數:',
@@ -208,110 +209,97 @@ export const useDashboardStore = defineStore('dashboard', () => {
     }
   }
 
-  // 載入ETF資料
-  const loadETFData = async () => {
+  // 開發/離線時的最後備援資料
+  const FALLBACK_ETF_DATA: ETFData[] = [
+    {
+      date: '2024-01-15',
+      open: 132.0,
+      high: 134.0,
+      low: 131.0,
+      close: 133.5,
+      volume: 25000000,
+      change: 1.5,
+      changePercent: 1.13,
+    },
+    {
+      date: '2024-01-16',
+      open: 133.5,
+      high: 135.0,
+      low: 132.8,
+      close: 134.2,
+      volume: 28000000,
+      change: 0.7,
+      changePercent: 0.52,
+    },
+    {
+      date: '2024-01-17',
+      open: 134.2,
+      high: 134.8,
+      low: 133.0,
+      close: 133.8,
+      volume: 22000000,
+      change: -0.4,
+      changePercent: -0.3,
+    },
+  ]
+
+  /**
+   * 載入指定日期範圍的 ETF 資料（Analytics 依期間切換時使用）
+   * FinMindService 內部已在 API 失敗時回退模擬資料，這裡不再額外打 checkAPIStatus 探測請求
+   */
+  const loadETFRange = async (startDate: string, endDate: string, force = false) => {
+    const seq = ++requestSeq.etf
     try {
       etfLoading.value = true
       etfError.value = null
 
-      const svc = await getFinMindService()
-
-      // 檢查API狀態
-      const apiStatus = await svc.checkAPIStatus()
-      if (!apiStatus) {
-        console.warn('FinMind API 無法連接，將使用備用數據')
-      }
-
-      // 計算日期範圍
-      const endDate = toLocalDateString(new Date())
-      const startDate = toLocalDateString(new Date(Date.now() - 30 * 24 * 60 * 60 * 1000))
-
+      let data: ETFData[] = []
       try {
-        const data = await svc.getETFData(startDate, endDate)
-
-        if (data.length > 0) {
-          etfData.value = data
-        } else {
-          throw new Error('沒有獲得ETF資料')
-        }
+        data = await runQuery(etfRangeQuery({ startDate, endDate }), force)
       } catch (apiError) {
         console.error('ETF 數據載入失敗:', apiError)
-        etfError.value = '無法載入ETF資料，使用測試數據'
-
-        // 使用測試數據
-        const testData: ETFData[] = [
-          {
-            date: '2024-01-15',
-            open: 132.0,
-            high: 134.0,
-            low: 131.0,
-            close: 133.5,
-            volume: 25000000,
-            change: 1.5,
-            changePercent: 1.13,
-          },
-          {
-            date: '2024-01-16',
-            open: 133.5,
-            high: 135.0,
-            low: 132.8,
-            close: 134.2,
-            volume: 28000000,
-            change: 0.7,
-            changePercent: 0.52,
-          },
-          {
-            date: '2024-01-17',
-            open: 134.2,
-            high: 134.8,
-            low: 133.0,
-            close: 133.8,
-            volume: 22000000,
-            change: -0.4,
-            changePercent: -0.3,
-          },
-        ]
-        console.log('DashboardStore - 使用測試數據:', testData)
-        etfData.value = testData
       }
-    } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : String(error)
-      console.error('載入ETF資料失敗:', errorMessage)
-      etfError.value = '載入ETF資料失敗'
-      throw error
+      if (seq !== requestSeq.etf) return
+
+      if (data.length > 0) {
+        etfData.value = data
+      } else {
+        etfError.value = '無法載入ETF資料，使用測試數據'
+        etfData.value = FALLBACK_ETF_DATA
+      }
     } finally {
-      etfLoading.value = false
+      if (seq === requestSeq.etf) etfLoading.value = false
     }
+  }
+
+  // 載入ETF資料（儀表板預設 30 天）
+  const loadETFData = (force = false) => {
+    const { startDate, endDate } = dateRangeFromToday(DASHBOARD_ETF_DAYS)
+    return loadETFRange(startDate, endDate, force)
   }
 
   // 載入所有資料
   const loadAllData = async (
     userProfile: UserProfileCompat | null = null,
-    date: Date = new Date()
+    date: Date = new Date(),
+    force = false
   ) => {
     try {
       loading.value = true
-
-      // 僅在日期改變時才清除快取，避免無謂的重複計算
-      if (date.getTime() !== currentDate.value.getTime()) {
-        const lunarSvc = await getLunarService()
-        lunarSvc.clearCache()
-        const fortuneSvc = await getIntegratedFortuneService()
-        fortuneSvc.clearCache()
-      }
+      // 查詢鍵已包含日期，切換日期自然命中不同快取，不需手動清除服務層快取
       currentDate.value = date
 
       // 並行載入所有資料
       await Promise.allSettled([
-        loadLunarData(date),
+        loadLunarData(date, force),
         userProfile
-          ? loadIntegratedFortune(userProfile, date).catch((error: unknown) => {
+          ? loadIntegratedFortune(userProfile, date, force).catch((error: unknown) => {
               // 如果整合運勢載入失敗，不影響其他資料的使用
               const errorMessage = error instanceof Error ? error.message : String(error)
               console.warn('整合運勢載入失敗，將僅使用農民曆資料:', errorMessage)
             })
           : Promise.resolve(),
-        loadETFData().catch((error: unknown) => {
+        loadETFData(force).catch((error: unknown) => {
           // ETF資料載入失敗也不影響其他功能
           const errorMessage = error instanceof Error ? error.message : String(error)
           console.warn('ETF資料載入失敗:', errorMessage)
@@ -326,10 +314,13 @@ export const useDashboardStore = defineStore('dashboard', () => {
     }
   }
 
-  // 重新整理資料
+  // 重新整理資料：略過 staleTime 強制重新抓取
   const refreshData = async (userProfile: UserProfileCompat | null = null) => {
-    return loadAllData(userProfile, currentDate.value)
+    return loadAllData(userProfile, currentDate.value, true)
   }
+
+  // 使所有運勢查詢失效（例如命理引擎設定變更後）
+  const invalidateFortune = () => queryCache.invalidateQueries({ key: queryKeys.fortune.root })
 
   // 設置日期並重新載入資料
   const setDateAndReload = async (userProfile: UserProfileCompat | null, date: Date) => {
@@ -361,13 +352,13 @@ export const useDashboardStore = defineStore('dashboard', () => {
   // 重試載入整合運勢
   const retryIntegratedFortune = (userProfile: UserProfileCompat | null) => {
     return userProfile
-      ? loadIntegratedFortune(userProfile, currentDate.value)
+      ? loadIntegratedFortune(userProfile, currentDate.value, true)
       : Promise.reject('無用戶資料')
   }
 
   // 重試載入ETF資料
   const retryETFData = () => {
-    return loadETFData()
+    return loadETFData(true)
   }
 
   return {
@@ -397,7 +388,9 @@ export const useDashboardStore = defineStore('dashboard', () => {
     loadLunarData,
     loadIntegratedFortune,
     loadETFData,
+    loadETFRange,
     loadAllData,
+    invalidateFortune,
     refreshData,
     setDateAndReload,
     setETFData,

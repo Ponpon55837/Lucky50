@@ -36,6 +36,8 @@ Keep this managed block so 'openspec update' can refresh the instructions.
 - **Step 10**: 引擎整合至核心 — registry 設定同步 localStorage，引擎加權分數融入 integratedFortune 投資/整體/財運分數，EngineSettingsCard 儲存觸發 Dashboard 即時重算，Profile 雙欄重構 ✅
 - **Step 11**: 引擎結果寫入歷史 + 運勢記錄卡片重設計 + Bug Fixes — `recordFortuneHistory()` 保存 enginesResults + engineWeightedScore，FortuneLogViewer mobile/desktop 卡片佈局全面翻新，修復 classic.ts 缺少 engineId 導致 Analytics 權重 0%，EngineSettingsCard 新增權重加總指示器 ✅
 
+- **Step 12**: 性能優化 — Pinia Colada 查詢快取（`src/queries/`），dashboard store 改用 query cache；`src/utils/indicators.ts` O(n) 技術指標（KD 單調佇列、Welford），修正 KD/MACD 計算、運勢快取鍵與 profileHash 碰撞、Dashboard listener 洩漏 ✅
+
 ## Routes
 
 | Path         | Name         | NavBar     |
@@ -55,9 +57,9 @@ Keep this managed block so 'openspec update' can refresh the instructions.
 
 ## Tests
 
-- 324 tests across 23 test files
-- Key: `fortuneStore.test.ts` (12), `fortuneLogViewer.test.ts` (8), `dashboard.test.ts` (18), `analytics.test.ts` (17), `user.test.ts` (15), `metaphysicsEngine.test.ts` (20)
+- 378 tests across 27 test files
+- Key: `fortuneStore.test.ts` (12), `fortuneLogViewer.test.ts` (8), `dashboard.test.ts` (18), `analytics.test.ts` (17), `user.test.ts` (15), `metaphysicsEngine.test.ts` (20), `indicators.test.ts` (11), `hash.test.ts` (3)
 
 ## Tech Stack
 
-Vue 3.5 + TypeScript 5.9 + Vite 8.1 + Pinia 3.0 + TailwindCSS 3.3 + Vitest 4.1
+Vue 3.5 + TypeScript 5.9 + Vite 8.1 + Pinia 3.0 + Pinia Colada 1.4 + TailwindCSS 3.3 + Vitest 4.1

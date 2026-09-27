@@ -18,6 +18,8 @@ interface ApiMonitorWindow {
 export class ApiCacheService {
   private static instance: ApiCacheService
   private cache = new Map<string, CacheItem>()
+  // 進行中的請求：同一 key 的並發呼叫共用同一個 Promise，避免重複打 API
+  private inflight = new Map<string, Promise<unknown>>()
   private defaultTTL = 5 * 60 * 1000 // 5分鐘預設過期時間
   private hits = 0
   private misses = 0
@@ -98,6 +100,7 @@ export class ApiCacheService {
    */
   clear(): void {
     this.cache.clear()
+    this.inflight.clear()
   }
 
   /**
@@ -153,10 +156,19 @@ export class ApiCacheService {
       return cached
     }
 
+    // 同 key 已有請求進行中 → 直接共用（single-flight）
+    const pending = this.inflight.get(key)
+    if (pending) return pending as Promise<T>
+
     // 快取不存在，執行 fetcher
-    const data = await fetcher()
-    this.set(key, data, ttl)
-    return data
+    const request = fetcher()
+      .then(data => {
+        this.set(key, data, ttl)
+        return data
+      })
+      .finally(() => this.inflight.delete(key))
+    this.inflight.set(key, request)
+    return request
   }
 
   /**

@@ -4,8 +4,7 @@ import { useDashboardStore } from '@/stores/dashboard'
 import { useAnalyticsStore } from '@/stores/analytics'
 import { useUserStore } from '@/stores/user'
 import { useTheme } from '@/composables/useTheme'
-import { FinMindService } from '@/services/finmind'
-import { toLocalDateString } from '@/utils/date'
+import { dateRangeFromToday } from '@/queries'
 import { metaphysicsRegistry } from '@/services/engines'
 
 // ── 元件 ──
@@ -106,22 +105,20 @@ const loadAnalyticsData = async () => {
   loading.value = true
 
   try {
-    const endDate = toLocalDateString(new Date())
-    const days = analyticsStore.getPeriodDays(selectedPeriod.value)
-    const startDate = toLocalDateString(new Date(Date.now() - days * 24 * 60 * 60 * 1000))
+    const { startDate, endDate } = dateRangeFromToday(
+      analyticsStore.getPeriodDays(selectedPeriod.value)
+    )
 
-    const etfData = await FinMindService.getETFData(startDate, endDate)
-    dashboardStore.setETFData(etfData)
-
+    // 三者互不相依，並行載入；皆經 Pinia Colada 快取，從 Dashboard 切換過來時直接命中
     const userStore = useUserStore()
-    if (userStore.profile) {
-      await Promise.allSettled([
-        dashboardStore.loadLunarData(new Date()),
-        dashboardStore.loadIntegratedFortune(userStore.profile, new Date()),
-      ])
-    } else {
-      await dashboardStore.loadLunarData(new Date())
-    }
+    const today = new Date()
+    await Promise.allSettled([
+      dashboardStore.loadETFRange(startDate, endDate),
+      dashboardStore.loadLunarData(today),
+      userStore.isProfileComplete
+        ? dashboardStore.loadIntegratedFortune(userStore.profile, today)
+        : Promise.resolve(),
+    ])
   } catch (err) {
     console.error('Analytics 數據載入失敗:', err)
     error.value = '數據載入失敗'
