@@ -210,3 +210,32 @@ describe('CacheKeyGenerator', () => {
     expect(key).toBe('market_status_2024-10-10')
   })
 })
+
+describe('ApiCacheService single-flight', () => {
+  it('同 key 並發呼叫只執行一次 fetcher', async () => {
+    const { apiCache } = await import('@/services/apiCache')
+    apiCache.clear()
+    let calls = 0
+    const fetcher = () =>
+      new Promise<number>(resolve => {
+        calls++
+        setTimeout(() => resolve(42), 5)
+      })
+    const [a, b, c] = await Promise.all([
+      apiCache.cached('sf-key', fetcher),
+      apiCache.cached('sf-key', fetcher),
+      apiCache.cached('sf-key', fetcher),
+    ])
+    expect([a, b, c]).toEqual([42, 42, 42])
+    expect(calls).toBe(1)
+  })
+
+  it('fetcher 失敗後不殘留進行中請求，可重試', async () => {
+    const { apiCache } = await import('@/services/apiCache')
+    apiCache.clear()
+    await expect(apiCache.cached('sf-fail', () => Promise.reject(new Error('x')))).rejects.toThrow(
+      'x'
+    )
+    await expect(apiCache.cached('sf-fail', () => Promise.resolve(1))).resolves.toBe(1)
+  })
+})

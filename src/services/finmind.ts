@@ -3,6 +3,7 @@ import type { AxiosError, InternalAxiosRequestConfig } from 'axios'
 import type { ETFData, FinMindDataItem } from '@/types'
 import { apiCache, CacheKeyGenerator } from './apiCache'
 import { toLocalDateString } from '@/utils/date'
+import { isSortedByDate } from '@/utils/indicators'
 
 // API 監控介面
 interface ApiMonitor {
@@ -134,7 +135,7 @@ export class FinMindService {
       currentDate.setDate(currentDate.getDate() + 1)
     }
 
-    return mockData.reverse() // 最新日期在前
+    return mockData // 與 API 一致：依日期遞增，最新一筆在陣列尾端
   }
 
   /**
@@ -188,6 +189,11 @@ export class FinMindService {
               100,
           }))
 
+          // API 通常已依日期遞增；保險起見 O(n) 檢查，亂序時才排序
+          if (!isSortedByDate(formattedData)) {
+            formattedData.sort((a: ETFData, b: ETFData) => (a.date < b.date ? -1 : 1))
+          }
+
           console.log('FinMind - 格式化數據:', formattedData.length, '筆')
           return formattedData
         },
@@ -215,8 +221,8 @@ export class FinMindService {
       const weekAgo = toLocalDateString(yesterday)
 
       const data = await this.getETFData(weekAgo, today)
-      // 返回最新的數據
-      return data.length > 0 ? data[0] : null
+      // 資料依日期遞增，最新一筆在尾端
+      return data.length > 0 ? data[data.length - 1] : null
     } catch (error) {
       console.error('取得即時價格失敗:', error)
 

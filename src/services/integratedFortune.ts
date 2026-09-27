@@ -4,6 +4,7 @@ import { lunarService } from '@/services/lunar'
 import { TaiwanStockService } from './taiwanStock'
 import { fortuneHistoryStore } from '@/services/fortuneStore'
 import { toLocalDateString } from '@/utils/date'
+import { profileHash as hashProfile } from '@/utils/hash'
 import { metaphysicsRegistry } from './engines'
 import { ClassicFortuneEngine } from './engines/classic'
 import { BaziTenGodsEngine } from './engines/baziTenGods'
@@ -197,7 +198,8 @@ export class IntegratedFortuneService {
     profile: UserProfileCompat,
     date: Date = new Date()
   ): Promise<IntegratedFortuneData> {
-    const cacheKey = `${profile.birthDate}-${toLocalDateString(date)}`
+    // 鍵需涵蓋所有影響計算的欄位（姓名、時辰、姓名五行…），否則修改個人資料後會命中舊結果
+    const cacheKey = `${hashProfile(profile)}-${toLocalDateString(date)}`
 
     if (this.cache.has(cacheKey)) {
       return this.cache.get(cacheKey)!
@@ -807,8 +809,7 @@ export class IntegratedFortuneService {
     profile: UserProfileCompat,
     fortune: IntegratedFortuneData
   ): void {
-    const dateStr = profile.birthDate.replace(/-/g, '')
-    const profileHash = `${profile.name}_${dateStr}`.length.toString(36)
+    const profileHash = hashProfile(profile)
 
     // 將引擎結果轉為精簡摘要存入歷史（含權重）
     const enginesResults = fortune.enginesResults?.map(r => ({

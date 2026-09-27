@@ -73,7 +73,7 @@ export default defineConfig({
     rollupOptions: {
       output: {
         manualChunks(id: string) {
-          if (id.includes('node_modules/vue') || id.includes('node_modules/vue-router') || id.includes('node_modules/pinia')) {
+          if (id.includes('node_modules/vue') || id.includes('node_modules/vue-router') || id.includes('node_modules/pinia') || id.includes('node_modules/@pinia/colada')) {
             return 'vue-vendor'
           }
           if (id.includes('node_modules/three') || id.includes('node_modules/@tweenjs')) {

@@ -1,6 +1,22 @@
 import { defineStore } from 'pinia'
 import { shallowRef } from 'vue'
 import type { ETFData, BacktestResults } from '@/types'
+import {
+  isSortedByDate,
+  dailyReturns,
+  meanAndVariance,
+  maxDrawdown as calcMaxDrawdown,
+  bucketReturns,
+  rsi as calcRsi,
+  macd as calcMacd,
+  bollingerPosition,
+  stochasticKD,
+} from '@/utils/indicators'
+
+// 0050 於 2025/6/18 進行 1 拆 4；ISO 日期字串可直接字典序比較，省去每筆 new Date()
+const SPLIT_DATE = '2025-06-18'
+const SPLIT_RATIO = 4
+const BACKTEST_TTL = 60 * 60 * 1000
 
 // 回測結果緩存類型
 interface BacktestCache {
@@ -21,19 +37,8 @@ export const useAnalyticsStore = defineStore('analytics', () => {
   // 針對同一份 etfData 各自呼叫 getAdjustedEtfData，沒有緩存會造成重複排序/映射
   let adjustedEtfDataCache: { hash: string; data: ETFData[] } | null = null
 
-  // 共用的每日報酬率計算函數（消除 DRY 違規）
-  const calculateDailyReturns = (data: ETFData[]): number[] => {
-    return data.slice(1).reduce((acc: number[], item: ETFData, index: number) => {
-      const prevItem = data[index]
-      if (prevItem && prevItem.close && item.close && prevItem.close > 0) {
-        const returnRate = ((item.close - prevItem.close) / prevItem.close) * 100
-        if (isFinite(returnRate) && !isNaN(returnRate)) {
-          acc.push(returnRate)
-        }
-      }
-      return acc
-    }, [])
-  }
+  // 共用的每日報酬率計算函數（單次掃描）
+  const calculateDailyReturns = dailyReturns
 
   // 根據時間段獲取天數
   const getPeriodDays = (period: string) => {
@@ -67,19 +72,12 @@ export const useAnalyticsStore = defineStore('analytics', () => {
     return hash.toString()
   }
 
-  // 清理過期緩存
+  // 清理過期緩存（Map 迭代中刪除當前鍵是安全的，不需額外陣列）
   const cleanExpiredCache = () => {
     const now = Date.now()
-    const expiredKeys: string[] = []
-
-    backtestCache.forEach((cache, key) => {
-      // 緩存 1 小時過期
-      if (now - cache.timestamp > 60 * 60 * 1000) {
-        expiredKeys.push(key)
-      }
-    })
-
-    expiredKeys.forEach(key => backtestCache.delete(key))
+    for (const [key, cache] of backtestCache) {
+      if (now - cache.timestamp > BACKTEST_TTL) backtestCache.delete(key)
+    }
   }
 
   // 調整ETF數據以處理股票分拆
@@ -93,30 +91,25 @@ export const useAnalyticsStore = defineStore('analytics', () => {
       return adjustedEtfDataCache.data
     }
 
-    // 使用複本排序，避免直接 mutate 傳入的 store 陣列
-    const data = [...etfData].sort(
-      (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
+    // 資料多半已依日期排序：先 O(n) 檢查，只有亂序時才付出 O(n log n) 排序成本
+    // （複本排序避免 mutate 傳入的 store 陣列）
+    const data = isSortedByDate(etfData)
+      ? etfData
+      : [...etfData].sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0))
+
+    // 分拆前的價格除以分拆比例、成交量乘以比例，以保持連續性
+    const result = data.map((item: ETFData) =>
+      item.date < SPLIT_DATE
+        ? {
+            ...item,
+            open: item.open / SPLIT_RATIO,
+            high: item.high / SPLIT_RATIO,
+            low: item.low / SPLIT_RATIO,
+            close: item.close / SPLIT_RATIO,
+            volume: item.volume * SPLIT_RATIO,
+          }
+        : item
     )
-
-    // 2025/6/18 0050 進行 1 拆 4，調整歷史價格以保持連續性
-    const splitDate = new Date('2025-06-18')
-    const splitRatio = 4
-
-    const result = data.map((item: ETFData) => {
-      const itemDate = new Date(item.date)
-      if (itemDate < splitDate) {
-        // 分拆前的價格需要除以分拆比例來調整
-        return {
-          ...item,
-          open: item.open / splitRatio,
-          high: item.high / splitRatio,
-          low: item.low / splitRatio,
-          close: item.close / splitRatio,
-          volume: item.volume * splitRatio, // 成交量相應增加
-        }
-      }
-      return item
-    })
 
     adjustedEtfDataCache = { hash, data: result }
     return result
@@ -204,24 +197,16 @@ export const useAnalyticsStore = defineStore('analytics', () => {
       }
     }
 
-    const avgReturn = returns.reduce((sum: number, r: number) => sum + r, 0) / returns.length
-    const variance =
-      returns.reduce((sum: number, r: number) => sum + Math.pow(r - avgReturn, 2), 0) /
-      returns.length
+    // Welford 單次掃描求變異數
+    const { variance } = meanAndVariance(returns)
     const volatility = Math.sqrt(variance) * Math.sqrt(252) // 年化波動率
 
     // 夏普比率（假設無風險利率為 2%）
     const riskFreeRate = 2
     const sharpeRatio = volatility > 0 ? (annualReturn - riskFreeRate) / volatility : 0
 
-    // 最大回撤
-    let maxDrawdown = 0
-    let peak = adjustedData[0]?.close || 0
-    adjustedData.forEach((item: ETFData) => {
-      if (item.close > peak) peak = item.close
-      const drawdown = peak > 0 ? ((peak - item.close) / peak) * 100 : 0
-      if (drawdown > maxDrawdown) maxDrawdown = drawdown
-    })
+    // 最大回撤（單次掃描維護歷史高點）
+    const maxDrawdown = calcMaxDrawdown(adjustedData)
 
     return {
       annualReturn: Number(annualReturn.toFixed(1)),
@@ -255,18 +240,15 @@ export const useAnalyticsStore = defineStore('analytics', () => {
       }
     }
 
-    const positiveReturns = returns.filter((r: number) => r > 0.5).length
-    const smallPositive = returns.filter((r: number) => r > 0 && r <= 0.5).length
-    const negativeReturns = returns.filter((r: number) => r < -0.5).length
-    const smallNegative = returns.filter((r: number) => r >= -0.5 && r <= 0).length
-
+    // 單次掃描分桶，取代四次 filter
+    const buckets = bucketReturns(returns)
     const total = returns.length || 1
 
     return {
-      excellent: Math.round((positiveReturns / total) * 100),
-      good: Math.round((smallPositive / total) * 100),
-      average: Math.round((smallNegative / total) * 100),
-      poor: Math.round((negativeReturns / total) * 100),
+      excellent: Math.round((buckets.excellent / total) * 100),
+      good: Math.round((buckets.good / total) * 100),
+      average: Math.round((buckets.average / total) * 100),
+      poor: Math.round((buckets.poor / total) * 100),
     }
   }
 
@@ -283,9 +265,10 @@ export const useAnalyticsStore = defineStore('analytics', () => {
       }
     }
 
-    const prices = adjustedData
-      .map((item: ETFData) => item.close)
-      .filter((price): price is number => typeof price === 'number' && !isNaN(price))
+    const prices: number[] = []
+    for (const item of adjustedData) {
+      if (typeof item.close === 'number' && !isNaN(item.close)) prices.push(item.close)
+    }
 
     if (prices.length < 14) {
       return {
@@ -296,46 +279,11 @@ export const useAnalyticsStore = defineStore('analytics', () => {
       }
     }
 
-    // RSI 簡化計算
-    const recentPrices = prices.slice(-14)
-    const gains = recentPrices
-      .slice(1)
-      .map((price: number, i: number) => Math.max(0, price - recentPrices[i]))
-    const losses = recentPrices
-      .slice(1)
-      .map((price: number, i: number) => Math.max(0, recentPrices[i] - price))
-    const avgGain = gains.reduce((sum: number, gain: number) => sum + gain, 0) / gains.length
-    const avgLoss = losses.reduce((sum: number, loss: number) => sum + loss, 0) / losses.length
-    const rsi = avgLoss > 0 ? 100 - 100 / (1 + avgGain / avgLoss) : 100
-
-    // MACD 簡化計算
-    const ema12 = prices.slice(-12).reduce((sum: number, price: number) => sum + price, 0) / 12
-    const ema26 = prices.slice(-26).reduce((sum: number, price: number) => sum + price, 0) / 26
-    const macd = ema12 - ema26
-
-    // 布林通道
-    const ma20 = prices.slice(-20).reduce((sum: number, price: number) => sum + price, 0) / 20
-    const std = Math.sqrt(
-      prices.slice(-20).reduce((sum: number, price: number) => sum + Math.pow(price - ma20, 2), 0) /
-        20
-    )
-    const upperBand = ma20 + 2 * std
-    const lowerBand = ma20 - 2 * std
-    const currentPrice = prices[prices.length - 1]
-    let bollingerBand = '中軌'
-    if (currentPrice > upperBand) bollingerBand = 'upper'
-    else if (currentPrice < lowerBand) bollingerBand = 'lower'
-
-    // KD 簡化計算
-    const recentData = adjustedData.slice(-9)
-    const highs = recentData.map((item: ETFData) => item.high)
-    const lows = recentData.map((item: ETFData) => item.low)
-    const closes = recentData.map((item: ETFData) => item.close)
-
-    const highestHigh = Math.max(...highs)
-    const lowestLow = Math.min(...lows)
-    const k = ((currentPrice - lowestLow) / (highestHigh - lowestLow)) * 100
-    const d = closes.slice(-3).reduce((sum: number, price: number) => sum + price, 0) / 3
+    // 各指標皆為 O(n) 單次掃描；KD 使用單調佇列求滑動視窗極值
+    const rsi = calcRsi(prices, 14)
+    const macd = calcMacd(prices)
+    const bollingerBand = bollingerPosition(prices, 20, 2)
+    const { k, d } = stochasticKD(adjustedData, 9)
 
     return {
       rsi: Math.round(rsi * 10) / 10,
@@ -419,10 +367,10 @@ export const useAnalyticsStore = defineStore('analytics', () => {
         : 1
 
     // 計算歷史勝率（基於正報酬日數）- 改進計算
-    const dailyReturns = calculateDailyReturns(adjustedData)
-    const positiveReturnDays = dailyReturns.filter(r => r > 0).length
-    const baseWinRate =
-      dailyReturns.length > 0 ? (positiveReturnDays / dailyReturns.length) * 100 : 60
+    const returns = calculateDailyReturns(adjustedData)
+    let positiveReturnDays = 0
+    for (const r of returns) if (r > 0) positiveReturnDays++
+    const baseWinRate = returns.length > 0 ? (positiveReturnDays / returns.length) * 100 : 60
 
     // 農民曆智慧策略（基於運勢指示優化）
     const lunarStrategy = {

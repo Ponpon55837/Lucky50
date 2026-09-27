@@ -1,5 +1,34 @@
 # Changelog
 
+## [2026-09-27] 性能優化：Pinia Colada 查詢快取 + O(n) 演算法
+
+### Pinia Colada (`src/queries/index.ts`, `src/stores/dashboard.ts`, `src/main.ts`)
+
+- 新增 `@pinia/colada`，ETF 行情 / 農民曆 / 整合運勢改由 query cache 管理
+- 查詢鍵：`['etf','0050',start,end]`、`['lunar',day]`、`['fortune',profileHash,day,enginesHash]`
+- Dashboard ↔ Analytics 切換命中快取；同 key 並發請求去重；`force` 參數強制重抓
+- 新增 `loadETFRange()`、`invalidateFortune()`；Analytics 不再直接呼叫 FinMindService
+- 以請求序號避免舊回應覆蓋新資料；移除多餘的 `checkAPIStatus()` 探測請求
+
+### 演算法 (`src/utils/indicators.ts`, `src/stores/analytics.ts`)
+
+- KD 指標改為正確的 9-3-3 計算（原 D 值誤用收盤均價），單調佇列 O(n) 求滑動極值
+- MACD 改用真正 EMA；波動率改 Welford 單次掃描；分佈/RSI/布林/回撤皆單次掃描
+- 排序前先 O(n) 檢查；分拆日期改 ISO 字串比較
+
+### Bug Fix
+
+- `IntegratedFortuneService` 快取鍵只含出生日期 → 改為完整個人資料雜湊
+- 歷史記錄 `userProfileHash` 誤用字串長度 → 改 FNV-1a (`src/utils/hash.ts`)
+- Dashboard `engine-settings-changed` 監聽未移除造成累積
+- FinMind 模擬資料反序導致最新價格取錯；`getRealTimePrice()` 取最新一筆
+- `apiCache.cached()` 加入 single-flight
+
+### Tests
+
+- 新增 `indicators.test.ts`（含 KD 暴力解對照）、`hash.test.ts`、Colada 快取與 single-flight 測試
+- 27 個測試檔、378 個測試全數通過
+
 ## [2026-07-11] 引擎結果寫入歷史 + 運勢記錄卡片重設計 + 修復
 
 ### Bug Fix: classic.ts 缺少 engineId

@@ -22,6 +22,7 @@
 - **0050 ETF 專注** - 專門針對台灣最具代表性的 ETF 提供分析
 - **現代化界面** - 響應式設計，支援多裝置使用
 - **統一錯誤處理** - 完整的錯誤處理系統，提供友善的錯誤提示與恢復機制
+- **Pinia Colada 資料快取** - 行情、農民曆、運勢統一由 query cache 管理，跨頁面切換零重複請求
 
 ## 🔮 命理引擎系統
 
@@ -63,7 +64,62 @@ registry.register(new FengShuiEngine())
 - 調整各引擎權重（0-100%）
 - 設定儲存至 localStorage
 
-## � 快速開始
+## ⚡ 性能優化與資料層
+
+### Pinia Colada 查詢快取
+
+所有非同步資料皆透過 [Pinia Colada](https://pinia-colada.esm.dev/) 管理（`src/queries/index.ts`），`useDashboardStore` 只保存畫面所需的衍生狀態，對外 API 維持不變。
+
+| 查詢                     | Key                                          | staleTime | 說明                                       |
+| ------------------------ | -------------------------------------------- | --------- | ------------------------------------------ |
+| `etfRangeQuery`          | `['etf', '0050', start, end]`                | 10 分鐘   | FinMind 行情；Dashboard 與 Analytics 共用  |
+| `lunarDayQuery`          | `['lunar', 'YYYY-MM-DD']`                    | ∞         | 同一天結果固定，永不過期                   |
+| `integratedFortuneQuery` | `['fortune', profileHash, day, enginesHash]` | 30 分鐘   | 個人資料或引擎設定變動 → 鍵改變 → 自動重算 |
+
+- **跨頁共用**：Dashboard → Analytics（1 個月）完全命中快取，不再重打 API
+- **並發去重**：同 key 同時發起的請求只會執行一次；`apiCache.cached()` 亦加入 single-flight
+- **強制重新整理**：`refreshData()` / `retry*()` 以 `force=true` 略過 staleTime
+- **失效**：`dashboardStore.invalidateFortune()` 會使 `['fortune']` 下所有查詢失效
+- **競態保護**：每類資源以請求序號只採用最後一次回應，快速切換日期/期間不會被舊資料覆蓋
+- 移除每次載入行情前多打一次的 `checkAPIStatus()` 探測請求
+
+```typescript
+import { useQuery } from '@pinia/colada'
+import { etfRangeQuery, dateRangeFromToday } from '@/queries'
+
+// 在元件中直接使用（自動快取、去重、loading/error 狀態）
+const { data, isLoading } = useQuery(etfRangeQuery(dateRangeFromToday(90)))
+```
+
+### 演算法優化（`src/utils/indicators.ts`）
+
+技術指標與統計皆改為單次線性掃描的純函數，並附暴力解對照測試：
+
+| 計算     | 原實作                         | 優化後                                                |
+| -------- | ------------------------------ | ----------------------------------------------------- |
+| KD 指標  | D 值誤用收盤均價（非 0–100）   | 9-3-3 KD，單調雙端佇列求滑動極值 O(n)（LeetCode 239） |
+| 波動率   | 兩次 reduce                    | Welford 線上演算法，單次掃描、數值穩定                |
+| 最大回撤 | forEach                        | 單次掃描維護歷史高點（LeetCode 121 同型）             |
+| 報酬分佈 | 4 次 filter                    | 單次掃描分桶                                          |
+| RSI      | 2 次 map + 2 次 reduce         | 單次掃描累加漲跌                                      |
+| MACD     | SMA 且資料不足 26 筆時除數錯誤 | 真正的 EMA12 − EMA26                                  |
+| 布林通道 | 兩次 reduce                    | 累加和與平方和一次求得                                |
+| 日期排序 | 每次 `new Date()` 比較後排序   | 先 O(n) 檢查是否已排序，ISO 字串直接比較              |
+
+### 快取鍵修正（`src/utils/hash.ts`）
+
+- 新增 FNV-1a 32-bit 雜湊與 `profileHash()`
+- 修正 `IntegratedFortuneService` 快取鍵只含出生日期 → 修改姓名/時辰後仍拿到舊結果的問題
+- 修正歷史記錄 `userProfileHash` 誤用「字串長度」作為雜湊 → 同長度姓名互相碰撞、被錯誤去重
+
+### 其他
+
+- Dashboard 離開頁面時移除 `engine-settings-changed` 監聽（原本每次進入累積一個）
+- FinMind 備援模擬資料改為日期遞增，與 API 一致（原本反序導致最新價格取錯筆）
+- Analytics 頁面行情/農民曆/運勢三者並行載入，未完成個人資料時不再觸發必定失敗的運勢計算
+- `@pinia/colada` 併入 `vue-vendor` chunk
+
+## 🚀 快速開始
 
 ### 環境要求
 
@@ -98,12 +154,23 @@ pnpm build
 pnpm preview
 ```
 
-## �🛠 技術架構
+### 測試
+
+```bash
+# 執行所有測試
+pnpm test:run
+
+# 產生覆蓋率報告
+pnpm test:coverage
+```
+
+## 🛠 技術架構
 
 ### 前端技術棧
 
 - **Vue.js 3** + **TypeScript** - 現代化前端框架
 - **Pinia** - Vue 3 官方推薦的狀態管理
+- **Pinia Colada** - 非同步資料查詢快取（去重、staleTime、失效）
 - **Vue Router** - 單頁應用路由管理
 - **TailwindCSS** - 快速響應式設計
 - **Three.js** - 3D 可視化效果
@@ -233,6 +300,8 @@ Lucky50/
 │   │   ├── useTheme.ts         # 主題切換
 │   │   ├── useToast.ts         # Toast 通知
 │   │   └── useErrorHandler.ts  # 錯誤處理
+│   ├── queries/         # Pinia Colada 查詢定義
+│   │   └── index.ts             # queryKeys、etf/lunar/fortune 查詢
 │   ├── services/        # 服務層
 │   │   ├── engines/            # 命理引擎系統
 │   │   │   ├── types.ts        # 引擎介面定義
@@ -257,6 +326,8 @@ Lucky50/
 │   ├── utils/           # 工具函數
 │   │   ├── tenGods.ts           # 十神計算工具
 │   │   ├── zodiac.ts            # 生肖/五行計算
+│   │   ├── indicators.ts        # O(n) 技術指標與統計演算法
+│   │   ├── hash.ts              # FNV-1a 雜湊 / 個人資料鍵
 │   │   └── date.ts              # 日期工具
 │   ├── types/           # TypeScript 類型定義
 │   │   ├── index.ts             # 主要類型定義
@@ -270,7 +341,7 @@ Lucky50/
 │   │   └── dev/                 # 開發工具頁面
 │   │       ├── PerformanceMonitor.vue
 │   │       └── ApiMonitor.vue
-│   ├── tests/           # 單元測試（23 個測試檔，324 個測試）
+│   ├── tests/           # 單元測試（27 個測試檔，378 個測試）
 │   └── router/          # 路由配置
 ├── .github/
 │   └── copilot-instructions.md # GitHub Copilot 指引

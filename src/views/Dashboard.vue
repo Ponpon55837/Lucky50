@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, watch, onMounted, defineAsyncComponent } from 'vue'
+import { computed, watch, onMounted, onUnmounted, defineAsyncComponent } from 'vue'
 import { useUserStore } from '@/stores/user'
 import { useDashboardStore } from '@/stores/dashboard'
 import { useTheme } from '@/composables/useTheme'
@@ -70,17 +70,23 @@ watch(userProfileCompat, newProfile => {
   }
 })
 
+// 命理引擎設定變更：使運勢查詢失效並重新載入
+const onSettingsChanged = () => {
+  dashboardStore.invalidateFortune()
+  if (userProfileCompat.value) {
+    dashboardStore.loadIntegratedFortune(userProfileCompat.value, dashboardStore.currentDate, true)
+  }
+}
+
 // ── 生命週期 ──
 onMounted(() => {
   dashboardStore.loadAllData(userProfileCompat.value)
-
-  // 監聽命理引擎設定變更，重新載入運勢資料
-  const onSettingsChanged = () => {
-    if (userProfileCompat.value) {
-      dashboardStore.refreshData(userProfileCompat.value)
-    }
-  }
   window.addEventListener('engine-settings-changed', onSettingsChanged)
+})
+
+// 離開頁面時移除監聽，避免每次進入 Dashboard 累積一個 listener
+onUnmounted(() => {
+  window.removeEventListener('engine-settings-changed', onSettingsChanged)
 })
 </script>
 
