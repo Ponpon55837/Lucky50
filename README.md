@@ -124,7 +124,7 @@ const { data, isLoading } = useQuery(etfRangeQuery(dateRangeFromToday(90)))
 ### 環境要求
 
 - Node.js 18+
-- pnpm 包管理器
+- pnpm 12.8.1（專案透過 `packageManager` 固定版本）
 
 ### 安裝與啟動
 
