@@ -2,7 +2,6 @@
   "name": "lucky50-investment",
   "version": "1.0.0",
   "type": "module",
-  "packageManager": "pnpm@12.8.1",
   "description": "農民曆智慧投資 - 0050 ETF 投資建議系統",
   "scripts": {
     "dev": "vite",
