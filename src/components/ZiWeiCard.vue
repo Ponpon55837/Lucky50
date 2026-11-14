@@ -9,7 +9,10 @@ interface PalaceDetail {
   name: string
   ganZhi: string
   stars: string[]
+  starLabels: string[]
   borrowed: boolean
+  assistStars: string[]
+  minorStars: string[]
   transformations: string[]
 }
 
@@ -43,7 +46,9 @@ const state = useEngineResult(
       energy: energyWord(raw.score),
       palaces: details.palaces.map(palace => ({
         name: palace.name,
-        stars: `${palace.borrowed ? '借' : ''}${palace.stars.join('、') || '—'}`,
+        stars: `${palace.borrowed ? '借' : ''}${palace.starLabels.join('、') || '—'}`,
+        assistStars: palace.assistStars.join('、'),
+        minorStars: palace.minorStars.join('、'),
         transformations: palace.transformations.join('、'),
       })),
     }
@@ -76,11 +81,23 @@ const state = useEngineResult(
         <li
           v-for="palace in state.result.palaces"
           :key="palace.name"
-          class="grid grid-cols-[56px_minmax(0,1fr)_auto] gap-2"
+          class="grid grid-cols-[56px_minmax(0,1fr)_auto] gap-x-2 gap-y-0.5"
         >
           <span class="text-ink-3">{{ palace.name }}</span>
-          <span class="truncate">{{ palace.stars }}</span>
+          <span>{{ palace.stars }}</span>
           <span class="text-ink-3">{{ palace.transformations }}</span>
+          <span
+            v-if="palace.assistStars"
+            class="col-start-2 col-end-4 text-[12px] text-ink-2"
+          >{{
+            palace.assistStars
+          }}</span>
+          <span
+            v-if="palace.minorStars"
+            class="col-start-2 col-end-4 text-[12px] text-ink-3"
+          >{{
+            palace.minorStars
+          }}</span>
         </li>
       </ul>
       <p
@@ -88,6 +105,9 @@ const state = useEngineResult(
         class="text-[13px] text-ink-2"
       >
         <span class="text-ink">風險傾向：</span>{{ state.result.riskProfile }}
+      </p>
+      <p class="text-[12px] text-ink-3">
+        括號內為星曜亮度：廟、旺最有力，得、利、平居中，不、陷最弱。
       </p>
     </template>
   </EngineCard>

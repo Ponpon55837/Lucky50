@@ -153,10 +153,66 @@ describe('ZiWeiEngine', () => {
         const wealth = (
           result.details as { palaces: Array<{ name: string; borrowed: boolean }> }
         ).palaces.find(palace => palace.name === '財帛宮')!
-        const seated = result.factors!.some(factor => factor.label.endsWith('坐財帛宮'))
+        const seated = result.factors!.some(
+          factor => factor.label.startsWith('財星') && factor.label.endsWith('坐財帛宮')
+        )
         if (wealth.borrowed) expect(seated).toBe(false)
       }
     }
+  })
+
+  it('四化依星曜亮度增減：廟旺的吉化加成、化忌減輕', () => {
+    const { factors } = engine.calculate(makeEngineInput(PIG_PROFILE, JIA_WU_DAY))
+    expect(factors).toEqual([
+      // 化祿 12 × 官祿 0.6 × 廟 1.25
+      { label: '生年天機（廟）化祿入官祿宮', delta: 9 },
+      // 化權 8 × 命宮 0.8 × 廟 1.25
+      { label: '生年天梁（廟）化權入命宮', delta: 8 },
+      // 化忌 −12 × 財帛 1 × 旺 0.75
+      { label: '生年太陰（旺）化忌入財帛宮', delta: -9 },
+      { label: '財星太陰（旺）坐財帛宮', delta: 6 },
+    ])
+  })
+
+  it.each([
+    ['1980-06-17', '財星武曲（廟）坐財帛宮', 6],
+    ['1980-05-03', '財星武曲（得）坐財帛宮', 3],
+    ['1980-04-17', '祿存坐財帛宮', 6],
+    ['1980-12-17', '祿存坐命宮', 4],
+    ['1980-02-17', '煞星火星（廟）坐財帛宮', -1],
+    ['1981-03-17', '煞星火星（利）坐財帛宮', -3],
+    ['1980-05-17', '煞星擎羊（陷）坐財帛宮', -4],
+    ['1980-03-17', '煞星地空坐財帛宮', -4],
+  ])('%s 生：%s（%i）', (birthDate, label, delta) => {
+    const { factors } = engine.calculate(makeEngineInput({ ...PIG_PROFILE, birthDate }))
+    expect(factors).toContainEqual({ label, delta })
+  })
+
+  it('失陷的財星坐財帛宮不加分', () => {
+    for (let year = 1980; year < 1992; year++) {
+      for (let month = 1; month <= 12; month++) {
+        const birthDate = `${year}-${String(month).padStart(2, '0')}-17`
+        const { factors } = engine.calculate(makeEngineInput({ ...PIG_PROFILE, birthDate }))
+        for (const factor of factors!) {
+          if (factor.label.startsWith('財星')) expect(factor.label).not.toMatch(/（[不陷]）/)
+        }
+      }
+    }
+  })
+
+  it('四宮列出主星亮度、輔星與雜曜', () => {
+    const { details } = engine.calculate(makeEngineInput())
+    const [life, wealth] = (
+      details as {
+        palaces: Array<{ starLabels: string[]; assistStars: string[]; minorStars: string[] }>
+      }
+    ).palaces
+    expect(life).toMatchObject({
+      starLabels: ['天同（利）', '天梁（廟）'],
+      assistStars: ['陀羅（陷）', '鈴星（廟）'],
+      minorStars: ['孤辰'],
+    })
+    expect(wealth.minorStars).toEqual(['天喜', '寡宿', '恩光', '台輔'])
   })
 
   it('同一張命盤重複計算結果一致', () => {
