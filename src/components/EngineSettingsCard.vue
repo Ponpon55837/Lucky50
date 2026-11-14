@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { Cog6ToothIcon } from '@heroicons/vue/24/outline'
-import { IntegratedFortuneService } from '@/services/integratedFortune'
+import { ENGINE_LIST, ENGINE_SETTINGS_STORAGE_KEY } from '@/services/engines/settings'
 
 interface EngineConfig {
   id: string
@@ -12,42 +12,16 @@ interface EngineConfig {
   defaultWeight: number
 }
 
-const STORAGE_KEY = 'lucky50-engine-settings'
-
-const engines = ref<EngineConfig[]>([
-  {
-    id: 'classic',
-    name: '經典命理',
-    description: '傳統五行、生肖、星座綜合運勢',
+const engines = ref<EngineConfig[]>(
+  ENGINE_LIST.map(meta => ({
+    id: meta.id,
+    name: meta.name,
+    description: meta.description,
     enabled: true,
-    weight: 30,
-    defaultWeight: 30,
-  },
-  {
-    id: 'bazi-ten-gods',
-    name: '八字十神',
-    description: '基於四柱的十神投資性格分析',
-    enabled: true,
-    weight: 25,
-    defaultWeight: 25,
-  },
-  {
-    id: 'zi-wei',
-    name: '紫微斗數',
-    description: '十四主星的簡化投資分析',
-    enabled: true,
-    weight: 20,
-    defaultWeight: 20,
-  },
-  {
-    id: 'feng-shui',
-    name: '風水方位',
-    description: '五行方位與流日吉凶分析',
-    enabled: true,
-    weight: 15,
-    defaultWeight: 15,
-  },
-])
+    weight: meta.defaultWeight,
+    defaultWeight: meta.defaultWeight,
+  }))
+)
 
 const saved = ref(false)
 
@@ -81,7 +55,7 @@ const weightStatus = computed(() => {
 
 function loadSettings() {
   try {
-    const stored = localStorage.getItem(STORAGE_KEY)
+    const stored = localStorage.getItem(ENGINE_SETTINGS_STORAGE_KEY)
     if (stored) {
       const parsed = JSON.parse(stored) as Record<string, { enabled: boolean; weight: number }>
       for (const engine of engines.value) {
@@ -101,12 +75,9 @@ function saveSettings() {
   for (const engine of engines.value) {
     settings[engine.id] = { enabled: engine.enabled, weight: engine.weight }
   }
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(settings))
+  localStorage.setItem(ENGINE_SETTINGS_STORAGE_KEY, JSON.stringify(settings))
 
-  // 清除運勢快取，下次載入時會使用新設定重新計算
-  IntegratedFortuneService.clearCache()
-
-  // 通知其他元件設定已變更
+  // 通知其他元件設定已變更；查詢鍵含設定指紋，運勢會自動重算
   window.dispatchEvent(new CustomEvent('engine-settings-changed'))
 
   saved.value = true

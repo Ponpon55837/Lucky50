@@ -184,21 +184,9 @@ export const useDashboardStore = defineStore('dashboard', () => {
       fortuneError.value = null
       currentDate.value = date
 
-      console.log('DashboardStore - 載入整合運勢資料，日期:', date.toLocaleDateString('zh-TW'))
-      console.log('DashboardStore - 用戶資料:', {
-        name: userProfile.name,
-        birthDate: userProfile.birthDate,
-        birthTime: userProfile.birthTime,
-      })
-
       const result = await runQuery(integratedFortuneQuery({ profile: userProfile, date }), force)
       if (seq !== requestSeq.fortune) return
       integratedFortune.value = result
-
-      console.log(
-        'DashboardStore - 整合運勢資料載入完成，投資分數:',
-        integratedFortune.value?.investmentScore
-      )
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : String(error)
       console.error('載入整合運勢資料失敗:', errorMessage)

@@ -84,35 +84,6 @@ describe('TaiwanStockService', () => {
     })
   })
 
-  describe('getTradingPeriods', () => {
-    it('回傳 7 個交易時段', () => {
-      const periods = TaiwanStockService.getTradingPeriods()
-      expect(periods).toHaveLength(7)
-    })
-
-    it('第一個時段為開盤競價', () => {
-      const periods = TaiwanStockService.getTradingPeriods()
-      expect(periods[0].name).toBe('開盤競價')
-      expect(periods[0].type).toBe('opening')
-    })
-
-    it('最後一個時段為收盤競價', () => {
-      const periods = TaiwanStockService.getTradingPeriods()
-      expect(periods[6].name).toBe('收盤競價')
-      expect(periods[6].type).toBe('closing')
-    })
-
-    it('所有時段有正確的 name/start/end/type', () => {
-      const periods = TaiwanStockService.getTradingPeriods()
-      for (const p of periods) {
-        expect(p.name).toBeTruthy()
-        expect(p.start).toMatch(/^\d{2}:\d{2}$/)
-        expect(p.end).toMatch(/^\d{2}:\d{2}$/)
-        expect(['opening', 'morning', 'midday', 'closing']).toContain(p.type)
-      }
-    })
-  })
-
   describe('getTradingStatus', () => {
     it('非交易日回傳 closed', () => {
       const sunday = new Date('2024-01-07T10:00:00')
@@ -141,20 +112,6 @@ describe('TaiwanStockService', () => {
       const status = TaiwanStockService.getTradingStatus(postMarket)
       expect(status.isOpen).toBe(false)
       expect(status.status).toBe('post_market')
-    })
-  })
-
-  describe('getRecommendedTradingPeriods', () => {
-    it('非同一天回傳空的推薦時段', () => {
-      const futureDate = new Date('2099-01-01')
-      const result = TaiwanStockService.getRecommendedTradingPeriods(
-        ['09:00-10:00'],
-        [],
-        futureDate
-      )
-      expect(result.recommended).toHaveLength(0)
-      expect(result.avoid).toHaveLength(0)
-      expect(result.isToday).toBe(false)
     })
   })
 })

@@ -142,8 +142,6 @@ export class FinMindService {
    * 取得 0050 ETF 歷史資料 (支援快取)
    */
   static async getETFData(startDate: string, endDate: string): Promise<ETFData[]> {
-    console.log('FinMind - 開始載入數據:', startDate, '到', endDate)
-
     // 生成快取鍵
     const cacheKey = CacheKeyGenerator.stock('0050', startDate, endDate)
 
@@ -161,8 +159,6 @@ export class FinMindService {
             },
           })
 
-          console.log('FinMind - API 回應:', response.data)
-
           // 檢查 API 回應狀態
           if (
             response.data.status !== 200 ||
@@ -171,7 +167,6 @@ export class FinMindService {
           ) {
             console.warn('FinMind API 無數據，使用備用模擬數據')
             const mockData = this.getMockETFData(startDate, endDate)
-            console.log('FinMind - 生成備用數據:', mockData.length, '筆')
             return mockData
           }
 
@@ -194,7 +189,6 @@ export class FinMindService {
             formattedData.sort((a: ETFData, b: ETFData) => (a.date < b.date ? -1 : 1))
           }
 
-          console.log('FinMind - 格式化數據:', formattedData.length, '筆')
           return formattedData
         },
         10 * 60 * 1000
@@ -205,7 +199,6 @@ export class FinMindService {
       // 無論什麼錯誤都使用備用數據
       console.warn('使用備用模擬數據替代')
       const mockData = this.getMockETFData(startDate, endDate)
-      console.log('FinMind - 錯誤後生成備用數據:', mockData.length, '筆')
       return mockData
     }
   }

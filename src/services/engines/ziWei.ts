@@ -1,294 +1,189 @@
-import type { MetaphysicsEngine, MetaphysicsResult } from './types'
-import type { UserProfileCompat } from '@/services/integratedFortune'
-import type { LunarData } from '@/services/lunar'
-import type { PersonalBaZi, ElementsEnergy } from '@/types'
+import { ELEMENT_LABEL, parseGanZhi, type Stem } from '@/utils/ganzhi'
+import {
+  PALACES,
+  buildZiWeiChart,
+  mainStarsOf,
+  transformationsOf,
+  type MainStar,
+  type Transformation,
+  type ZiWeiChart,
+} from '@/utils/ziwei'
+import type { RiskLevel, ScoreFactor } from '@/utils/almanac'
+import { BaseEngine, describeFactor } from './base'
+import { ENGINE_CATALOG } from './settings'
+import type { BirthChart } from './birthChart'
+import type { EngineInput, MetaphysicsResult } from './types'
 
-// 14 主星
-export type ZiWeiStar =
-  | '紫微'
-  | '天機'
-  | '太陽'
-  | '武曲'
-  | '天同'
-  | '廉貞'
-  | '天府'
-  | '太陰'
-  | '貪狼'
-  | '巨門'
-  | '天相'
-  | '天梁'
-  | '七殺'
-  | '破軍'
-
-// 三星宮位
-export type ZiWeiPalace = '命宮' | '財帛宮' | '事業宮'
-
-// 星曜投資屬性
-const STAR_INVESTMENT_ATTRIBUTE: Record<
-  ZiWeiStar,
-  {
-    style: string
-    risk: 'low' | 'medium' | 'high'
-    strength: number
-  }
-> = {
-  紫微: { style: '領導決策型', risk: 'medium', strength: 90 },
-  天機: { style: '謀略規劃型', risk: 'low', strength: 70 },
-  太陽: { style: '積極外向型', risk: 'high', strength: 85 },
-  武曲: { style: '執行力強型', risk: 'medium', strength: 80 },
-  天同: { style: '穩健保守型', risk: 'low', strength: 60 },
-  廉貞: { style: '冒險突破型', risk: 'high', strength: 75 },
-  天府: { style: '穩健守成型', risk: 'low', strength: 85 },
-  太陰: { style: '細膩觀察型', risk: 'low', strength: 65 },
-  貪狼: { style: '多變靈活型', risk: 'high', strength: 80 },
-  巨門: { style: '分析批判型', risk: 'medium', strength: 70 },
-  天相: { style: '協調平衡型', risk: 'low', strength: 65 },
-  天梁: { style: '長線佈局型', risk: 'low', strength: 75 },
-  七殺: { style: '果斷行動型', risk: 'high', strength: 90 },
-  破軍: { style: '開創突破型', risk: 'high', strength: 85 },
+/** 十四主星的投資風格與風險傾向（星性的白話解讀，不參與計分） */
+const STAR_STYLE: Readonly<Record<MainStar, { style: string; risk: RiskLevel }>> = {
+  紫微: { style: '領導決策型', risk: 'medium' },
+  天機: { style: '謀略規劃型', risk: 'low' },
+  太陽: { style: '積極外向型', risk: 'high' },
+  武曲: { style: '執行力強型', risk: 'medium' },
+  天同: { style: '穩健保守型', risk: 'low' },
+  廉貞: { style: '冒險突破型', risk: 'high' },
+  天府: { style: '穩健守成型', risk: 'low' },
+  太陰: { style: '細膩觀察型', risk: 'low' },
+  貪狼: { style: '多變靈活型', risk: 'high' },
+  巨門: { style: '分析批判型', risk: 'medium' },
+  天相: { style: '協調平衡型', risk: 'low' },
+  天梁: { style: '長線佈局型', risk: 'low' },
+  七殺: { style: '果斷行動型', risk: 'high' },
+  破軍: { style: '開創突破型', risk: 'high' },
 }
 
-// 從生日計算紫微星位置（簡化版）
-// 使用農曆月日作為索引
-function calculateZiWeiPosition(lunarMonth: number, lunarDay: number): number {
-  // 簡化：以農曆月日計算紫微星在12宮中的位置
-  const total = lunarMonth * 2 + Math.floor(lunarDay / 15)
-  return total % 12
+const RISK_LABEL: Readonly<Record<RiskLevel, string>> = {
+  low: '低風險',
+  medium: '中風險',
+  high: '高風險',
 }
 
-// 根據紫微星位置推算14主星分佈
-function distributeStars(ziWeiPos: number): Record<ZiWeiPalace, ZiWeiStar[]> {
-  const allStars: ZiWeiStar[] = [
-    '紫微',
-    '天機',
-    '太陽',
-    '武曲',
-    '天同',
-    '廉貞',
-    '天府',
-    '太陰',
-    '貪狼',
-    '巨門',
-    '天相',
-    '天梁',
-    '七殺',
-    '破軍',
-  ]
+const LIFE = PALACES.indexOf('命宮')
+const WEALTH = PALACES.indexOf('財帛宮')
+const TRAVEL = PALACES.indexOf('遷移宮')
+const CAREER = PALACES.indexOf('官祿宮')
 
-  // 簡化分配：每宮分配3-5顆星
-  const palace: Record<ZiWeiPalace, ZiWeiStar[]> = {
-    命宮: [],
-    財帛宮: [],
-    事業宮: [],
-  }
+/** 三方四正對投資的影響比重：財帛最重，命宮、官祿、遷移遞減 */
+const PALACE_WEIGHT: ReadonlyMap<number, number> = new Map([
+  [WEALTH, 1],
+  [LIFE, 0.8],
+  [CAREER, 0.6],
+  [TRAVEL, 0.4],
+])
+const KEY_PALACES = [LIFE, WEALTH, CAREER, TRAVEL] as const
 
-  const palaces: ZiWeiPalace[] = ['命宮', '財帛宮', '事業宮']
-
-  for (let i = 0; i < allStars.length; i++) {
-    const palaceIdx = (ziWeiPos + i) % 3
-    palace[palaces[palaceIdx]].push(allStars[i])
-  }
-
-  return palace
+/** 四化的力量：本命四化是底色，流日四化是當天的引動 */
+const NATAL_DELTA: Readonly<Record<Transformation, number>> = {
+  化祿: 12,
+  化權: 8,
+  化科: 5,
+  化忌: -12,
+}
+const DAILY_DELTA: Readonly<Record<Transformation, number>> = {
+  化祿: 15,
+  化權: 8,
+  化科: 5,
+  化忌: -15,
 }
 
-// 計算宮位投資分數
-function calculatePalaceScore(
-  stars: ZiWeiStar[],
-  palaceType: ZiWeiPalace
-): { score: number; dominantStar: ZiWeiStar; risk: string } {
-  if (stars.length === 0) {
-    return { score: 50, dominantStar: '紫微', risk: 'medium' }
+/** 財星坐財帛宮 */
+const WEALTH_STARS: ReadonlySet<MainStar> = new Set(['武曲', '太陰', '天府'])
+const WEALTH_STAR_DELTA = 6
+
+function transformationFactors(
+  chart: ZiWeiChart,
+  stem: Stem,
+  source: string,
+  deltas: Readonly<Record<Transformation, number>>
+): ScoreFactor[] {
+  const factors: ScoreFactor[] = []
+  for (const { type, star, palaceIndex } of transformationsOf(chart, stem)) {
+    const weight = PALACE_WEIGHT.get(palaceIndex)
+    if (weight === undefined) continue
+    factors.push({
+      label: `${source}${star}${type}入${PALACES[palaceIndex]}`,
+      delta: Math.round(deltas[type] * weight),
+    })
   }
+  return factors
+}
 
-  // 計算平均強度
-  let totalStrength = 0
-  let dominantStar = stars[0]
-  let maxStrength = 0
-  let totalRisk = 0
+/** 本命盤與由它決定的加減項、宮位說明；與日期無關，同一張命盤只算一次 */
+interface NatalReading {
+  chart: ZiWeiChart
+  factors: readonly ScoreFactor[]
+  summary: string
+  personality: string | undefined
+  details: Record<string, unknown>
+}
 
-  for (const star of stars) {
-    const attr = STAR_INVESTMENT_ATTRIBUTE[star]
-    totalStrength += attr.strength
-    if (attr.strength > maxStrength) {
-      maxStrength = attr.strength
-      dominantStar = star
+function readNatal(birth: BirthChart): NatalReading {
+  const yearStem = birth.lunarYear.stem
+  const chart = buildZiWeiChart({
+    yearStem,
+    lunarMonth: birth.lunarMonth,
+    lunarDay: birth.lunarDay,
+    hourBranch: birth.hourBranch,
+  })
+
+  const natal = transformationsOf(chart, yearStem)
+  const factors = transformationFactors(chart, yearStem, '生年', NATAL_DELTA)
+  // 空宮借來的對宮主星不算坐守，不加分
+  const wealth = mainStarsOf(chart, WEALTH)
+  if (!wealth.borrowed) {
+    for (const star of wealth.stars) {
+      if (WEALTH_STARS.has(star)) {
+        factors.push({ label: `財星${star}坐財帛宮`, delta: WEALTH_STAR_DELTA })
+      }
     }
-    totalRisk += attr.risk === 'high' ? 2 : attr.risk === 'medium' ? 1 : 0
   }
 
-  const avgStrength = totalStrength / stars.length
-  const avgRisk = totalRisk / stars.length
-  const riskLabel = avgRisk >= 1.5 ? '高風險' : avgRisk >= 0.5 ? '中風險' : '低風險'
+  const palaces = KEY_PALACES.map(index => {
+    const palace = chart.palaces[index]
+    const { stars, borrowed } = mainStarsOf(chart, index)
+    return {
+      name: palace.name,
+      ganZhi: `${palace.stem}${palace.branch}`,
+      stars,
+      borrowed,
+      transformations: natal.filter(t => t.palaceIndex === index).map(t => `${t.star}${t.type}`),
+    }
+  })
 
-  // 根據宮位類型調整分數
-  let score = Math.round(avgStrength)
-  if (palaceType === '財帛宮') {
-    score = Math.round(score * 1.1) // 財帛宮加成
-  } else if (palaceType === '事業宮') {
-    score = Math.round(score * 0.9) // 事業宮稍微保守
-  }
+  const life = palaces[0]
+  const style = life.stars[0] ? STAR_STYLE[life.stars[0]] : null
+  const bureau = `${ELEMENT_LABEL[chart.bureau.element]}${'〇一二三四五六'[chart.bureau.number]}局`
+  const lifeText = life.stars.length > 0 ? life.stars.join('、') : '無主星'
 
   return {
-    score: Math.min(100, Math.max(0, score)),
-    dominantStar,
-    risk: riskLabel,
+    chart,
+    factors,
+    summary: `${bureau}，命宮${life.ganZhi}，${life.borrowed ? '命無正曜，借對宮' : '主星'}${lifeText}`,
+    personality: style?.style,
+    details: {
+      bureau,
+      lifeStars: life.stars,
+      lifeBorrowed: life.borrowed,
+      investmentStyle: style?.style ?? '',
+      riskProfile: style ? RISK_LABEL[style.risk] : '',
+      palaces,
+    },
   }
 }
 
-export class ZiWeiEngine implements MetaphysicsEngine {
-  readonly engineId = 'zi-wei'
-  readonly name = '紫微斗數'
-  readonly description = '基於紫微斗數十四主星的簡化投資分析'
-  readonly version = '1.0.0'
+/** 紫微斗數：排出本命盤，以本命與流日四化落入命、財、官、遷的情形評分 */
+export class ZiWeiEngine extends BaseEngine {
+  constructor() {
+    super(ENGINE_CATALOG.ziWei)
+  }
 
-  private enabled = true
-  private weight = 20
+  /** 命盤物件由 buildBirthChart 共用，以它為鍵；命盤被回收時這裡跟著釋放 */
+  private natalCache = new WeakMap<BirthChart, NatalReading>()
 
-  calculate(
-    _profile: UserProfileCompat,
-    _date: Date,
-    lunarData: LunarData,
-    _personalBaZi: PersonalBaZi,
-    _elements: ElementsEnergy
-  ): MetaphysicsResult {
-    // 解析農曆月日
-    const lunarMonth = this.parseLunarMonth(lunarData.lunarMonth)
-    const lunarDay = this.parseLunarDay(lunarData.lunarDay)
-
-    const ziWeiPos = calculateZiWeiPosition(lunarMonth, lunarDay)
-    const palaces = distributeStars(ziWeiPos)
-
-    const lifeResult = calculatePalaceScore(palaces.命宮, '命宮')
-    const wealthResult = calculatePalaceScore(palaces.財帛宮, '財帛宮')
-    const careerResult = calculatePalaceScore(palaces.事業宮, '事業宮')
-
-    // 綜合分數：命宮40% + 財帛宮35% + 事業宮25%
-    const overallScore = Math.round(
-      lifeResult.score * 0.4 + wealthResult.score * 0.35 + careerResult.score * 0.25
-    )
-
-    // 找出最強宮位的主星
-    const dominantStars = [
-      {
-        palace: '命宮',
-        star: lifeResult.dominantStar,
-        score: lifeResult.score,
-        risk: lifeResult.risk,
-      },
-      {
-        palace: '財帛宮',
-        star: wealthResult.dominantStar,
-        score: wealthResult.score,
-        risk: wealthResult.risk,
-      },
-      {
-        palace: '事業宮',
-        star: careerResult.dominantStar,
-        score: careerResult.score,
-        risk: careerResult.risk,
-      },
-    ].sort((a, b) => b.score - a.score)
-
-    const topStar = dominantStars[0]
-    const starAttr = STAR_INVESTMENT_ATTRIBUTE[topStar.star as ZiWeiStar]
-
-    return {
-      engineId: 'zi-wei',
-      engineName: this.name,
-      score: overallScore,
-      confidence: 0.6,
-      summary: `命主星「${topStar.star}」（${starAttr.style}），投資風險偏好：${topStar.risk}`,
-      personality: starAttr.style,
-      details: {
-        palaces: {
-          命宮: { stars: palaces.命宮, ...lifeResult },
-          財帛宮: { stars: palaces.財帛宮, ...wealthResult },
-          事業宮: { stars: palaces.事業宮, ...careerResult },
-        },
-        dominantStar: topStar.star,
-        investmentStyle: starAttr.style,
-        riskProfile: topStar.risk,
-      } as Record<string, unknown>,
-      metadata: {
-        ziWeiPosition: ziWeiPos,
-        lunarMonth,
-        lunarDay,
-      } as Record<string, unknown>,
+  private natalOf(birth: BirthChart): NatalReading {
+    let natal = this.natalCache.get(birth)
+    if (!natal) {
+      natal = readNatal(birth)
+      this.natalCache.set(birth, natal)
     }
+    return natal
   }
 
-  getWeight(): number {
-    return this.weight
-  }
+  calculate({ today, chart: birth }: EngineInput): MetaphysicsResult {
+    const natal = this.natalOf(birth)
+    const day = parseGanZhi(today.dayGanZhi)
+    const factors = day
+      ? [
+          ...natal.factors,
+          ...transformationFactors(natal.chart, day.stem, `流日${day.stem}干`, DAILY_DELTA),
+        ]
+      : [...natal.factors]
 
-  setWeight(w: number): void {
-    this.weight = Math.max(0, Math.min(100, w))
-  }
-
-  isEnabled(): boolean {
-    return this.enabled
-  }
-
-  setEnabled(enabled: boolean): void {
-    this.enabled = enabled
-  }
-
-  // 解析農曆月（中文數字 → 數字）
-  private parseLunarMonth(monthStr: string): number {
-    const monthMap: Record<string, number> = {
-      正月: 1,
-      二月: 2,
-      三月: 3,
-      四月: 4,
-      五月: 5,
-      六月: 6,
-      七月: 7,
-      八月: 8,
-      九月: 9,
-      十月: 10,
-      冬月: 11,
-      臘月: 12,
-      十一月: 11,
-      十二月: 12,
-    }
-    return monthMap[monthStr] || 1
-  }
-
-  // 解析農曆日（中文數字 → 數字）
-  private parseLunarDay(dayStr: string): number {
-    const dayMap: Record<string, number> = {
-      初一: 1,
-      初二: 2,
-      初三: 3,
-      初四: 4,
-      初五: 5,
-      初六: 6,
-      初七: 7,
-      初八: 8,
-      初九: 9,
-      初十: 10,
-      十一: 11,
-      十二: 12,
-      十三: 13,
-      十四: 14,
-      十五: 15,
-      十六: 16,
-      十七: 17,
-      十八: 18,
-      十九: 19,
-      二十: 20,
-      廿一: 21,
-      廿二: 22,
-      廿三: 23,
-      廿四: 24,
-      廿五: 25,
-      廿六: 26,
-      廿七: 27,
-      廿八: 28,
-      廿九: 29,
-      三十: 30,
-    }
-    return dayMap[dayStr] || 15
+    return this.result(factors, {
+      summary: natal.summary,
+      personality: natal.personality,
+      advice: factors.map(describeFactor),
+      details: natal.details,
+    })
   }
 }

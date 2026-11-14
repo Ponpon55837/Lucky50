@@ -1,21 +1,19 @@
 <script setup lang="ts">
-import { computed } from 'vue'
 import EngineCard from '@/components/engines/EngineCard.vue'
+import { useEngineResult } from '@/composables/useEngineResult'
 import { FengShuiEngine } from '@/services/engines/fengShui'
-import { buildBirthChart } from '@/services/engines/birthChart'
-import { ELEMENT_LABEL, type ElementKey } from '@/utils/almanac'
+import { ELEMENT_LABEL, type ElementKey } from '@/utils/ganzhi'
 import type { UserProfileCompat } from '@/services/integratedFortune'
 
-interface DirectionInfo {
+interface DirectionNote {
   direction: string
   reason: string
 }
 
-interface DailyFortune {
-  stem: string
-  branch: string
-  element: string
-  advice: string
+interface FengShuiDetails {
+  luckyDirections: DirectionNote[]
+  avoidDirections: DirectionNote[]
+  dailyFortune: { ganZhi: string; element: ElementKey | null; advice: string }
 }
 
 const props = defineProps<{
@@ -24,42 +22,30 @@ const props = defineProps<{
   date: Date
 }>()
 
-const engine = new FengShuiEngine()
+const labels = (keys: readonly string[] = []) =>
+  keys.map(key => ELEMENT_LABEL[key as ElementKey] ?? key).join('')
 
-const elementLabel = (key: string) => ELEMENT_LABEL[key as ElementKey] ?? key
-
-const state = computed(() => {
-  const profile = props.profile
-  if (!profile) return { result: null, error: null }
-  try {
-    const { lunarData, baZi, elements } = buildBirthChart(profile)
-    const raw = engine.calculate(profile, props.date, lunarData, baZi, elements)
-    const details = (raw.details ?? {}) as Record<string, unknown>
-    const daily = details.dailyFortune as DailyFortune | undefined
-    const lucky = (details.luckyDirections as DirectionInfo[] | undefined) ?? []
-    const avoid = (details.avoidDirections as DirectionInfo[] | undefined) ?? []
-
+const state = useEngineResult(
+  new FengShuiEngine(),
+  () => props.profile,
+  () => props.date,
+  raw => {
+    const details = raw.details as unknown as FengShuiDetails
+    const daily = details.dailyFortune
     return {
-      result: {
-        wealthDirection: lucky[0]?.direction ?? raw.luckyDirection ?? '',
-        daily: daily
-          ? {
-              ganZhi: `${daily.stem}${daily.branch}`,
-              element: elementLabel(daily.element),
-              advice: daily.advice,
-            }
-          : null,
-        lucky,
-        avoid,
-        favorable: (raw.luckyElements ?? []).map(elementLabel),
-        unfavorable: (raw.avoidElements ?? []).map(elementLabel),
+      wealthDirection: raw.luckyDirection ?? '',
+      daily: {
+        ganZhi: daily.ganZhi,
+        element: daily.element ? ELEMENT_LABEL[daily.element] : '',
+        advice: daily.advice,
       },
-      error: null,
+      lucky: details.luckyDirections,
+      avoid: details.avoidDirections,
+      favorable: labels(raw.luckyElements),
+      unfavorable: labels(raw.avoidElements),
     }
-  } catch (e) {
-    return { result: null, error: e instanceof Error ? e.message : '計算失敗' }
   }
-})
+)
 </script>
 
 <template>
@@ -76,12 +62,9 @@ const state = computed(() => {
       >
         財位在{{ state.result.wealthDirection }}
       </p>
-      <p
-        v-if="state.result.daily"
-        class="text-[13px] text-ink-2"
-      >
+      <p class="text-[13px] text-ink-2">
         <span class="text-ink">今日流日</span>
-        {{ state.result.daily.ganZhi }} · 五行屬{{ state.result.daily.element }}。{{
+        {{ state.result.daily.ganZhi }} · 納音屬{{ state.result.daily.element }}。{{
           state.result.daily.advice
         }}
       </p>
@@ -109,16 +92,14 @@ const state = computed(() => {
           </dd>
         </div>
         <div
-          v-if="state.result.favorable.length || state.result.unfavorable.length"
+          v-if="state.result.favorable || state.result.unfavorable"
           class="grid grid-cols-[40px_minmax(0,1fr)] gap-2"
         >
           <dt class="text-ink-3">
             五行
           </dt>
           <dd class="text-ink-2">
-            喜{{ state.result.favorable.join('') || '—' }}，忌{{
-              state.result.unfavorable.join('') || '—'
-            }}
+            喜{{ state.result.favorable || '—' }}，忌{{ state.result.unfavorable || '—' }}
           </dd>
         </div>
       </dl>

@@ -6,13 +6,8 @@ import { useToast } from '@/composables/useToast'
 import { CalendarDaysIcon, PencilSquareIcon } from '@heroicons/vue/24/outline'
 import type { UserProfile } from '@/types'
 import '@vuepic/vue-datepicker/dist/main.css'
-import {
-  getZodiacFromDate,
-  getElementFromDate,
-  getElementFromName,
-  getLuckyColors,
-  getLuckyNumbers,
-} from '@/utils/zodiac'
+import { deriveBirthProfile } from '@/services/engines/birthChart'
+import { getElementFromName } from '@/utils/nameStrokes'
 
 const EngineSettingsCard = defineAsyncComponent({
   loader: () => import('@/components/EngineSettingsCard.vue'),
@@ -137,28 +132,26 @@ watch(
   { immediate: true }
 )
 
+/** 查不到康熙筆畫、未計入姓名學五行的字 */
+const unknownNameChars = ref<string[]>([])
+
 watchEffect(() => {
   const fullName = `${form.value.surname}${form.value.givenName}`
+  const result = getElementFromName(fullName)
   form.value.name = fullName
-  if (fullName) {
-    const result = getElementFromName(fullName)
-    form.value.nameElement = result.element
-    form.value.nameStrokes = result.totalStrokes
-  } else {
-    form.value.nameElement = ''
-    form.value.nameStrokes = 0
-  }
+  form.value.nameElement = result.element
+  form.value.nameStrokes = result.totalStrokes
+  unknownNameChars.value = result.unknownChars
 })
 
 watch(
   () => form.value.birthDate,
   newDate => {
-    if (newDate) {
-      form.value.zodiac = getZodiacFromDate(newDate)
-      const element = getElementFromDate(newDate)
-      form.value.element = element
-      form.value.luckyColors = getLuckyColors(element)
-      form.value.luckyNumbers = getLuckyNumbers(element)
+    if (!newDate) return
+    try {
+      Object.assign(form.value, deriveBirthProfile(newDate))
+    } catch {
+      // 日期尚未輸入完整，等下一次變更再推算
     }
   }
 )
@@ -274,7 +267,9 @@ const onShichenChange = () => {
             出生時間
           </dt>
           <dd class="truncate text-ink">
-            <span class="font-mono">{{ userStore.profile.birthTime }}</span>（{{ timeToShichen(userStore.profile.birthTime) }}）
+            <span class="font-mono">{{ userStore.profile.birthTime }}</span>（{{
+              timeToShichen(userStore.profile.birthTime)
+            }}）
           </dd>
         </div>
         <div class="flex justify-between gap-2 border-b border-line pb-2">
@@ -353,6 +348,9 @@ const onShichenChange = () => {
               class="mt-1.5 text-xs text-ink-2"
             >
               姓名學五行：{{ form.nameElement }} ({{ form.nameStrokes }}畫)
+              <span v-if="unknownNameChars.length">
+                ·「{{ unknownNameChars.join('、') }}」查無康熙筆畫，未計入
+              </span>
             </p>
           </div>
 
@@ -506,7 +504,7 @@ const onShichenChange = () => {
             <!-- 姓名學五行 -->
             <div class="rounded-[10px] bg-raised px-4 py-3">
               <dt class="text-xs text-ink-3">
-                姓名學五行（基於姓名筆畫）
+                姓名學五行（康熙筆畫）
               </dt>
               <dd
                 v-if="form.nameElement"

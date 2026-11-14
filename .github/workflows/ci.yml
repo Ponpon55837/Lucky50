@@ -30,10 +30,20 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
-      - run: pnpm exec eslint .
+      - name: Lint（警告也視為失敗）
+        run: pnpm lint:check
 
-      - run: pnpm exec vue-tsc --noEmit
+      - name: 格式檢查
+        run: pnpm format:check
 
-      - run: pnpm test:run
+      - name: 型別檢查
+        run: pnpm typecheck
 
-      - run: pnpm build
+      - name: 單元測試
+        run: pnpm test:run
+
+      - name: 建置
+        run: pnpm build
+
+      - name: 相依套件稽核（high 以上）
+        run: pnpm audit --audit-level high

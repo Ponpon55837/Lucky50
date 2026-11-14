@@ -117,18 +117,7 @@ onMounted(async () => {
     const profile = userStore.profile
     if (profile && profile.name && profile.birthDate) {
       try {
-        const userProfileCompat = {
-          name: profile.name,
-          birthDate: profile.birthDate,
-          birthTime: profile.birthTime || '12:00',
-          zodiac: profile.zodiac,
-          element: profile.element,
-          nameElement: profile.nameElement,
-          nameStrokes: profile.nameStrokes,
-          luckyColors: [...profile.luckyColors],
-          luckyNumbers: [...profile.luckyNumbers],
-        }
-        await IntegratedFortuneService.calculateIntegratedFortune(userProfileCompat, new Date())
+        await IntegratedFortuneService.calculateIntegratedFortune(profile, new Date())
       } catch {
         // 計算失敗靜默處理
       }

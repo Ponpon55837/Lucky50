@@ -44,7 +44,6 @@ const token = (name: string, alpha = 1): string => {
 // 計算圖表數據
 const chartData = computed(() => {
   if (!props.etfData || props.etfData.length === 0) {
-    console.log('VolumeChart - No data available')
     return null
   }
 
@@ -52,19 +51,6 @@ const chartData = computed(() => {
   const sortedData = [...props.etfData].sort(
     (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
   )
-
-  console.log('VolumeChart - Data count:', sortedData.length)
-
-  if (sortedData.length > 0) {
-    console.log(
-      'VolumeChart - 日期範圍:',
-      sortedData[0].date,
-      '至',
-      sortedData[sortedData.length - 1].date
-    )
-    console.log('VolumeChart - First volume:', sortedData[0].volume)
-    console.log('VolumeChart - Last volume:', sortedData[sortedData.length - 1].volume)
-  }
 
   const labels = sortedData.map(item => {
     const date = new Date(item.date)
@@ -75,8 +61,6 @@ const chartData = computed(() => {
     const volume = item.volume / 1000000 // 轉換為百萬
     return isNaN(volume) ? 0 : volume
   })
-
-  console.log('VolumeChart - Volume data:', volumes.slice(0, 5)) // 顯示前5筆數據
 
   // 成交量為中性資訊：墨色長條，最新一日以朱紅標示
   void props.isDark

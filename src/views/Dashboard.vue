@@ -6,7 +6,8 @@ import { useDashboardStore } from '@/stores/dashboard'
 import { useDashboardAlmanac } from '@/composables/useDashboardAlmanac'
 import { lunarService } from '@/services/lunar'
 import { TaiwanStockService } from '@/services/taiwanStock'
-import { ELEMENT_LABEL, primaryMarketSlotIndex } from '@/utils/almanac'
+import { primaryMarketSlotIndex } from '@/utils/almanac'
+import { ELEMENT_LABEL } from '@/utils/ganzhi'
 import { formatFullDate, formatMonthDayWeekday } from '@/utils/date'
 import FortuneLot from '@/components/almanac/FortuneLot.vue'
 import HourWheel from '@/components/almanac/HourWheel.vue'
@@ -23,21 +24,10 @@ const dashboardStore = useDashboardStore()
 
 // ── 資料來源 ──
 
-const userProfileCompat = computed((): UserProfileCompat | null => {
-  if (!userStore.isProfileComplete) return null
-  const p = userStore.profile
-  return {
-    name: p.name,
-    birthDate: p.birthDate,
-    birthTime: p.birthTime,
-    zodiac: p.zodiac,
-    element: p.element,
-    nameElement: p.nameElement,
-    nameStrokes: p.nameStrokes,
-    luckyColors: [...p.luckyColors],
-    luckyNumbers: [...p.luckyNumbers],
-  }
-})
+/** UserProfile 結構上相容於引擎所需的 UserProfileCompat，直接傳入即可 */
+const userProfileCompat = computed((): UserProfileCompat | null =>
+  userStore.isProfileComplete ? userStore.profile : null
+)
 
 const fortune = toRef(dashboardStore, 'integratedFortune')
 const lunar = computed(() => fortune.value?.lunarData ?? dashboardStore.lunarData)
@@ -320,7 +310,10 @@ onUnmounted(() => {
 
     <!-- 三種推算 -->
     <div class="grid gap-5 lg:grid-cols-3">
-      <TenGodsCard :profile="userProfileCompat" />
+      <TenGodsCard
+        :profile="userProfileCompat"
+        :date="dashboardStore.currentDate"
+      />
       <ZiWeiCard
         :profile="userProfileCompat"
         :date="dashboardStore.currentDate"

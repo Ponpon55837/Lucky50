@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest'
+import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { setActivePinia, createPinia } from 'pinia'
 import { useAnalyticsStore } from '@/stores/analytics'
 import type { ETFData } from '@/types'
@@ -143,44 +143,6 @@ describe('useAnalyticsStore', () => {
     })
   })
 
-  describe('calculateStatistics', () => {
-    it('空資料回傳預設值', () => {
-      const stats = store.calculateStatistics([])
-      expect(stats.annualReturn).toBe(0)
-      expect(stats.volatility).toBe(0)
-      expect(stats.sharpeRatio).toBe(0)
-      expect(stats.maxDrawdown).toBe(0)
-    })
-
-    it('計算年化報酬率', () => {
-      const stats = store.calculateStatistics(mockETFData)
-      expect(stats.annualReturn).toBeGreaterThan(0)
-      expect(stats.volatility).toBeGreaterThan(0)
-    })
-
-    it('最大回撤不為負', () => {
-      const stats = store.calculateStatistics(mockETFData)
-      expect(stats.maxDrawdown).toBeGreaterThanOrEqual(0)
-    })
-  })
-
-  describe('calculateFortuneDistribution', () => {
-    it('空資料回傳預設分佈', () => {
-      const dist = store.calculateFortuneDistribution([])
-      expect(dist.excellent).toBe(25)
-      expect(dist.good).toBe(35)
-      expect(dist.average).toBe(30)
-      expect(dist.poor).toBe(10)
-    })
-
-    it('計算分佈百分比加總約 100', () => {
-      const dist = store.calculateFortuneDistribution(mockETFData)
-      const total = dist.excellent + dist.good + dist.average + dist.poor
-      expect(total).toBeGreaterThanOrEqual(90)
-      expect(total).toBeLessThanOrEqual(110)
-    })
-  })
-
   describe('calculateTechnicalIndicators', () => {
     it('空資料回傳預設值', () => {
       const ind = store.calculateTechnicalIndicators([])
@@ -196,20 +158,51 @@ describe('useAnalyticsStore', () => {
     })
   })
 
-  describe('calculateBacktestResults', () => {
-    it('使用快取回傳相同結果', () => {
-      const stats = store.calculateStatistics(mockETFData)
-      const r1 = store.calculateBacktestResults(stats, mockETFData)
-      const r2 = store.calculateBacktestResults(stats, mockETFData)
-      expect(r1).toEqual(r2)
+  describe('analyzeStrategies', () => {
+    const always = (score: number) => () => score
+
+    it('空資料時回測為 null、各區間沒有樣本', async () => {
+      const { backtest, correlation } = await store.analyzeStrategies([], always(80), 'day')
+      expect(backtest).toBeNull()
+      expect(correlation.high).toEqual({ days: 0, share: 0, averageReturn: null, upRate: null })
     })
 
-    it('空的 ETF 資料回傳預設 backtest 結果', () => {
-      const stats = store.calculateStatistics([])
-      const results = store.calculateBacktestResults(stats, [])
-      expect(results.lunar.totalReturn).toBe(15.8)
-      expect(results.buyHold.totalReturn).toBe(12.5)
-      expect(results.dca.totalReturn).toBe(11.2)
+    it('分數全數達標時，農民曆策略等同買入持有', async () => {
+      const { backtest } = await store.analyzeStrategies(mockETFData, always(80), 'all-in')
+      expect(backtest!.lunar).toEqual(backtest!.buyHold)
+    })
+
+    it('分數全數未達標時空手，報酬為 0', async () => {
+      const { backtest } = await store.analyzeStrategies(mockETFData, always(10), 'all-out')
+      expect(backtest!.lunar).toMatchObject({ totalReturn: 0, maxDrawdown: 0, trades: 0 })
+    })
+
+    it('相同資料與評分依據只計算一次，計算途中的重複要求也共用', async () => {
+      const scoreOf = vi.fn(() => 80)
+      const [first, concurrent] = await Promise.all([
+        store.analyzeStrategies(mockETFData, scoreOf, 'same'),
+        store.analyzeStrategies(mockETFData, scoreOf, 'same'),
+      ])
+      expect(concurrent).toBe(first)
+      expect(await store.analyzeStrategies(mockETFData, scoreOf, 'same')).toBe(first)
+      expect(scoreOf).toHaveBeenCalledTimes(mockETFData.length)
+    })
+
+    it('評分依據改變或清除快取後重新計算', async () => {
+      const first = await store.analyzeStrategies(mockETFData, always(80), 'a')
+      expect(await store.analyzeStrategies(mockETFData, always(10), 'b')).not.toBe(first)
+      const second = await store.analyzeStrategies(mockETFData, always(80), 'a')
+      store.clearStrategyCache()
+      expect(await store.analyzeStrategies(mockETFData, always(80), 'a')).not.toBe(second)
+    })
+
+    it('評分失敗時不留快取，下次重新計算', async () => {
+      const failing = () => {
+        throw new Error('評分失敗')
+      }
+      await expect(store.analyzeStrategies(mockETFData, failing, 'broken')).rejects.toThrow()
+      const { backtest } = await store.analyzeStrategies(mockETFData, always(80), 'broken')
+      expect(backtest).not.toBeNull()
     })
   })
 
@@ -221,14 +214,6 @@ describe('useAnalyticsStore', () => {
     it('setSelectedPeriod 更新期間', () => {
       store.setSelectedPeriod('1年')
       expect(store.selectedPeriod).toBe('1年')
-    })
-  })
-
-  describe('clearBacktestCache', () => {
-    it('清除所有快取', () => {
-      const stats = store.calculateStatistics(mockETFData)
-      store.calculateBacktestResults(stats, mockETFData)
-      store.clearBacktestCache()
     })
   })
 })

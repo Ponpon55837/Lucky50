@@ -4,8 +4,24 @@
     {
       "name": "lucky50-dev",
       "runtimeExecutable": "pnpm",
-      "runtimeArgs": ["dev", "--port", "3010", "--strictPort"],
+      "runtimeArgs": [
+        "dev",
+        "--port",
+        "3010",
+        "--strictPort"
+      ],
       "port": 3010
+    },
+    {
+      "name": "lucky50-preview",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": [
+        "preview",
+        "--port",
+        "3011",
+        "--strictPort"
+      ],
+      "port": 3011
     }
   ]
 }

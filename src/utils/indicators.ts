@@ -58,21 +58,6 @@ export function maxDrawdown(data: readonly ETFData[]): number {
   return mdd
 }
 
-/** 報酬率分桶計數：單次掃描取代四次 filter */
-export function bucketReturns(returns: readonly number[]) {
-  let excellent = 0
-  let good = 0
-  let average = 0
-  let poor = 0
-  for (const r of returns) {
-    if (r > 0.5) excellent++
-    else if (r > 0) good++
-    else if (r >= -0.5) average++
-    else poor++
-  }
-  return { excellent, good, average, poor }
-}
-
 /** 最近 period 期的簡易 RSI（平均漲幅 / 平均跌幅），單次掃描 */
 export function rsi(prices: readonly number[], period = 14): number {
   if (prices.length < period) return 50

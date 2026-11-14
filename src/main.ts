@@ -5,6 +5,7 @@ import { PiniaColada } from '@pinia/colada'
 import router from './router'
 import App from './App.vue'
 import './assets/style.css'
+import { registerSW } from 'virtual:pwa-register'
 import { useTheme } from './composables/useTheme'
 
 const app = createApp(App)
@@ -26,18 +27,7 @@ app.use(router)
 // 初始化主題（模組載入時即套用 document class）
 useTheme()
 
-// 註冊 Service Worker
-if ('serviceWorker' in navigator && import.meta.env.PROD) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker
-      .register('/sw.js')
-      .then(registration => {
-        console.log('SW registered: ', registration)
-      })
-      .catch(registrationError => {
-        console.log('SW registration failed: ', registrationError)
-      })
-  })
-}
+// Service worker 由 vite-plugin-pwa 產生；有新版時立即接手並重新載入，使用者不會停在舊版
+registerSW({ immediate: true })
 
 app.mount('#app')

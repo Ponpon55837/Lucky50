@@ -1,18 +1,22 @@
-// @ts-expect-error - lunar-javascript doesn't have TypeScript definitions
-import { Solar } from 'lunar-javascript'
 import { lunarService } from '@/services/lunar'
-import { TaiwanStockService } from './taiwanStock'
 import { fortuneHistoryStore } from '@/services/fortuneStore'
+import {
+  BASE_SCORE,
+  RECOMMENDATION_RISK,
+  clampScore,
+  elementEnergy,
+  recommendationFromScore,
+  type Recommendation,
+  type RiskLevel,
+} from '@/utils/almanac'
 import { toLocalDateString } from '@/utils/date'
-import { profileHash as hashProfile } from '@/utils/hash'
-import { EARTHLY_BRANCHES, ZODIAC_AVOID_BRANCHES, ZODIAC_LUCKY_BRANCHES } from '@/utils/almanac'
+import { ELEMENT_CYCLE, parseGanZhi, type ElementKey } from '@/utils/ganzhi'
+import { profileHash } from '@/utils/hash'
+import { PILLAR_KEYS } from '@/utils/tenGods'
 import { metaphysicsRegistry } from './engines'
-import { ClassicFortuneEngine } from './engines/classic'
-import { BaziTenGodsEngine } from './engines/baziTenGods'
-import { ZiWeiEngine } from './engines/ziWei'
-import { FengShuiEngine } from './engines/fengShui'
+import { buildBirthChart, toPersonalBaZi } from './engines/birthChart'
 import type { LunarData } from '@/services/lunar'
-import type { PersonalBaZi, ElementsEnergy } from '@/types'
+import type { ElementsEnergy, PersonalBaZi } from '@/types'
 import type { MetaphysicsResult } from './engines/types'
 
 export interface UserProfileCompat {
@@ -27,794 +31,162 @@ export interface UserProfileCompat {
   luckyNumbers: readonly number[]
 }
 
-// 內部型別定義
-interface FortuneScores {
-  overallScore: number
-  investmentScore: number
-  wealthScore: number
-  healthScore: number
-}
-
-// 整合運勢資料介面
 export interface IntegratedFortuneData {
-  // 基本資訊
   date: Date
   lunarData: LunarData
+  personalBaZi: PersonalBaZi
 
-  // 個人八字資訊
-  personalBaZi: {
-    yearGanZhi: string
-    monthGanZhi: string
-    dayGanZhi: string
-    hourGanZhi: string
-    zodiac: string
-    element: string
-    naYin: string
-  }
-
-  // 運勢分數
+  /** 整體運勢：各引擎平均與五行均衡度的綜合 */
   overallScore: number
+  /** 投資運勢：各引擎依權重加權後，還原到單一引擎的起伏尺度 */
   investmentScore: number
-  wealthScore: number
-  healthScore: number
+  /** 五行能量分佈（百分比） */
+  elements: ElementsEnergy
 
-  // 五行能量分析
-  elements: {
-    wood: number
-    fire: number
-    earth: number
-    metal: number
-    water: number
-  }
-
-  // 投資建議
-  recommendation: 'BUY' | 'SELL' | 'HOLD' | 'OBSERVE'
+  recommendation: Recommendation
   advice: string
-  riskLevel: 'low' | 'medium' | 'high'
+  riskLevel: RiskLevel
 
-  // 時間建議（傳統時辰）
-  luckyTime: string
-  avoidTime: string
-
-  // 台股交易相關
-  stockTradingStatus: {
-    isOpen: boolean
-    status: 'closed' | 'pre_market' | 'trading' | 'post_market'
-    message: string
-    nextTradingDay?: Date
-  }
-  bestTradingHours: Array<{ time: string; reason: string }>
-  avoidTradingHours: Array<{ time: string; reason: string }>
-  tradingDayInfo: {
-    isToday: boolean
-    tradingDay: Date
-  }
-
-  // 方位建議
   luckyDirection: string
   avoidDirection: string
 
-  // 顏色和數字
-  luckyColors: string[]
-  luckyNumbers: number[]
-
-  // 宜忌事項
-  suitable: string[]
-  forbidden: string[]
-
-  // 特殊提醒
   warnings: string[]
   opportunities: string[]
 
-  // 命理引擎聚合結果
   enginesResults: MetaphysicsResult[]
+  /** 引擎加權分數；沒有啟用任何引擎時為 0 */
   engineWeightedScore: number
 }
 
-// 天干地支對五行的影響
-const GAN_ELEMENTS = Object.freeze({
-  甲: 'wood',
-  乙: 'wood',
-  丙: 'fire',
-  丁: 'fire',
-  戊: 'earth',
-  己: 'earth',
-  庚: 'metal',
-  辛: 'metal',
-  壬: 'water',
-  癸: 'water',
-} as const)
+const ADVICE_TEXT: Readonly<Record<Recommendation, string>> = {
+  BUY: '今日投資運勢佳，適合積極布局。',
+  HOLD: '運勢平穩，建議維持現有部位。',
+  OBSERVE: '運勢略顯不穩，建議觀望等待時機。',
+  SELL: '今日投資運勢不佳，建議避險為主。',
+}
 
-const ZHI_ELEMENTS = Object.freeze({
-  子: 'water',
-  丑: 'earth',
-  寅: 'wood',
-  卯: 'wood',
-  辰: 'earth',
-  巳: 'fire',
-  午: 'fire',
-  未: 'earth',
-  申: 'metal',
-  酉: 'metal',
-  戌: 'earth',
-  亥: 'water',
-} as const)
+const DOMINANT_ELEMENT_TEXT: Readonly<Record<ElementKey, string>> = {
+  wood: '木旺之日，利於成長股投資。',
+  fire: '火旺之日，適合積極操作。',
+  earth: '土旺之日，宜穩健投資。',
+  metal: '金旺之日，利於價值投資。',
+  water: '水旺之日，宜靈活調配。',
+}
 
-// 五行相生相剋關係
-const ELEMENT_RELATIONS = Object.freeze({
-  wood: { generates: 'fire', destroys: 'earth', generatedBy: 'water', destroyedBy: 'metal' },
-  fire: { generates: 'earth', destroys: 'metal', generatedBy: 'wood', destroyedBy: 'water' },
-  earth: { generates: 'metal', destroys: 'water', generatedBy: 'fire', destroyedBy: 'wood' },
-  metal: { generates: 'water', destroys: 'wood', generatedBy: 'earth', destroyedBy: 'fire' },
-  water: { generates: 'wood', destroys: 'fire', generatedBy: 'metal', destroyedBy: 'earth' },
-} as const)
+/** 整體運勢中引擎平均所佔比重，其餘為五行均衡度（中和為貴） */
+const ENGINE_SHARE = 0.7
+/** 最旺與最弱五行相差超過此值視為失衡 */
+const IMBALANCE_THRESHOLD = 60
 
-// 生肖配對關係
-const ZODIAC_COMPATIBILITY = {
-  鼠: { best: ['龍', '猴'], good: ['牛'], avoid: ['馬', '羊'] },
-  牛: { best: ['蛇', '雞'], good: ['鼠'], avoid: ['羊', '馬'] },
-  虎: { best: ['馬', '狗'], good: ['豬'], avoid: ['猴', '蛇'] },
-  兔: { best: ['羊', '豬'], good: ['狗'], avoid: ['雞', '龍'] },
-  龍: { best: ['鼠', '猴'], good: ['雞'], avoid: ['狗', '兔'] },
-  蛇: { best: ['牛', '雞'], good: ['猴'], avoid: ['豬', '虎'] },
-  馬: { best: ['虎', '狗'], good: ['羊'], avoid: ['鼠', '牛'] },
-  羊: { best: ['兔', '豬'], good: ['馬'], avoid: ['牛', '鼠'] },
-  猴: { best: ['鼠', '龍'], good: ['蛇'], avoid: ['虎', '豬'] },
-  雞: { best: ['牛', '蛇'], good: ['龍'], avoid: ['兔', '狗'] },
-  狗: { best: ['虎', '馬'], good: ['兔'], avoid: ['龍', '雞'] },
-  豬: { best: ['兔', '羊'], good: ['虎'], avoid: ['蛇', '猴'] },
-} as const
+/** 單趟找出最旺的五行與旺弱差距 */
+function summarizeElements(elements: ElementsEnergy): {
+  dominant: ElementKey
+  imbalance: number
+} {
+  let dominant: ElementKey = ELEMENT_CYCLE[0]
+  let min = Infinity
+  for (const key of ELEMENT_CYCLE) {
+    if (elements[key] > elements[dominant]) dominant = key
+    if (elements[key] < min) min = elements[key]
+  }
+  return { dominant, imbalance: elements[dominant] - min }
+}
 
 export class IntegratedFortuneService {
-  private static cache = new Map<string, IntegratedFortuneData>()
-  private static enginesRegistered = false
-
   /**
-   * 確保命理引擎已註冊（僅執行一次）
-   */
-  private static ensureEnginesRegistered(): void {
-    if (this.enginesRegistered) return
-    metaphysicsRegistry.register(new ClassicFortuneEngine())
-    metaphysicsRegistry.register(new BaziTenGodsEngine())
-    metaphysicsRegistry.register(new ZiWeiEngine())
-    metaphysicsRegistry.register(new FengShuiEngine())
-    this.enginesRegistered = true
-  }
-
-  /**
-   * 清除快取
-   */
-  static clearCache(): void {
-    this.cache.clear()
-    console.log('IntegratedFortuneService - 快取已清除')
-  }
-
-  /**
-   * 計算整合運勢
+   * 計算整合運勢並寫入歷史。
+   * 結果的快取由查詢層（Pinia Colada）負責，鍵含個人資料、日期與引擎設定，這裡不另外快取。
    */
   static async calculateIntegratedFortune(
     profile: UserProfileCompat,
     date: Date = new Date()
   ): Promise<IntegratedFortuneData> {
-    // 鍵需涵蓋所有影響計算的欄位（姓名、時辰、姓名五行…），否則修改個人資料後會命中舊結果
-    const cacheKey = `${hashProfile(profile)}-${toLocalDateString(date)}`
-
-    if (this.cache.has(cacheKey)) {
-      return this.cache.get(cacheKey)!
-    }
-
-    // 確保引擎已註冊，並從 localStorage 載入最新設定
-    this.ensureEnginesRegistered()
     metaphysicsRegistry.loadFromStorage()
+    const fortune = this.computeFortune(profile, date)
+    this.recordFortuneHistory(profile, fortune)
+    return fortune
+  }
 
-    // 獲取農民曆資料
+  /** 純計算：不讀設定、不寫歷史，回測逐日評分時使用 */
+  static computeFortune(profile: UserProfileCompat, date: Date): IntegratedFortuneData {
     const lunarData = lunarService.getLunarData(date)
-    console.log('IntegratedFortuneService - 農民曆資料:', {
-      date: date.toLocaleDateString('zh-TW'),
-      ganZhi: lunarData.ganZhi,
-      lunarMonth: lunarData.lunarMonth,
-      lunarDay: lunarData.lunarDay,
-      zodiac: lunarData.zodiac,
-    })
+    const chart = buildBirthChart(profile)
+    const elements = elementEnergy(
+      PILLAR_KEYS.map(key => chart.pillars[key]),
+      parseGanZhi(lunarData.dayGanZhi)
+    )
+    const { dominant, imbalance } = summarizeElements(elements)
 
-    // 計算個人八字
-    const personalBaZi = this.calculatePersonalBaZi(profile, date)
-
-    // 計算五行能量（包含個人設定的五行屬性）
-    const elements = this.calculateElementEnergy(personalBaZi, lunarData, profile)
-
-    // 執行所有啟用的命理引擎
-    const enginesResults = metaphysicsRegistry.calculateAll(
+    const enginesResults = metaphysicsRegistry.calculateAll({
       profile,
       date,
-      lunarData,
-      personalBaZi,
-      elements
-    )
-    const engineWeightedScore = metaphysicsRegistry.calculateWeightedScore(enginesResults)
-    console.log('IntegratedFortuneService - 引擎聚合分數:', engineWeightedScore, {
-      enginesCount: enginesResults.length,
+      today: lunarData,
+      chart,
     })
-
-    // 計算各項運勢分數（含引擎加權調整）
-    const scores = this.calculateFortuneScores(
-      personalBaZi,
-      lunarData,
-      elements,
-      engineWeightedScore
+    const { weighted, spread } = metaphysicsRegistry.summarizeScores(enginesResults)
+    // 沒有啟用任何引擎時，退回只看日子本身的分數
+    const investmentScore = clampScore(
+      weighted === null
+        ? lunarService.getInvestmentAdvice(date).luckyScore
+        : BASE_SCORE + (weighted - BASE_SCORE) * spread
+    )
+    const engineAverage =
+      enginesResults.length > 0
+        ? enginesResults.reduce((sum, result) => sum + result.score, 0) / enginesResults.length
+        : investmentScore
+    const overallScore = clampScore(
+      engineAverage * ENGINE_SHARE + (100 - imbalance) * (1 - ENGINE_SHARE)
     )
 
-    // 生成投資建議
-    const investmentAdvice = this.generateInvestmentAdvice(
-      personalBaZi,
-      lunarData,
-      elements,
-      scores
-    )
-
-    // 計算時間分析
-    const timeAnalysis = this.calculateTimeAnalysis(personalBaZi, lunarData)
-
-    // 計算台股交易分析
-    const stockTradingAnalysis = this.calculateStockTradingAnalysis(personalBaZi, lunarData, date)
-
-    // 計算方位建議
-    const directionAnalysis = this.calculateDirectionAnalysis(personalBaZi, lunarData)
-
-    // 生成宜忌建議
-    const activitiesAnalysis = this.generateActivitiesAdvice(personalBaZi, lunarData)
-
-    // 生成特殊提醒
-    const specialAdvice = this.generateSpecialAdvice(personalBaZi, lunarData, elements)
-
-    // 聚合引擎建議
+    const recommendation = recommendationFromScore(investmentScore)
     const engineAdvice = metaphysicsRegistry.aggregateAdvice(enginesResults)
+    const avoidDirection =
+      engineAdvice.avoidDirection || (lunarData.sha ? `正${lunarData.sha}` : '')
+    // 財神落在凶方時不列吉方，避免同一個方位既吉又凶
+    const fallbackLucky = lunarData.caiShen === avoidDirection ? '' : lunarData.caiShen
+    const warnings = [...engineAdvice.warnings]
+    if (imbalance > IMBALANCE_THRESHOLD) warnings.unshift('今日五行能量失衡，建議謹慎投資決策。')
 
-    const fortuneData: IntegratedFortuneData = {
+    return {
       date,
       lunarData,
-      personalBaZi,
-      ...scores,
+      personalBaZi: toPersonalBaZi(chart),
+      overallScore,
+      investmentScore,
       elements,
-      ...investmentAdvice,
-      ...timeAnalysis,
-      ...stockTradingAnalysis,
-      ...directionAnalysis,
-      luckyColors: this.calculateLuckyColors(personalBaZi, lunarData),
-      luckyNumbers: this.calculateLuckyNumbers(personalBaZi, lunarData),
-      ...activitiesAnalysis,
-      warnings: [...specialAdvice.warnings, ...engineAdvice.warnings],
-      opportunities: [...specialAdvice.opportunities, ...engineAdvice.opportunities],
+      recommendation,
+      advice: `${ADVICE_TEXT[recommendation]} ${DOMINANT_ELEMENT_TEXT[dominant]}`,
+      riskLevel: RECOMMENDATION_RISK[recommendation],
+      luckyDirection: engineAdvice.luckyDirection || fallbackLucky,
+      avoidDirection,
+      warnings,
+      opportunities: [...this.seasonalOpportunities(lunarData), ...engineAdvice.opportunities],
       enginesResults,
-      engineWeightedScore,
-    }
-
-    this.cache.set(cacheKey, fortuneData)
-
-    // 自動記錄運勢歷史（非阻塞）
-    this.recordFortuneHistory(profile, fortuneData)
-
-    return fortuneData
-  }
-
-  /**
-   * 計算個人八字
-   */
-  private static calculatePersonalBaZi(profile: UserProfileCompat, _date: Date) {
-    if (!profile.birthDate) {
-      throw new Error('出生日期不能為空')
-    }
-
-    const birthDate = new Date(profile.birthDate)
-
-    // 驗證日期是否有效
-    if (isNaN(birthDate.getTime())) {
-      throw new Error(`無效的出生日期: ${profile.birthDate}`)
-    }
-
-    // 驗證年份是否在合理範圍內 (1900-2100)
-    const year = birthDate.getFullYear()
-    if (year < 1900 || year > 2100) {
-      throw new Error(`出生年份超出範圍 (1900-2100): ${year}`)
-    }
-
-    const solar = Solar.fromDate(birthDate)
-    const lunar = solar.getLunar()
-
-    // 解析出生時間
-    const birthHour = this.parseBirthTime(profile.birthTime)
-
-    return {
-      yearGanZhi: lunar.getYearInGanZhi(),
-      monthGanZhi: lunar.getMonthInGanZhi(),
-      dayGanZhi: lunar.getDayInGanZhi(),
-      hourGanZhi: this.calculateHourGanZhi(lunar.getDayInGanZhi(), birthHour),
-      zodiac: profile.zodiac,
-      element: profile.element,
-      naYin: lunar.getYearNaYin(),
+      engineWeightedScore: weighted ?? 0,
     }
   }
 
-  /**
-   * 計算五行能量
-   */
-  private static calculateElementEnergy(
-    personalBaZi: PersonalBaZi,
-    lunarData: LunarData,
-    profile?: UserProfileCompat
-  ): ElementsEnergy {
-    const elements = { wood: 0, fire: 0, earth: 0, metal: 0, water: 0 }
-
-    // 個人設定的五行屬性（最重要的基礎）
-    if (profile?.element) {
-      const userElement = this.mapElementToEnglish(profile.element)
-      if (userElement && Object.prototype.hasOwnProperty.call(elements, userElement)) {
-        elements[userElement as keyof typeof elements] += 30 // 個人本命五行占最大權重
-      }
-    }
-
-    // 姓名學五行（次要權重）
-    if (profile?.nameElement) {
-      const nameElementEn = this.mapElementToEnglish(profile.nameElement)
-      if (nameElementEn && Object.prototype.hasOwnProperty.call(elements, nameElementEn)) {
-        elements[nameElementEn as keyof typeof elements] += 15 // 姓名學五行占次要權重
-      }
-    }
-
-    // 納音五行（補充權重）
-    if (personalBaZi.naYin) {
-      const naYinElement = this.getNaYinElement(personalBaZi.naYin)
-      if (naYinElement && Object.prototype.hasOwnProperty.call(elements, naYinElement)) {
-        elements[naYinElement as keyof typeof elements] += 10 // 納音五行補充權重
-      }
-    }
-
-    // 個人八字的五行影響
-    const yearGan = personalBaZi.yearGanZhi[0]
-    const yearZhi = personalBaZi.yearGanZhi[1]
-    const dayGan = personalBaZi.dayGanZhi[0]
-    const dayZhi = personalBaZi.dayGanZhi[1]
-
-    // 天干影響
-    if (GAN_ELEMENTS[yearGan as keyof typeof GAN_ELEMENTS]) {
-      elements[GAN_ELEMENTS[yearGan as keyof typeof GAN_ELEMENTS] as keyof typeof elements] += 20
-    }
-    if (GAN_ELEMENTS[dayGan as keyof typeof GAN_ELEMENTS]) {
-      elements[GAN_ELEMENTS[dayGan as keyof typeof GAN_ELEMENTS] as keyof typeof elements] += 25
-    }
-
-    // 地支影響
-    if (ZHI_ELEMENTS[yearZhi as keyof typeof ZHI_ELEMENTS]) {
-      elements[ZHI_ELEMENTS[yearZhi as keyof typeof ZHI_ELEMENTS] as keyof typeof elements] += 15
-    }
-    if (ZHI_ELEMENTS[dayZhi as keyof typeof ZHI_ELEMENTS]) {
-      elements[ZHI_ELEMENTS[dayZhi as keyof typeof ZHI_ELEMENTS] as keyof typeof elements] += 20
-    }
-
-    // 當日農民曆的五行影響
-    const todayGan = lunarData.dayGanZhi[0]
-    const todayZhi = lunarData.dayGanZhi[1]
-
-    if (GAN_ELEMENTS[todayGan as keyof typeof GAN_ELEMENTS]) {
-      elements[GAN_ELEMENTS[todayGan as keyof typeof GAN_ELEMENTS] as keyof typeof elements] += 10
-    }
-    if (ZHI_ELEMENTS[todayZhi as keyof typeof ZHI_ELEMENTS]) {
-      elements[ZHI_ELEMENTS[todayZhi as keyof typeof ZHI_ELEMENTS] as keyof typeof elements] += 10
-    }
-
-    // 正規化到 0-100
-    const total = Object.values(elements).reduce((sum, val) => sum + val, 0)
-    if (total > 0) {
-      Object.keys(elements).forEach(key => {
-        elements[key as keyof typeof elements] = Math.round(
-          (elements[key as keyof typeof elements] / total) * 100
-        )
-      })
-    }
-
-    return elements
-  }
-
-  /**
-   * 將中文五行屬性轉換為英文
-   */
-  private static mapElementToEnglish(chineseElement: string): string | null {
-    const elementMap: Record<string, string> = {
-      金: 'metal',
-      木: 'wood',
-      水: 'water',
-      火: 'fire',
-      土: 'earth',
-    }
-    return elementMap[chineseElement] || null
-  }
-
-  /**
-   * 從納音名稱提取五行屬性
-   */
-  private static getNaYinElement(naYin: string): string | null {
-    // 納音結尾的字即為五行
-    const lastChar = naYin.slice(-1)
-    return this.mapElementToEnglish(lastChar)
-  }
-
-  /**
-   * 根據星座調整運勢分數
-   */
-  private static getConstellationBonus(constellation: string): {
-    overall: number
-    investment: number
-    wealth: number
-  } {
-    // 火象星座：積極、行動力強
-    const fireSigns = ['白羊座', '獅子座', '射手座']
-    // 土象星座：穩健、保守
-    const earthSigns = ['金牛座', '處女座', '摩羯座']
-    // 風象星座：靈活、善於交際
-    const airSigns = ['雙子座', '天秤座', '水瓶座']
-    // 水象星座：直覺強、感性
-    const waterSigns = ['巨蟹座', '天蠍座', '雙魚座']
-
-    if (fireSigns.includes(constellation)) {
-      return { overall: 5, investment: 10, wealth: 5 }
-    }
-    if (earthSigns.includes(constellation)) {
-      return { overall: 5, investment: 5, wealth: 10 }
-    }
-    if (airSigns.includes(constellation)) {
-      return { overall: 8, investment: 8, wealth: 3 }
-    }
-    if (waterSigns.includes(constellation)) {
-      return { overall: 3, investment: 3, wealth: 8 }
-    }
-    return { overall: 0, investment: 0, wealth: 0 }
-  }
-
-  /**
-   * 計算運勢分數（含命理引擎加權調整）
-   */
-  private static calculateFortuneScores(
-    personalBaZi: PersonalBaZi,
-    lunarData: LunarData,
-    elements: ElementsEnergy,
-    engineWeightedScore: number
-  ) {
-    let overallScore = 50
-    let investmentScore = 50
-    let wealthScore = 50
-    let healthScore = 50
-
-    // 基於五行平衡計算
-    const elementValues = Object.values(elements) as number[]
-    const maxElement = Math.max(...elementValues)
-    const minElement = Math.min(...elementValues)
-    const balance = 100 - (maxElement - minElement)
-
-    overallScore += Math.round(balance * 0.3)
-
-    // 五行相生相剋調整
-    const dominantEntry = Object.entries(elements).reduce(
-      (max, [key, value]) =>
-        (value as number) > max.value ? { element: key, value: value as number } : max,
-      { element: '', value: 0 }
-    )
-    const dominatedEntry = Object.entries(elements).reduce(
-      (min, [key, value]) =>
-        (value as number) < min.value ? { element: key, value: value as number } : min,
-      { element: '', value: 100 }
-    )
-
-    if (dominantEntry.element && dominatedEntry.element) {
-      const relations = ELEMENT_RELATIONS[dominantEntry.element as keyof typeof ELEMENT_RELATIONS]
-      if (relations) {
-        // 最旺元素生的元素 → 加分（相生助力）
-        const generated = relations.generates
-        if (generated === dominatedEntry.element) {
-          overallScore += 5
-          investmentScore += 5
-        }
-        // 最旺元素剋的元素 → 減分（相剋消耗）
-        const destroyed = relations.destroys
-        if (destroyed === dominatedEntry.element) {
-          overallScore -= 3
-          wealthScore -= 3
-        }
-      }
-    }
-
-    // 星座加成
-    const constellationBonus = this.getConstellationBonus(lunarData.constellation)
-    overallScore += constellationBonus.overall
-    investmentScore += constellationBonus.investment
-    wealthScore += constellationBonus.wealth
-
-    // 生肖年運影響
-    const currentYearZodiac = lunarData.zodiac
-    const _personalZodiac = personalBaZi.zodiac
-
-    const goodMatches = ['龍', '猴', '蛇', '雞', '馬', '狗', '羊', '豬']
-    const badMatches = ['鼠', '牛', '虎', '兔']
-
-    if (goodMatches.includes(currentYearZodiac)) {
-      overallScore += 15
-      investmentScore += 20
-      wealthScore += 15
-    } else if (badMatches.includes(currentYearZodiac)) {
-      overallScore -= 10
-      investmentScore -= 15
-      wealthScore -= 10
-    }
-
-    // 生肖配對加成（使用 ZODIAC_COMPATIBILITY）
-    const personalZodiac = personalBaZi.zodiac
-    const compatibility = ZODIAC_COMPATIBILITY[personalZodiac as keyof typeof ZODIAC_COMPATIBILITY]
-    if (compatibility) {
-      const bestList = compatibility.best as readonly string[]
-      const avoidList = compatibility.avoid as readonly string[]
-      if (bestList.includes(currentYearZodiac)) {
-        overallScore += 8
-        investmentScore += 10
-      } else if (avoidList.includes(currentYearZodiac)) {
-        overallScore -= 5
-        investmentScore -= 8
-      }
-    }
-
-    // 天干地支相合相沖影響
-    const dayGanMatch = this.checkGanZhiCompatibility(personalBaZi.dayGanZhi, lunarData.dayGanZhi)
-    overallScore += dayGanMatch * 10
-    investmentScore += dayGanMatch * 15
-
-    // 農民曆宜忌影響
-    if (
-      lunarData.yi.includes('交易') ||
-      lunarData.yi.includes('開市') ||
-      lunarData.yi.includes('求財')
-    ) {
-      investmentScore += 20
-      wealthScore += 15
-    }
-    if (
-      lunarData.ji.includes('交易') ||
-      lunarData.ji.includes('開市') ||
-      lunarData.ji.includes('求財')
-    ) {
-      investmentScore -= 20
-      wealthScore -= 15
-    }
-
-    // 命理引擎加權分數調整
-    // engineWeightedScore 範圍 0-100，轉換為 -25 到 +25 的調整值
-    if (engineWeightedScore > 0) {
-      const engineAdjustment = Math.round(((engineWeightedScore - 50) / 50) * 25)
-      overallScore += engineAdjustment
-      investmentScore += Math.round(engineAdjustment * 1.2)
-      wealthScore += engineAdjustment
-    }
-
-    // 確保分數在合理範圍內
-    overallScore = Math.max(10, Math.min(95, overallScore))
-    investmentScore = Math.max(10, Math.min(95, investmentScore))
-    wealthScore = Math.max(10, Math.min(95, wealthScore))
-    healthScore = Math.max(10, Math.min(95, healthScore))
-
-    return { overallScore, investmentScore, wealthScore, healthScore }
-  }
-
-  /**
-   * 生成投資建議
-   */
-  private static generateInvestmentAdvice(
-    _personalBaZi: PersonalBaZi,
-    _lunarData: LunarData,
-    elements: ElementsEnergy,
-    scores: FortuneScores
-  ) {
-    let recommendation: 'BUY' | 'SELL' | 'HOLD' | 'OBSERVE'
-    let advice: string
-    let riskLevel: 'low' | 'medium' | 'high'
-
-    // 基於投資分數決定建議
-    if (scores.investmentScore >= 75) {
-      recommendation = 'BUY'
-      advice = '今日投資運勢佳，適合積極布局。'
-      riskLevel = 'low'
-    } else if (scores.investmentScore >= 60) {
-      recommendation = 'HOLD'
-      advice = '運勢平穩，建議維持現有部位。'
-      riskLevel = 'medium'
-    } else if (scores.investmentScore >= 40) {
-      recommendation = 'OBSERVE'
-      advice = '運勢略顯不穩，建議觀望等待時機。'
-      riskLevel = 'medium'
-    } else {
-      recommendation = 'SELL'
-      advice = '今日投資運勢不佳，建議避險為主。'
-      riskLevel = 'high'
-    }
-
-    // 根據五行關係調整建議
-    const dominantElement = Object.entries(elements).reduce(
-      (max, [key, value]) =>
-        (value as number) > max.value ? { element: key, value: value as number } : max,
-      { element: '', value: 0 }
-    ).element
-
-    // 加入具體的五行建議
-    switch (dominantElement) {
-      case 'wood':
-        advice += ' 木旺之日，利於成長股投資。'
-        break
-      case 'fire':
-        advice += ' 火旺之日，適合積極操作。'
-        break
-      case 'earth':
-        advice += ' 土旺之日，宜穩健投資。'
-        break
-      case 'metal':
-        advice += ' 金旺之日，利於價值投資。'
-        break
-      case 'water':
-        advice += ' 水旺之日，宜靈活調配。'
-        break
-    }
-
-    return { recommendation, advice, riskLevel }
-  }
-
-  /**
-   * 計算台股交易分析
-   */
-  private static calculateStockTradingAnalysis(
-    personalBaZi: PersonalBaZi,
-    _lunarData: LunarData,
-    date: Date
-  ) {
-    // 獲取台股交易狀態（檢查當前時間和日期）
-    const stockTradingStatus = TaiwanStockService.getTradingStatus(date)
-
-    // 計算傳統吉時兇時
-    const luckyZhi = this.getLuckyZhiForZodiac(personalBaZi.zodiac)
-    const avoidZhi = this.getAvoidZhiForZodiac(personalBaZi.zodiac)
-
-    // 轉換為時間範圍
-    const luckyHours = luckyZhi.map(zhi => this.zhiToTimeRange(zhi))
-    const avoidHours = avoidZhi.map(zhi => this.zhiToTimeRange(zhi))
-
-    // 獲取建議的台股交易時段（僅當天）
-    const tradingPeriods = TaiwanStockService.getRecommendedTradingPeriods(
-      luckyHours,
-      avoidHours,
-      date
-    )
-
-    // 計算下個交易日（用於交易日提醒）
-    const nextTradingDay =
-      stockTradingStatus.nextTradingDay ||
-      (TaiwanStockService.isTradingDay(date) ? date : TaiwanStockService.getNextTradingDay(date))
-
-    return {
-      stockTradingStatus,
-      bestTradingHours: tradingPeriods.recommended,
-      avoidTradingHours: tradingPeriods.avoid,
-      tradingDayInfo: {
-        isToday: TaiwanStockService.isTradingDay(date) && this.isSameDay(date, new Date()),
-        tradingDay: nextTradingDay,
-      },
-    }
-  }
-
-  /**
-   * 檢查兩個日期是否為同一天
-   */
-  private static isSameDay(date1: Date, date2: Date): boolean {
-    return (
-      date1.getFullYear() === date2.getFullYear() &&
-      date1.getMonth() === date2.getMonth() &&
-      date1.getDate() === date2.getDate()
-    )
-  }
-
-  /**
-   * 計算時間分析
-   */
-  private static calculateTimeAnalysis(personalBaZi: PersonalBaZi, lunarData: LunarData) {
-    const zodiac = personalBaZi.zodiac
-
-    // 根據生肖計算吉時
-    const luckyZhi = this.getLuckyZhiForZodiac(zodiac)
-    const avoidZhi = this.getAvoidZhiForZodiac(zodiac)
-
-    const luckyTime = this.zhiToTimeRange(luckyZhi[0])
-    const avoidTime = this.zhiToTimeRange(avoidZhi[0])
-
-    // 計算最佳交易時段（結合台股交易時間）
-    const bestTradingHours = this.calculateBestTradingHours(personalBaZi, lunarData)
-
-    return { luckyTime, avoidTime, bestTradingHours }
-  }
-
-  /**
-   * 計算方位分析
-   */
-  private static calculateDirectionAnalysis(personalBaZi: PersonalBaZi, _lunarData: LunarData) {
-    // 根據天干地支計算吉方
-    const dayGan = personalBaZi.dayGanZhi[0]
-    const dayZhi = personalBaZi.dayGanZhi[1]
-
-    const luckyDirection = this.calculateLuckyDirection(dayGan, dayZhi)
-    const avoidDirection = this.calculateAvoidDirection(dayGan, dayZhi)
-
-    return { luckyDirection, avoidDirection }
-  }
-
-  /**
-   * 生成活動建議
-   */
-  private static generateActivitiesAdvice(_personalBaZi: PersonalBaZi, lunarData: LunarData) {
-    const suitable = [...lunarData.yi]
-    const forbidden = [...lunarData.ji]
-
-    // 根據個人八字調整宜忌
-    // 這裡可以加入更多個性化的宜忌建議
-
-    return { suitable, forbidden }
-  }
-
-  /**
-   * 生成特殊建議
-   */
-  private static generateSpecialAdvice(
-    _personalBaZi: PersonalBaZi,
-    lunarData: LunarData,
-    elements: ElementsEnergy
-  ) {
-    const warnings: string[] = []
+  private static seasonalOpportunities(lunarData: LunarData): string[] {
     const opportunities: string[] = []
-
-    // 檢查五行失衡
-    const elementValues = Object.values(elements) as number[]
-    const maxElement = Math.max(...elementValues)
-    const minElement = Math.min(...elementValues)
-
-    if (maxElement - minElement > 60) {
-      warnings.push('今日五行能量失衡，建議謹慎投資決策。')
+    if (lunarData.jieQi) opportunities.push(`今日${lunarData.jieQi}，適合檢視投資配置。`)
+    for (const festival of lunarData.festivals) {
+      if (festival.includes('財神') || festival.includes('開市')) {
+        opportunities.push(`${festival}，利於財運投資。`)
+      }
     }
-
-    // 檢查節氣影響
-    if (lunarData.jieQi) {
-      opportunities.push(`${lunarData.jieQi}節氣，適合調整投資策略。`)
-    }
-
-    // 檢查節日影響
-    if (lunarData.festivals.length > 0) {
-      lunarData.festivals.forEach(festival => {
-        if (festival.includes('財神') || festival.includes('開市')) {
-          opportunities.push(`${festival}，利於財運投資。`)
-        }
-      })
-    }
-
-    return { warnings, opportunities }
+    return opportunities
   }
 
-  // ===== 自動歷史記錄 =====
-
-  /**
-   * 自動記錄運勢到 IndexedDB（非阻塞，失敗靜默）
-   */
+  /** 自動記錄運勢到 IndexedDB（非阻塞，失敗靜默） */
   private static recordFortuneHistory(
     profile: UserProfileCompat,
     fortune: IntegratedFortuneData
   ): void {
-    const profileHash = hashProfile(profile)
-
-    // 將引擎結果轉為精簡摘要存入歷史（含權重）
-    const enginesResults = fortune.enginesResults?.map(r => ({
-      engineId: r.engineId ?? '',
-      engineName: r.engineName,
-      score: r.score,
-      weight: metaphysicsRegistry.getEngineById(r.engineId ?? '')?.getWeight() ?? 0,
+    const enginesResults = fortune.enginesResults.map(result => ({
+      engineId: result.engineId,
+      engineName: result.engineName,
+      score: result.score,
+      weight: metaphysicsRegistry.getEngineById(result.engineId)?.getWeight() ?? 0,
     }))
 
     fortuneHistoryStore
@@ -829,172 +201,8 @@ export class IntegratedFortuneService {
         lunarSummary: fortune.advice,
         enginesResults,
         engineWeightedScore: fortune.engineWeightedScore,
-        userProfileHash: profileHash,
+        userProfileHash: profileHash(profile),
       })
       .catch(() => {})
-  }
-
-  // 輔助方法們
-  private static parseBirthTime(birthTime: string): number {
-    // 解析出生時間，返回小時數
-    if (!birthTime) return 12 // 默認中午
-
-    const timeMatch = birthTime.match(/(\d{1,2}):?(\d{0,2})/)
-    if (timeMatch) {
-      const hour = timeMatch[1] ? parseInt(timeMatch[1], 10) : 0
-      const minute = timeMatch[2] ? parseInt(timeMatch[2], 10) : 0
-      if (isNaN(hour) || isNaN(minute)) return 12
-      return hour + minute / 60
-    }
-
-    return 12
-  }
-
-  private static calculateHourGanZhi(dayGanZhi: string, hour: number): string {
-    // 計算時辰干支
-    const zhiIndex = Math.floor((hour + 1) / 2) % 12
-    const zhi = EARTHLY_BRANCHES[zhiIndex]
-
-    // 根據日干推算時干
-    const dayGan = dayGanZhi[0]
-    const ganIndex = '甲乙丙丁戊己庚辛壬癸'.indexOf(dayGan)
-    const hourGanIndex = (ganIndex * 2 + zhiIndex) % 10
-    const hourGan = '甲乙丙丁戊己庚辛壬癸'[hourGanIndex]
-
-    return hourGan + zhi
-  }
-
-  private static checkGanZhiCompatibility(baziGanZhi: string, todayGanZhi: string): number {
-    // 檢查干支相合相沖關係，返回 -2 到 2 的分數
-    // 這裡簡化處理，實際可以更詳細
-    if (baziGanZhi === todayGanZhi) return 2
-    if (baziGanZhi[0] === todayGanZhi[0] || baziGanZhi[1] === todayGanZhi[1]) return 1
-    return 0
-  }
-
-  private static getLuckyZhiForZodiac(zodiac: string): readonly string[] {
-    return ZODIAC_LUCKY_BRANCHES[zodiac] ?? ['午']
-  }
-
-  private static getAvoidZhiForZodiac(zodiac: string): readonly string[] {
-    return ZODIAC_AVOID_BRANCHES[zodiac] ?? ['子']
-  }
-
-  private static zhiToTimeRange(zhi: string): string {
-    const zhiToTime: { [key: string]: string } = {
-      子: '23:00-01:00',
-      丑: '01:00-03:00',
-      寅: '03:00-05:00',
-      卯: '05:00-07:00',
-      辰: '07:00-09:00',
-      巳: '09:00-11:00',
-      午: '11:00-13:00',
-      未: '13:00-15:00',
-      申: '15:00-17:00',
-      酉: '17:00-19:00',
-      戌: '19:00-21:00',
-      亥: '21:00-23:00',
-    }
-
-    return zhiToTime[zhi] || '11:00-13:00'
-  }
-
-  private static calculateBestTradingHours(
-    personalBaZi: PersonalBaZi,
-    _lunarData: LunarData
-  ): string[] {
-    // 計算交易時段內的最佳時間
-    const tradingHours = []
-    const luckyZhi = this.getLuckyZhiForZodiac(personalBaZi.zodiac)
-
-    // 交易時段內的時辰：巳(09:00-11:00), 午(11:00-13:00), 未(13:00-15:00)
-    const tradingZhi = ['巳', '午', '未']
-
-    for (const zhi of tradingZhi) {
-      if (luckyZhi.includes(zhi)) {
-        tradingHours.push(this.zhiToTimeRange(zhi))
-      }
-    }
-
-    // 如果沒有吉時在交易時段，選擇相對較好的時段
-    if (tradingHours.length === 0) {
-      tradingHours.push('10:00-11:00') // 默認推薦時段
-    }
-
-    return tradingHours
-  }
-
-  private static calculateLuckyDirection(dayGan: string, _dayZhi: string): string {
-    // 根據天干地支計算吉方
-    const ganToDirection: { [key: string]: string } = {
-      甲: '東方',
-      乙: '東南',
-      丙: '南方',
-      丁: '南方',
-      戊: '中央',
-      己: '中央',
-      庚: '西方',
-      辛: '西方',
-      壬: '北方',
-      癸: '北方',
-    }
-
-    return ganToDirection[dayGan] || '東方'
-  }
-
-  private static calculateAvoidDirection(dayGan: string, _dayZhi: string): string {
-    // 根據天干地支計算凶方
-    const ganToAvoid: { [key: string]: string } = {
-      甲: '西方',
-      乙: '西北',
-      丙: '北方',
-      丁: '北方',
-      戊: '東方',
-      己: '東方',
-      庚: '東方',
-      辛: '東南',
-      壬: '南方',
-      癸: '南方',
-    }
-
-    return ganToAvoid[dayGan] || '西方'
-  }
-
-  private static calculateLuckyColors(personalBaZi: PersonalBaZi, _lunarData: LunarData): string[] {
-    const element = personalBaZi.element
-    const elementToColors: { [key: string]: string[] } = {
-      wood: ['綠色', '青色', '蘭色'],
-      fire: ['紅色', '橙色', '紫色'],
-      earth: ['黃色', '咖啡色', '土色'],
-      metal: ['白色', '金色', '銀色'],
-      water: ['黑色', '藍色', '灰色'],
-    }
-
-    return elementToColors[element] || ['藍色', '黑色']
-  }
-
-  private static calculateLuckyNumbers(
-    personalBaZi: PersonalBaZi,
-    _lunarData: LunarData
-  ): number[] {
-    const element = personalBaZi.element
-    const elementToNumbers: { [key: string]: number[] } = {
-      wood: [3, 8],
-      fire: [2, 7],
-      earth: [5, 0],
-      metal: [4, 9],
-      water: [1, 6],
-    }
-
-    const baseNumbers = elementToNumbers[element] || [1, 6]
-
-    // 加入一些變化
-    const luckyNumbers = [...baseNumbers]
-    baseNumbers.forEach(num => {
-      if (num < 5) luckyNumbers.push(num + 10)
-      if (num > 5) luckyNumbers.push(num + 20)
-    })
-
-    return luckyNumbers.slice(0, 6)
   }
 }

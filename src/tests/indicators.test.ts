@@ -4,7 +4,6 @@ import {
   dailyReturns,
   meanAndVariance,
   maxDrawdown,
-  bucketReturns,
   rsi,
   ema,
   macd,
@@ -73,15 +72,6 @@ describe('indicators', () => {
     expect(maxDrawdown(series([100, 120, 110, 90, 130, 125]))).toBeCloseTo(25)
     expect(maxDrawdown(series([1, 2, 3]))).toBe(0)
     expect(maxDrawdown([])).toBe(0)
-  })
-
-  it('bucketReturns 單次掃描分桶', () => {
-    expect(bucketReturns([1, 0.3, 0, -0.2, -0.5, -2])).toEqual({
-      excellent: 1,
-      good: 1,
-      average: 3,
-      poor: 1,
-    })
   })
 
   it('rsi 邊界：資料不足 / 全漲 / 持平', () => {

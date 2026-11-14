@@ -89,7 +89,7 @@ const chartOptions = computed(() => {
         callbacks: {
           label: (ctx: TooltipItem<'bar'>) => {
             const result = props.results[ctx.dataIndex]
-            const weight = props.weights[result.engineId || ''] || 0
+            const weight = props.weights[result.engineId] ?? 0
             return `分數: ${ctx.parsed.x}  權重: ${weight}%`
           },
         },

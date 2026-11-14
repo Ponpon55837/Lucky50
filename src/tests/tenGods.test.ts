@@ -1,216 +1,125 @@
 import { describe, it, expect } from 'vitest'
+// @ts-expect-error - lunar-javascript doesn't have TypeScript definitions
+import { Solar } from 'lunar-javascript'
+import { s2t } from 'chinese-s2t'
+import { buildBirthChart } from '@/services/engines/birthChart'
+import { parseGanZhi } from '@/utils/ganzhi'
 import {
-  getTenGodRelation,
+  PILLAR_KEYS,
   calculateFourPillarsTenGods,
   countTenGods,
+  dayMasterStrength,
+  favorableGroups,
   findDominantTenGods,
+  getTenGodRelation,
   inferInvestmentPersonality,
-  getStemElement,
-  getStemYinYang,
+  tenGodGroup,
+  tenGodOf,
+  type FourPillars,
 } from '@/utils/tenGods'
 
-describe('十神計算工具', () => {
-  describe('getStemElement', () => {
-    it('should return correct element for each stem', () => {
-      expect(getStemElement('甲')).toBe('wood')
-      expect(getStemElement('乙')).toBe('wood')
-      expect(getStemElement('丙')).toBe('fire')
-      expect(getStemElement('丁')).toBe('fire')
-      expect(getStemElement('戊')).toBe('earth')
-      expect(getStemElement('己')).toBe('earth')
-      expect(getStemElement('庚')).toBe('metal')
-      expect(getStemElement('辛')).toBe('metal')
-      expect(getStemElement('壬')).toBe('water')
-      expect(getStemElement('癸')).toBe('water')
-    })
+const pillarsOf = (year: string, month: string, day: string, hour: string): FourPillars => ({
+  year: parseGanZhi(year)!,
+  month: parseGanZhi(month)!,
+  day: parseGanZhi(day)!,
+  hour: parseGanZhi(hour)!,
+})
 
-    it('should return null for invalid stem', () => {
-      expect(getStemElement('A')).toBeNull()
-    })
+describe('十神', () => {
+  it('以甲木為日主的十神', () => {
+    const gods = [...'甲乙丙丁戊己庚辛壬癸'].map(stem => tenGodOf('甲', stem as never))
+    expect(gods).toEqual([
+      '比肩',
+      '劫財',
+      '食神',
+      '傷官',
+      '偏財',
+      '正財',
+      '七殺',
+      '正官',
+      '偏印',
+      '正印',
+    ])
   })
 
-  describe('getStemYinYang', () => {
-    it('should return correct yin-yang for each stem', () => {
-      expect(getStemYinYang('甲')).toBe('yang')
-      expect(getStemYinYang('乙')).toBe('yin')
-      expect(getStemYinYang('丙')).toBe('yang')
-      expect(getStemYinYang('丁')).toBe('yin')
-    })
-
-    it('should return null for invalid stem', () => {
-      expect(getStemYinYang('A')).toBeNull()
-    })
+  it('非天干回傳 null', () => {
+    expect(getTenGodRelation('甲', '?')).toBeNull()
+    expect(getTenGodRelation('甲', '己')).toBe('正財')
   })
 
-  describe('getTenGodRelation', () => {
-    it('should return 比肩 for same element same polarity', () => {
-      // 甲(wood,yang) vs 甲(wood,yang) → 比肩
-      expect(getTenGodRelation('甲', '甲')).toBe('比肩')
-      // 乙(wood,yin) vs 乙(wood,yin) → 比肩
-      expect(getTenGodRelation('乙', '乙')).toBe('比肩')
-    })
-
-    it('should return 劫財 for same element different polarity', () => {
-      // 甲(wood,yang) vs 乙(wood,yin) → 劫財
-      expect(getTenGodRelation('甲', '乙')).toBe('劫財')
-      expect(getTenGodRelation('乙', '甲')).toBe('劫財')
-    })
-
-    it('should return 食神 for element I generate same polarity', () => {
-      // 甲(wood,yang) generates fire → 丙(fire,yang) → 食神
-      expect(getTenGodRelation('甲', '丙')).toBe('食神')
-      // 庚(metal,yang) generates water → 壬(water,yang) → 食神
-      expect(getTenGodRelation('庚', '壬')).toBe('食神')
-    })
-
-    it('should return 傷官 for element I generate different polarity', () => {
-      // 甲(wood,yang) generates fire → 丁(fire,yin) → 傷官
-      expect(getTenGodRelation('甲', '丁')).toBe('傷官')
-    })
-
-    it('should return 偏財 for element I destroy same polarity', () => {
-      // 甲(wood,yang) destroys earth → 戊(earth,yang) → 偏財
-      expect(getTenGodRelation('甲', '戊')).toBe('偏財')
-    })
-
-    it('should return 正財 for element I destroy different polarity', () => {
-      // 甲(wood,yang) destroys earth → 己(earth,yin) → 正財
-      expect(getTenGodRelation('甲', '己')).toBe('正財')
-    })
-
-    it('should return 七殺 for element that destroys me same polarity', () => {
-      // metal destroys wood → 庚(metal,yang) destroys 甲(wood,yang) → 七殺
-      expect(getTenGodRelation('甲', '庚')).toBe('七殺')
-    })
-
-    it('should return 正官 for element that destroys me different polarity', () => {
-      // metal destroys wood → 辛(metal,yin) destroys 甲(wood,yang) → 正官
-      expect(getTenGodRelation('甲', '辛')).toBe('正官')
-    })
-
-    it('should return 偏印 for element that generates me same polarity', () => {
-      // water generates wood → 壬(water,yang) generates 甲(wood,yang) → 偏印
-      expect(getTenGodRelation('甲', '壬')).toBe('偏印')
-    })
-
-    it('should return 正印 for element that generates me different polarity', () => {
-      // water generates wood → 癸(water,yin) generates 甲(wood,yang) → 正印
-      expect(getTenGodRelation('甲', '癸')).toBe('正印')
-    })
-
-    it('should return 比肩 for invalid input', () => {
-      expect(getTenGodRelation('A', '甲')).toBe('比肩')
-    })
+  it('十神五類', () => {
+    expect(tenGodGroup('劫財')).toBe('peer')
+    expect(tenGodGroup('傷官')).toBe('output')
+    expect(tenGodGroup('正財')).toBe('wealth')
+    expect(tenGodGroup('七殺')).toBe('officer')
+    expect(tenGodGroup('偏印')).toBe('resource')
   })
 
-  describe('calculateFourPillarsTenGods', () => {
-    it('should calculate ten gods for all four pillars', () => {
-      // 甲子年 丙寅月 壬申日 戊申時
-      // 日主：壬(water,yang)
-      const result = calculateFourPillarsTenGods('甲子', '丙寅', '壬申', '戊申')
+  it('四柱十神與函式庫排盤一致', () => {
+    const births: Array<[string, string, number, number, number, number]> = [
+      ['1995-06-15', '08:30', 1995, 6, 15, 8],
+      ['1988-01-03', '21:10', 1988, 1, 3, 21],
+      ['2001-12-25', '00:40', 2001, 12, 25, 0],
+      ['1976-09-09', '15:05', 1976, 9, 9, 15],
+    ]
+    for (const [birthDate, birthTime, y, m, d, h] of births) {
+      const eightChar = Solar.fromYmdHms(y, m, d, h, Number(birthTime.slice(3)), 0)
+        .getLunar()
+        .getEightChar()
+      const gods = calculateFourPillarsTenGods(buildBirthChart({ birthDate, birthTime }).pillars)
 
-      // 壬(water,yang) generates 甲(wood,yang) → 我生他同陰陽 → 食神
-      expect(result.year).toBe('食神')
-      // 壬(water,yang) destroys 丙(fire,yang) → 我剋他同陰陽 → 偏財
-      expect(result.month).toBe('偏財')
-      // 日主本身
-      expect(result.day).toBe('比肩')
-      // 戊(earth,yang) destroys 壬(water,yang) → 他剋我同陰陽 → 七殺
-      expect(result.hour).toBe('七殺')
-    })
+      expect(gods.year.stem).toBe(s2t(eightChar.getYearShiShenGan()))
+      expect(gods.month.stem).toBe(s2t(eightChar.getMonthShiShenGan()))
+      expect(gods.hour.stem).toBe(s2t(eightChar.getTimeShiShenGan()))
+      expect(gods.day.stem).toBeNull()
+      expect(gods.year.branch).toBe(s2t(eightChar.getYearShiShenZhi()[0]))
+      expect(gods.month.branch).toBe(s2t(eightChar.getMonthShiShenZhi()[0]))
+      expect(gods.day.branch).toBe(s2t(eightChar.getDayShiShenZhi()[0]))
+      expect(gods.hour.branch).toBe(s2t(eightChar.getTimeShiShenZhi()[0]))
+    }
   })
 
-  describe('countTenGods', () => {
-    it('should count ten gods correctly', () => {
-      const distribution = {
-        year: '偏印' as const,
-        month: '七殺' as const,
-        day: '比肩' as const,
-        hour: '七殺' as const,
-      }
+  it('統計七個位置並找出最旺十神', () => {
+    const gods = calculateFourPillarsTenGods(pillarsOf('甲寅', '甲寅', '甲寅', '甲寅'))
+    const counts = countTenGods(gods)
+    expect(counts.get('比肩')).toBe(7)
+    expect(findDominantTenGods(counts)).toEqual(['比肩'])
+    expect(PILLAR_KEYS.every(key => gods[key].branch === '比肩')).toBe(true)
+  })
+})
 
-      const counts = countTenGods(distribution)
-      expect(counts['偏印']).toBe(1)
-      expect(counts['七殺']).toBe(2)
-      expect(counts['比肩']).toBe(1)
-      expect(counts['正財']).toBe(0)
-    })
+describe('日主旺衰', () => {
+  it('通根得令為身強，喜食傷財官', () => {
+    const strength = dayMasterStrength(pillarsOf('甲寅', '甲寅', '甲寅', '甲寅'))
+    expect(strength.strong).toBe(true)
+    expect(strength.inSeason).toBe(true)
+    expect([...favorableGroups(true)]).toEqual(['output', 'wealth', 'officer'])
   })
 
-  describe('findDominantTenGods', () => {
-    it('should find the most frequent ten gods', () => {
-      const counts = {
-        比肩: 1,
-        劫財: 0,
-        食神: 0,
-        傷官: 0,
-        偏財: 2,
-        正財: 0,
-        七殺: 2,
-        正官: 0,
-        偏印: 1,
-        正印: 0,
-      }
-
-      const dominant = findDominantTenGods(counts)
-      expect(dominant).toContain('偏財')
-      expect(dominant).toContain('七殺')
-    })
+  it('失令無助為身弱，喜印比', () => {
+    const strength = dayMasterStrength(pillarsOf('庚申', '庚申', '甲申', '庚申'))
+    expect(strength.strong).toBe(false)
+    expect(strength.inSeason).toBe(false)
+    // 只有四個申中的壬水（中氣 0.3）生扶：0.3 × (1 + 3 + 1 + 1)
+    expect(strength.support).toBeCloseTo(1.8)
+    expect([...favorableGroups(false)]).toEqual(['resource', 'peer'])
   })
 
-  describe('inferInvestmentPersonality', () => {
-    it('should infer personality from ten gods distribution', () => {
-      // 偏財多 → 積極交易型
-      const distribution = {
-        year: '偏財' as const,
-        month: '偏財' as const,
-        day: '比肩' as const,
-        hour: '食神' as const,
-      }
+  it('地支依藏干比例計入', () => {
+    // 丁火日主：乙、甲兩干生扶 2；亥中甲 0.3；午月丁 0.7×3；辰中乙 0.3
+    const strength = dayMasterStrength(pillarsOf('乙亥', '壬午', '丁丑', '甲辰'))
+    expect(strength.support).toBeCloseTo(4.7)
+    expect(strength.strong).toBe(true)
+  })
+})
 
-      const result = inferInvestmentPersonality(distribution)
-      expect(result.dominantGods).toContain('偏財')
-      expect(result.style).toBe('active')
-      expect(result.description).toContain('積極交易')
-    })
-
-    it('should infer conservative style for 正財 dominant', () => {
-      const distribution = {
-        year: '正財' as const,
-        month: '正財' as const,
-        day: '比肩' as const,
-        hour: '正印' as const,
-      }
-
-      const result = inferInvestmentPersonality(distribution)
-      expect(result.style).toBe('conservative')
-      expect(result.description).toContain('穩健持有')
-    })
-
-    it('should infer analytical style for 偏印 dominant', () => {
-      const distribution = {
-        year: '偏印' as const,
-        month: '偏印' as const,
-        day: '比肩' as const,
-        hour: '正印' as const,
-      }
-
-      const result = inferInvestmentPersonality(distribution)
-      expect(result.style).toBe('analytical')
-      expect(result.description).toContain('研究分析')
-    })
-
-    it('should infer creative style for 傷官 dominant', () => {
-      const distribution = {
-        year: '傷官' as const,
-        month: '傷官' as const,
-        day: '比肩' as const,
-        hour: '偏財' as const,
-      }
-
-      const result = inferInvestmentPersonality(distribution)
-      expect(result.style).toBe('creative')
-      expect(result.description).toContain('創意突破')
-    })
+describe('投資性格', () => {
+  it('依最旺十神所屬風格判斷', () => {
+    const personality = inferInvestmentPersonality(
+      calculateFourPillarsTenGods(pillarsOf('庚申', '庚申', '甲申', '庚申'))
+    )
+    expect(personality.dominantGods).toEqual(['七殺'])
+    expect(personality.style).toBe('active')
+    expect(personality.description).toContain('積極交易型')
   })
 })

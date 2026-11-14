@@ -1,30 +1,7 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect } from 'vitest'
 import { mount, flushPromises } from '@vue/test-utils'
 import FengShuiCard from '@/components/FengShuiCard.vue'
 import type { UserProfileCompat } from '@/services/integratedFortune'
-
-vi.mock('@/services/lunar', () => ({
-  lunarService: {
-    getLunarData: vi.fn(() => ({
-      lunarYear: '庚午',
-      lunarMonth: '四月',
-      lunarDay: '廿一',
-      ganZhi: '庚午',
-      monthGanZhi: '辛巳',
-      dayGanZhi: '丙寅',
-      zodiac: '馬',
-      constellation: '金牛座',
-      naYin: '路旁土',
-      jieQi: '',
-      festivals: [],
-      yi: [],
-      ji: [],
-      pengZu: '',
-      naYinDay: '',
-      jiuXing: '',
-    })),
-  },
-}))
 
 describe('FengShuiCard', () => {
   const mockProfile: UserProfileCompat = {
@@ -38,10 +15,6 @@ describe('FengShuiCard', () => {
     luckyColors: ['紅色'],
     luckyNumbers: [2, 7],
   }
-
-  beforeEach(() => {
-    vi.clearAllMocks()
-  })
 
   it('should render title', () => {
     const wrapper = mount(FengShuiCard, {
@@ -64,7 +37,8 @@ describe('FengShuiCard', () => {
     })
     await flushPromises()
     expect(wrapper.text()).toContain('今日流日')
-    expect(wrapper.text()).toContain('五行')
+    expect(wrapper.text()).toContain('納音屬金')
+    expect(wrapper.text()).toContain('財位在東北')
   })
 
   it('should display lucky directions', async () => {
