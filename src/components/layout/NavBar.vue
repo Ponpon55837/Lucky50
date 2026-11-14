@@ -57,7 +57,15 @@ watch(
     </div>
   </nav>
 
-  <!-- 手機與平板：頂部列 + 下拉選單 -->
+  <!-- 手機與平板：頂部列 + 覆蓋式下拉選單（不推擠頁面內容） -->
+  <Transition name="menu-backdrop">
+    <div
+      v-show="mobileOpen"
+      class="menu-backdrop lg:hidden"
+      aria-hidden="true"
+      @click="mobileOpen = false"
+    />
+  </Transition>
   <header class="sticky top-0 z-40 border-b border-line bg-surface lg:hidden">
     <div class="flex h-14 items-center justify-between px-4">
       <RouterLink
@@ -77,35 +85,36 @@ watch(
           aria-controls="mobile-navigation"
           @click="mobileOpen = !mobileOpen"
         >
-          <XMarkIcon
-            v-if="mobileOpen"
-            class="h-5 w-5"
-          />
-          <Bars3Icon
-            v-else
-            class="h-5 w-5"
-          />
+          <Transition
+            name="menu-icon"
+            mode="out-in"
+          >
+            <XMarkIcon
+              v-if="mobileOpen"
+              class="h-5 w-5"
+            />
+            <Bars3Icon
+              v-else
+              class="h-5 w-5"
+            />
+          </Transition>
         </button>
       </div>
     </div>
-    <Transition
-      enter-from-class="opacity-0 -translate-y-1"
-      enter-active-class="transition-[opacity,transform] duration-200 ease-out"
-      leave-to-class="opacity-0 -translate-y-1"
-      leave-active-class="transition-[opacity,transform] duration-150 ease-out"
-    >
+    <Transition name="menu-panel">
       <nav
         v-show="mobileOpen"
         id="mobile-navigation"
-        class="border-t border-line px-2 py-2"
+        class="absolute inset-x-0 top-full rounded-b-card border-b border-line bg-surface px-3 pb-3 pt-2 shadow-card"
         aria-label="主選單"
       >
         <RouterLink
-          v-for="item in NAV_ITEMS"
+          v-for="(item, index) in NAV_ITEMS"
           :key="item.to"
           :to="item.to"
-          class="flex h-11 items-center rounded-[10px] px-3 font-serif text-[15px] text-ink-2 transition-colors hover:bg-raised"
-          exact-active-class="bg-raised font-bold text-ink"
+          class="menu-item"
+          exact-active-class="is-active"
+          :style="{ '--i': index }"
         >
           {{ item.label }}
         </RouterLink>
@@ -132,5 +141,92 @@ watch(
 .spine-link.is-active::before {
   content: '';
   @apply absolute -left-2.5 bottom-3 top-3 w-[3px] rounded-sm bg-seal;
+}
+
+/* ── 手機選單 ─────────────────────────────── */
+
+/* 遮罩：淡淡的宣紙霧面，只是讓內容退後，不壓暗 */
+.menu-backdrop {
+  @apply fixed inset-0 z-30 bg-paper/60;
+  backdrop-filter: blur(6px) saturate(0.9);
+}
+
+.menu-backdrop-enter-active,
+.menu-backdrop-leave-active {
+  transition: opacity 240ms var(--ease-out);
+}
+
+.menu-backdrop-enter-from,
+.menu-backdrop-leave-to {
+  opacity: 0;
+}
+
+/* 面板：像捲軸一樣由上往下展開 */
+.menu-panel-enter-active {
+  transition:
+    clip-path 360ms var(--ease-out),
+    opacity 200ms var(--ease-out);
+}
+
+.menu-panel-leave-active {
+  transition:
+    clip-path 200ms var(--ease-out),
+    opacity 160ms var(--ease-out);
+}
+
+.menu-panel-enter-from,
+.menu-panel-leave-to {
+  clip-path: inset(0 0 100% 0 round 0 0 16px 16px);
+  opacity: 0;
+}
+
+.menu-panel-enter-to,
+.menu-panel-leave-from {
+  clip-path: inset(0 0 0 0 round 0 0 16px 16px);
+}
+
+.menu-item {
+  @apply relative flex h-12 items-center rounded-[10px] px-4 font-serif text-[16px] tracking-[0.12em] text-ink-2 transition-colors hover:bg-raised hover:text-ink;
+}
+
+.menu-item.is-active {
+  @apply bg-raised font-bold text-ink;
+}
+
+/* 目前頁面：與桌面書脊同款的朱紅書籤線 */
+.menu-item.is-active::before {
+  content: '';
+  @apply absolute bottom-3 left-1.5 top-3 w-[3px] rounded-sm bg-seal;
+}
+
+/* 選項依序落下 */
+.menu-panel-enter-active .menu-item {
+  animation: menu-item-in 380ms var(--ease-out) both;
+  animation-delay: calc(80ms + var(--i) * 45ms);
+}
+
+@keyframes menu-item-in {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+}
+
+/* 漢堡 ↔ 叉叉 旋轉切換 */
+.menu-icon-enter-active,
+.menu-icon-leave-active {
+  transition:
+    transform 160ms var(--ease-out),
+    opacity 160ms var(--ease-out);
+}
+
+.menu-icon-enter-from {
+  opacity: 0;
+  transform: rotate(-90deg) scale(0.6);
+}
+
+.menu-icon-leave-to {
+  opacity: 0;
+  transform: rotate(90deg) scale(0.6);
 }
 </style>
