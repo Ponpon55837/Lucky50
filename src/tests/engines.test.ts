@@ -15,6 +15,9 @@ import {
   makeEngineInput,
 } from './helpers/engineInput'
 
+/** 逐日掃描一整年；機器負載高時平行執行可能超過預設 5 秒 */
+const YEAR_SCAN_TIMEOUT = 30_000
+
 const ENGINES: MetaphysicsEngine[] = [
   new ClassicFortuneEngine(),
   new BaziTenGodsEngine(),
@@ -185,12 +188,16 @@ describe('FengShuiEngine', () => {
     expect(luckyDirections.map(note => note.direction)).not.toContain('正南')
   })
 
-  it('整年下來，主要吉方從不與凶方相同', () => {
-    for (const date of consecutiveDays(365)) {
-      const result = engine.calculate(makeEngineInput(PIG_PROFILE, date))
-      if (result.luckyDirection) expect(result.luckyDirection).not.toBe(result.avoidDirection)
-    }
-  })
+  it(
+    '整年下來，主要吉方從不與凶方相同',
+    () => {
+      for (const date of consecutiveDays(365)) {
+        const result = engine.calculate(makeEngineInput(PIG_PROFILE, date))
+        if (result.luckyDirection) expect(result.luckyDirection).not.toBe(result.avoidDirection)
+      }
+    },
+    YEAR_SCAN_TIMEOUT
+  )
 
   it('甲午日（沙中金）對山頭火命：我剋為財，生肖亥居北逢三煞', () => {
     const result = engine.calculate(makeEngineInput(PIG_PROFILE, JIA_WU_DAY))

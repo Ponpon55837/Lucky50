@@ -12,35 +12,36 @@ import { BUY_THRESHOLD, HOLD_THRESHOLD, OBSERVE_THRESHOLD } from '@/utils/almana
 import { fromLocalDateString } from '@/utils/date'
 import { profileHash } from '@/utils/hash'
 import type { FortuneBand } from '@/utils/backtest'
+import Loading from '@/components/ui/Loading.vue'
 
 // ── 元件 ──
 const PriceChart = defineAsyncComponent({
   loader: () => import('@/components/charts/PriceChart.vue'),
-  loadingComponent: () => import('@/components/ui/Loading.vue'),
+  loadingComponent: Loading,
 })
 const VolumeChart = defineAsyncComponent({
   loader: () => import('@/components/charts/VolumeChart.vue'),
-  loadingComponent: () => import('@/components/ui/Loading.vue'),
+  loadingComponent: Loading,
 })
 const Stock3DVisualization = defineAsyncComponent({
   loader: () => import('@/components/three/Stock3DVisualization.vue'),
-  loadingComponent: () => import('@/components/ui/Loading.vue'),
+  loadingComponent: Loading,
 })
 const Fortune3DVisualization = defineAsyncComponent({
   loader: () => import('@/components/three/Fortune3DVisualization.vue'),
-  loadingComponent: () => import('@/components/ui/Loading.vue'),
+  loadingComponent: Loading,
 })
 const Lunar3DVisualization = defineAsyncComponent({
   loader: () => import('@/components/three/Lunar3DVisualization.vue'),
-  loadingComponent: () => import('@/components/ui/Loading.vue'),
+  loadingComponent: Loading,
 })
 const Technical3DVisualization = defineAsyncComponent({
   loader: () => import('@/components/three/Technical3DVisualization.vue'),
-  loadingComponent: () => import('@/components/ui/Loading.vue'),
+  loadingComponent: Loading,
 })
 const EngineScoresChart = defineAsyncComponent({
   loader: () => import('@/components/charts/EngineScoresChart.vue'),
-  loadingComponent: () => import('@/components/ui/Loading.vue'),
+  loadingComponent: Loading,
 })
 
 // ── Store 實例 ──
@@ -393,31 +394,37 @@ onMounted(() => {
       </section>
     </div>
 
-    <!-- 3D 可視化區域 -->
-    <div class="grid grid-cols-1 gap-6 xl:grid-cols-2">
-      <!-- 股票價格 3D 可視化 -->
-      <div class="h-64 md:h-80">
-        <Stock3DVisualization title="股價 3D 動態" />
+    <!-- 立體圖解：四張卡片共用同一套紙面舞台 -->
+    <section
+      class="flex flex-col gap-4"
+      aria-labelledby="scenes-heading"
+    >
+      <div>
+        <h2
+          id="scenes-heading"
+          class="card-title"
+        >
+          立體圖解
+        </h2>
+        <p class="card-meta mt-1">
+          股價、五行、節氣與技術指標的 3D 圖；拖曳可旋轉，滑鼠移到（手機點一下）物件上可看數值
+        </p>
       </div>
-
-      <!-- 生肖運勢 3D 可視化 -->
-      <div class="h-64 md:h-80">
-        <Fortune3DVisualization title="生肖運勢 3D" />
+      <div class="grid grid-cols-1 gap-6 xl:grid-cols-2">
+        <div class="h-[26rem] sm:h-[28rem]">
+          <Stock3DVisualization title="股價走勢" />
+        </div>
+        <div class="h-[26rem] sm:h-[28rem]">
+          <Fortune3DVisualization title="五行能量" />
+        </div>
+        <div class="h-[26rem] sm:h-[28rem]">
+          <Lunar3DVisualization title="節氣與宜忌" />
+        </div>
+        <div class="h-[26rem] sm:h-[28rem]">
+          <Technical3DVisualization title="技術指標" />
+        </div>
       </div>
-    </div>
-
-    <!-- 農民曆與技術指標 3D 區域 -->
-    <div class="grid grid-cols-1 gap-6 xl:grid-cols-2">
-      <!-- 農民曆 3D 可視化 -->
-      <div class="h-64 md:h-80">
-        <Lunar3DVisualization title="農民曆 3D" />
-      </div>
-
-      <!-- 技術指標 3D 可視化 -->
-      <div class="h-64 md:h-80">
-        <Technical3DVisualization title="技術指標 3D" />
-      </div>
-    </div>
+    </section>
 
     <!-- 命理引擎分析 -->
     <section

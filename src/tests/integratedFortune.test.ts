@@ -4,6 +4,9 @@ import { ENGINE_LIST, ENGINE_SETTINGS_STORAGE_KEY, metaphysicsRegistry } from '@
 import { lunarService } from '@/services/lunar'
 import { JIA_WU_DAY, PIG_PROFILE, RAT_PROFILE, consecutiveDays } from './helpers/engineInput'
 
+/** 逐日掃描一整年；機器負載高時平行執行可能超過預設 5 秒 */
+const YEAR_SCAN_TIMEOUT = 30_000
+
 const append = vi.hoisted(() => vi.fn(() => Promise.resolve()))
 vi.mock('@/services/fortuneStore', () => ({ fortuneHistoryStore: { append } }))
 
@@ -108,12 +111,16 @@ describe('IntegratedFortuneService', () => {
     )
   })
 
-  it('整年下來，吉方從不與凶方相同', () => {
-    for (const date of consecutiveDays(365)) {
-      const fortune = IntegratedFortuneService.computeFortune(PIG_PROFILE, date)
-      if (fortune.luckyDirection) expect(fortune.luckyDirection).not.toBe(fortune.avoidDirection)
-    }
-  })
+  it(
+    '整年下來，吉方從不與凶方相同',
+    () => {
+      for (const date of consecutiveDays(365)) {
+        const fortune = IntegratedFortuneService.computeFortune(PIG_PROFILE, date)
+        if (fortune.luckyDirection) expect(fortune.luckyDirection).not.toBe(fortune.avoidDirection)
+      }
+    },
+    YEAR_SCAN_TIMEOUT
+  )
 
   it('出生日期無效時拋出錯誤', async () => {
     await expect(calculate({ ...PIG_PROFILE, birthDate: '' })).rejects.toThrow('出生日期不能為空')

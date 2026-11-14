@@ -40,6 +40,7 @@ Keep this managed block so 'openspec update' can refresh the instructions.
 - **Step 13**: 農民曆風格 UI 改版（`openspec/changes/update-almanac-ui-redesign`）— 設計 tokens（CSS 變數 + Tailwind 語意色，漲紅跌綠）、儀表板今日籤／十二時辰輪／五行相生圖／SVG 走勢吉印、直排書脊導覽、首頁農民曆封面；純函式 `src/utils/almanac.ts`、`src/utils/chart.ts` ✅
 
 - **Step 14**: 命理計算依傳統規則重寫（`openspec/changes/update-fortune-engine-accuracy`）— `src/utils/ganzhi.ts` 為干支五行唯一來源；時辰改用黃道黑道十二神；四個引擎依擇日、日主喜忌、紫微安星與四化、納音生剋重寫並列出加減分由來；`buildBirthChart` 節氣四柱；康熙筆畫姓名學；`src/utils/backtest.ts` 真實回測（`src/utils/scheduling.ts` 分段計算不卡畫面）；CI 加格式檢查與相依稽核 ✅
+- **Step 15**: 數據分析頁 3D 圖解改版（`openspec/changes/update-analytics-3d-scenes`）— 共用舞台 `SceneStage`（`src/utils/three-scene.ts`：token 色票、霧面打光、自動框景、HTML 標籤、hover／拖曳、按需重繪、捲出視窗暫停、完整釋放）＋ `useSceneStage`、`SceneCard`；四個場景改為 K 線、五行能量、二十四節氣輪、技術指標量規；節氣改用實際資料；純函式 `src/utils/sceneLayout.ts`、`src/utils/solarTerms.ts`；移除 `@tweenjs/tween.js` ✅
 
 ## Routes
 
@@ -60,8 +61,8 @@ Keep this managed block so 'openspec update' can refresh the instructions.
 
 ## Tests
 
-- 415 tests across 33 test files（`pnpm check` 一次跑完 lint、格式、型別、測試、建置）
-- Key: `ganzhi.test.ts`、`almanac.test.ts`、`tenGods.test.ts`、`ziwei.test.ts`（以上與 lunar-javascript 交叉驗證）、`engines.test.ts`、`registry.test.ts`、`birthChart.test.ts`、`integratedFortune.test.ts`、`backtest.test.ts`、`nameStrokes.test.ts`
+- 444 tests across 35 test files（`pnpm check` 一次跑完 lint、格式、型別、測試、建置）
+- Key: `ganzhi.test.ts`、`almanac.test.ts`、`tenGods.test.ts`、`ziwei.test.ts`（以上與 lunar-javascript 交叉驗證）、`engines.test.ts`、`registry.test.ts`、`birthChart.test.ts`、`integratedFortune.test.ts`、`backtest.test.ts`、`nameStrokes.test.ts`、`sceneLayout.test.ts`、`solarTerms.test.ts`
 
 ## Tech Stack
 

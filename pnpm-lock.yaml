@@ -18,9 +18,6 @@ importers:
       '@pinia/colada':
         specifier: ^1.4.9
         version: 1.4.9(pinia@3.0.4(typescript@5.9.3)(vue@3.5.45(typescript@5.9.3)))(vue@3.5.45(typescript@5.9.3))
-      '@tweenjs/tween.js':
-        specifier: ^25.0.0
-        version: 25.0.0
       '@vuepic/vue-datepicker':
         specifier: ^11.0.3
         version: 11.0.3(vue@3.5.45(typescript@5.9.3))
@@ -1183,9 +1180,6 @@ packages:
   '@trickfilm400/rollup-plugin-off-main-thread@3.0.0-pre1':
     resolution: {integrity: sha512-/67zpWDBLV+oYAEL682s1ktXL0HgqX76f6gaVGkGnVZlBbm1zd0v4Bz8MFF2GGhoX9rvfq3KSQHubFHwa6w6/Q==}
     engines: {node: '>=12'}
-
-  '@tweenjs/tween.js@25.0.0':
-    resolution: {integrity: sha512-XKLA6syeBUaPzx4j3qwMqzzq+V4uo72BnlbOjmuljLrRqdsd3qnzvZZoxvMHZ23ndsRS4aufU6JOZYpCbU6T1A==}
 
   '@tybys/wasm-util@0.10.4':
     resolution: {integrity: sha512-W3c4gRigFS0T/Ma4qIYF3GDAc5AQdHb1yL5znJT1Zv1YaD9Kitx656wBjvr19qbiosmZT8lWDM5BEMynUqX65A==}
@@ -4538,8 +4532,6 @@ snapshots:
       json5: 2.2.3
       magic-string: 0.30.21
       string.prototype.matchall: 4.1.0
-
-  '@tweenjs/tween.js@25.0.0': {}
 
   '@tybys/wasm-util@0.10.4':
     dependencies:

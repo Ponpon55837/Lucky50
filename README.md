@@ -138,6 +138,7 @@ const registry = createDefaultRegistry()
 | 本命盤         | 與日期無關的十神、紫微命盤以命盤為鍵快取（WeakMap），逐日只算流日           |
 | 康熙筆畫       | 兩萬字壓成一個字串，以碼點位移查表，O(1)                                    |
 | 個人資料快取鍵 | FNV-1a 32-bit 雜湊，避免同長度姓名碰撞                                      |
+| 3D 圖解        | 按需重繪（閒置不跑 render loop）、InstancedMesh 一次繪製同類物件、捲出視窗即暫停 |
 
 儀表板改用自繪 SVG 走勢圖取代 Chart.js，頁面 chunk 約 31 KB；Chart.js 只留在數據分析頁。
 
@@ -183,9 +184,10 @@ src/
 │   ├── EngineSettingsCard.vue    # 引擎啟用與權重設定
 │   ├── FortuneLogViewer.vue      # 運勢歷史列表
 │   ├── charts/                   # Chart.js 圖表（數據分析頁）
+│   ├── three/                    # 數據分析頁 3D 圖解（SceneCard 外框 + 股價／五行／節氣／技術指標）
 │   ├── layout/                   # NavBar（直排書脊／手機覆蓋選單）、Footer、LegalModal
 │   └── ui/                       # Toast、Loading、LazyImage
-├── composables/              # useDashboardAlmanac、useTheme、useEscapeKey、useElementWidth…
+├── composables/              # useDashboardAlmanac、useSceneStage、useTheme、useEscapeKey、useElementWidth…
 ├── queries/                  # Pinia Colada 查詢定義
 ├── services/
 │   ├── engines/              # 命理引擎（classic、baziTenGods、ziWei、fengShui）、birthChart、registry
@@ -203,10 +205,13 @@ src/
 │   ├── scheduling.ts         # 長計算分段執行（讓出主執行緒）
 │   ├── nameStrokes.ts        # 康熙筆畫與姓名學五行
 │   ├── chart.ts              # SVG 比例尺、平滑曲線、扇形
+│   ├── three-scene.ts        # 3D 共用舞台（色票、打光、框景、標籤、按需重繪）
+│   ├── sceneLayout.ts        # 3D 版面換算：刻度、K 線、五行柱、指標判讀
+│   ├── solarTerms.ts         # 二十四節氣與所在節氣進度
 │   ├── indicators.ts         # O(n) 技術指標
 │   └── hash.ts · date.ts · zodiac.ts
 ├── views/                    # Home、Dashboard、History、Analytics、Profile、dev/*
-└── tests/                    # 33 個測試檔，415 個測試
+└── tests/                    # 35 個測試檔，444 個測試
 ```
 
 | 路徑         | 頁面             |

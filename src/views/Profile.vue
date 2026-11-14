@@ -8,10 +8,11 @@ import type { UserProfile } from '@/types'
 import '@vuepic/vue-datepicker/dist/main.css'
 import { deriveBirthProfile } from '@/services/engines/birthChart'
 import { getElementFromName } from '@/utils/nameStrokes'
+import Loading from '@/components/ui/Loading.vue'
 
 const EngineSettingsCard = defineAsyncComponent({
   loader: () => import('@/components/EngineSettingsCard.vue'),
-  loadingComponent: () => import('@/components/ui/Loading.vue'),
+  loadingComponent: Loading,
 })
 
 const VueDatePicker = defineAsyncComponent(() =>
