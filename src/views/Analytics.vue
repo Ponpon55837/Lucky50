@@ -13,6 +13,7 @@ import { fromLocalDateString } from '@/utils/date'
 import { profileHash } from '@/utils/hash'
 import type { FortuneBand } from '@/utils/backtest'
 import Loading from '@/components/ui/Loading.vue'
+import TechnicalPanel from '@/components/analytics/TechnicalPanel.vue'
 
 // ── 元件 ──
 const PriceChart = defineAsyncComponent({
@@ -81,7 +82,8 @@ const analysisState = ref<AnalysisState>('computing')
  * 途中資料或評分依據又變了，舊的結果就丟掉；評分失敗（例如舊資料的生辰格式不合）只影響回測區塊。
  */
 watch(
-  [() => dashboardStore.etfData, scoreKey],
+  // 還原係數載入後收盤價會改變，回測要跟著重算
+  [() => dashboardStore.etfData, scoreKey, () => analyticsStore.adjustments],
   async ([etfData, key], _previous, onCleanup) => {
     let stale = false
     onCleanup(() => (stale = true))
@@ -147,10 +149,6 @@ const returnClass = (value: number) => (value >= 0 ? 'text-rise' : 'text-fall')
 const orDash = (value: number | null, format: (v: number) => string) =>
   value === null ? '—' : format(value)
 
-const technicalIndicators = computed(() => {
-  return analyticsStore.calculateTechnicalIndicators(dashboardStore.etfData)
-})
-
 // ── 命理引擎資料 ──
 const ENGINE_LABELS: Record<string, string> = Object.fromEntries(
   ENGINE_LIST.map(meta => [meta.id, meta.name])
@@ -207,6 +205,9 @@ watch(
 // ── 生命週期 ──
 onMounted(() => {
   loadAnalyticsData()
+  // 技術指標固定用較長的日 K，與上方的分析區間無關，所以只在進頁面時載入一次
+  analyticsStore.loadPriceAdjustments()
+  analyticsStore.loadTechnicalBars()
 })
 </script>
 
@@ -505,7 +506,9 @@ onMounted(() => {
         </h2>
         <p class="card-meta mt-1">
           基於 <span class="font-medium text-ink-2">{{ selectedPeriod }}</span>
-          歷史數據的價格與成交量分析
+          歷史數據的價格與成交量分析；{{
+            analyticsStore.dividendAdjusted ? '價格已還原分割與除息' : '價格僅還原分割，未還原除息'
+          }}
         </p>
       </div>
       <div class="relative h-64 overflow-hidden sm:h-96">
@@ -527,163 +530,51 @@ onMounted(() => {
       </div>
     </section>
 
-    <div class="grid grid-cols-1 gap-6 lg:grid-cols-2">
-      <!-- 成交量分析 -->
-      <section class="card">
-        <div>
-          <h2 class="card-title">
-            成交量分析
-          </h2>
-          <p class="card-meta mt-1">
-            <span class="font-medium text-ink-2">{{ selectedPeriod }}</span>
-            期間的成交量變化趨勢
-          </p>
-        </div>
-        <div class="relative h-64 overflow-hidden">
-          <div
-            v-if="loading"
-            class="absolute inset-0 z-10 flex items-center justify-center bg-surface/80"
-          >
-            <div class="flex items-center gap-2 text-sm text-ink-2">
-              <div
-                class="h-5 w-5 animate-spin rounded-full border-2 border-line-strong border-t-seal"
-              />
-              <span>載入中...</span>
-            </div>
-          </div>
-          <VolumeChart
-            v-if="!loading && filteredEtfData.length > 0"
-            :etf-data="filteredEtfData"
-            :is-dark="isDark"
-          />
-          <div
-            v-else-if="!loading && filteredEtfData.length === 0"
-            class="flex h-full items-center justify-center rounded-[10px] bg-raised"
-          >
-            <div class="text-center">
-              <p class="mb-2 text-ink-2">
-                無 {{ selectedPeriod }} 成交量數據
-              </p>
-              <p class="text-sm text-ink-3">
-                請檢查數據連線或選擇其他時間段
-              </p>
-            </div>
+    <!-- 成交量分析 -->
+    <section class="card">
+      <div>
+        <h2 class="card-title">
+          成交量分析
+        </h2>
+        <p class="card-meta mt-1">
+          <span class="font-medium text-ink-2">{{ selectedPeriod }}</span>
+          期間的成交量變化趨勢
+        </p>
+      </div>
+      <div class="relative h-64 overflow-hidden">
+        <div
+          v-if="loading"
+          class="absolute inset-0 z-10 flex items-center justify-center bg-surface/80"
+        >
+          <div class="flex items-center gap-2 text-sm text-ink-2">
+            <div
+              class="h-5 w-5 animate-spin rounded-full border-2 border-line-strong border-t-seal"
+            />
+            <span>載入中...</span>
           </div>
         </div>
-      </section>
-
-      <!-- 技術指標摘要 -->
-      <section class="card">
-        <div>
-          <h2 class="card-title">
-            技術指標摘要
-          </h2>
-          <p class="card-meta mt-1">
-            基於 <span class="font-medium text-ink-2">{{ selectedPeriod }}</span>
-            數據的技術分析指標
-          </p>
-        </div>
-        <div class="flex flex-col divide-y divide-line border-y border-line">
-          <div class="flex items-center justify-between py-3">
-            <div>
-              <div class="text-[13px] text-ink-3">
-                RSI (相對強弱指數)
-              </div>
-              <div class="font-mono text-lg font-medium text-ink">
-                {{ technicalIndicators.rsi.toFixed(1) }}
-              </div>
-            </div>
-            <span
-              :class="[
-                'rounded-full px-2.5 py-0.5 text-xs font-medium',
-                technicalIndicators.rsi > 70
-                  ? 'bg-rise/10 text-rise'
-                  : technicalIndicators.rsi < 30
-                    ? 'bg-fall/10 text-fall'
-                    : 'bg-raised text-ink-2',
-              ]"
-            >
-              {{
-                technicalIndicators.rsi > 70
-                  ? '超買'
-                  : technicalIndicators.rsi < 30
-                    ? '超賣'
-                    : '中性'
-              }}
-            </span>
-          </div>
-
-          <div class="flex items-center justify-between py-3">
-            <div>
-              <div class="text-[13px] text-ink-3">
-                MACD
-              </div>
-              <div
-                class="font-mono text-lg font-medium"
-                :class="technicalIndicators.macd >= 0 ? 'text-rise' : 'text-fall'"
-              >
-                {{ technicalIndicators.macd >= 0 ? '+' : ''
-                }}{{ technicalIndicators.macd.toFixed(3) }}
-              </div>
-            </div>
-            <span
-              :class="[
-                'rounded-full px-2.5 py-0.5 text-xs font-medium',
-                technicalIndicators.macd >= 0 ? 'bg-rise/10 text-rise' : 'bg-fall/10 text-fall',
-              ]"
-            >
-              {{ technicalIndicators.macd >= 0 ? '多頭' : '空頭' }}
-            </span>
-          </div>
-
-          <div class="flex items-center justify-between py-3">
-            <div class="text-[13px] text-ink-3">
-              布林通道位置
-            </div>
-            <span
-              :class="[
-                'rounded-full px-2.5 py-0.5 text-xs font-medium',
-                technicalIndicators.bollingerBand === 'upper'
-                  ? 'bg-rise/10 text-rise'
-                  : technicalIndicators.bollingerBand === 'lower'
-                    ? 'bg-fall/10 text-fall'
-                    : 'bg-raised text-ink-2',
-              ]"
-            >
-              {{
-                technicalIndicators.bollingerBand === 'upper'
-                  ? '接近上軌 (可能過熱)'
-                  : technicalIndicators.bollingerBand === 'lower'
-                    ? '接近下軌 (可能超賣)'
-                    : '在中軌附近 (正常區間)'
-              }}
-            </span>
-          </div>
-
-          <div class="flex items-center justify-between gap-4 py-3">
-            <div>
-              <div class="text-[13px] text-ink-3">
-                KD 指標
-              </div>
-              <div class="flex gap-4 font-mono text-sm text-ink">
-                <span>K: {{ technicalIndicators.kd.k.toFixed(1) }}</span>
-                <span>D: {{ technicalIndicators.kd.d.toFixed(1) }}</span>
-              </div>
-            </div>
-            <span
-              :class="[
-                'rounded-full px-2.5 py-0.5 text-xs font-medium',
-                technicalIndicators.kd.k > technicalIndicators.kd.d
-                  ? 'bg-rise/10 text-rise'
-                  : 'bg-fall/10 text-fall',
-              ]"
-            >
-              {{ technicalIndicators.kd.k > technicalIndicators.kd.d ? '黃金交叉' : '死亡交叉' }}
-            </span>
+        <VolumeChart
+          v-if="!loading && filteredEtfData.length > 0"
+          :etf-data="filteredEtfData"
+          :is-dark="isDark"
+        />
+        <div
+          v-else-if="!loading && filteredEtfData.length === 0"
+          class="flex h-full items-center justify-center rounded-[10px] bg-raised"
+        >
+          <div class="text-center">
+            <p class="mb-2 text-ink-2">
+              無 {{ selectedPeriod }} 成交量數據
+            </p>
+            <p class="text-sm text-ink-3">
+              請檢查數據連線或選擇其他時間段
+            </p>
           </div>
         </div>
-      </section>
-    </div>
+      </div>
+    </section>
+
+    <TechnicalPanel />
 
     <!-- 運勢與績效相關性：各分數區間當天的實際漲跌 -->
     <section

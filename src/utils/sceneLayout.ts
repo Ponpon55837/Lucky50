@@ -11,6 +11,7 @@ import {
   type ElementRelation,
 } from '@/utils/ganzhi'
 import type { Strength } from '@/utils/almanac'
+import type { BollingerZone } from '@/utils/technical'
 import type { ElementsEnergy, ETFData } from '@/types'
 
 /** 場景用的語意色調，對應 three-scene 的 ScenePalette */
@@ -129,18 +130,6 @@ export function candleLayout(
   return { bars, slot, priceToY, ticks: data.length > 0 ? niceTicks(low, high, 4) : [] }
 }
 
-/** 簡單移動平均；前 period-1 天資料不足時為 null，以滑動總和維持 O(n) */
-export function movingAverage(values: readonly number[], period: number): (number | null)[] {
-  const result: (number | null)[] = []
-  let sum = 0
-  for (let i = 0; i < values.length; i++) {
-    sum += values[i]
-    if (i >= period) sum -= values[i - period]
-    result.push(i >= period - 1 ? sum / period : null)
-  }
-  return result
-}
-
 // ── 五行 ──
 
 /** 圓周上等分的位置；index 0 在正後方（-z），依順時針（俯視）排列 */
@@ -195,36 +184,6 @@ export function elementPillars(
 export const CONTROL_STAR: readonly number[] = [0, 2, 4, 1, 3]
 
 // ── 技術指標 ──
-
-export interface TechnicalSnapshot {
-  rsi: number
-  macd: number
-  bollingerBand: string
-  kd: { k: number; d: number }
-}
-
-export type TechnicalSignal = '買入' | '賣出' | '持有'
-
-/** RSI、MACD、KD 三項多空訊號加總 */
-export function overallSignal({ rsi, macd, kd }: TechnicalSnapshot): TechnicalSignal {
-  let score = 0
-  if (rsi < 30) score++
-  if (rsi > 70) score--
-  score += Math.sign(macd)
-  score += Math.sign(kd.k - kd.d)
-  if (score > 0) return '買入'
-  if (score < 0) return '賣出'
-  return '持有'
-}
-
-export type BollingerZone = 'upper' | 'middle' | 'lower'
-
-/** 指標回傳的布林位置（'upper' | 'lower' | '中軌'）正規化 */
-export function bollingerZone(position: string): BollingerZone {
-  if (position === 'upper') return 'upper'
-  if (position === 'lower') return 'lower'
-  return 'middle'
-}
 
 export const BOLLINGER_ZONE_TEXT: Readonly<Record<BollingerZone, string>> = {
   upper: '突破上軌',

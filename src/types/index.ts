@@ -105,6 +105,22 @@ export interface FinMindDataItem {
   close: string
   Trading_Volume?: string
   volume?: string
+  /** 對前一交易日收盤的漲跌 */
+  spread?: string | number
+}
+
+/** FinMind TaiwanStockSplitPrice：分割前收盤價與分割後參考價 */
+export interface FinMindSplitItem {
+  date: string
+  before_price: number
+  after_price: number
+}
+
+/** FinMind TaiwanStockDividendResult：除權息前收盤價與除權息參考價 */
+export interface FinMindDividendResultItem {
+  date: string
+  before_price: number
+  reference_price: number
 }
 
 export interface FinMindAPIResponse {

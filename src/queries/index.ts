@@ -13,6 +13,7 @@ import type { IntegratedFortuneData, UserProfileCompat } from '@/services/integr
 import { ENGINE_SETTINGS_STORAGE_KEY } from '@/services/engines/settings'
 import { toLocalDateString } from '@/utils/date'
 import { fnv1a, profileHash } from '@/utils/hash'
+import type { PriceAdjustment } from '@/utils/priceAdjust'
 
 const MINUTE = 60 * 1000
 
@@ -21,6 +22,9 @@ export const queryKeys = {
   etf: {
     root: ['etf'] as const,
     range: (startDate: string, endDate: string) => ['etf', '0050', startDate, endDate] as const,
+    technical: (startDate: string, endDate: string) =>
+      ['etf', '0050', 'technical', startDate, endDate] as const,
+    adjustments: ['etf', '0050', 'adjustments'] as const,
   },
   lunar: {
     root: ['lunar'] as const,
@@ -54,6 +58,32 @@ export const etfRangeQuery = defineQueryOptions(
     gcTime: 30 * MINUTE,
   })
 )
+
+/**
+ * 技術指標用的 0050 日 K：只收真實行情，API 失敗就讓查詢進入錯誤狀態，不以模擬資料代替
+ */
+export const technicalBarsQuery = defineQueryOptions(
+  ({ startDate, endDate }: { startDate: string; endDate: string }) => ({
+    key: queryKeys.etf.technical(startDate, endDate),
+    query: async (): Promise<ETFData[]> => {
+      const { FinMindService } = await import('@/services/finmind')
+      return FinMindService.getDailyBars(startDate, endDate)
+    },
+    staleTime: 10 * MINUTE,
+    gcTime: 30 * MINUTE,
+  })
+)
+
+/** 0050 的分割與除息還原係數：一年只變動兩次，快取半天 */
+export const priceAdjustmentsQuery = defineQueryOptions({
+  key: queryKeys.etf.adjustments,
+  query: async (): Promise<PriceAdjustment[]> => {
+    const { FinMindService } = await import('@/services/finmind')
+    return FinMindService.getPriceAdjustments()
+  },
+  staleTime: 12 * 60 * MINUTE,
+  gcTime: 12 * 60 * MINUTE,
+})
 
 export interface LunarQueryData {
   lunarData: LunarData

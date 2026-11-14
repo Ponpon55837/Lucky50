@@ -42,6 +42,8 @@ Keep this managed block so 'openspec update' can refresh the instructions.
 - **Step 14**: 命理計算依傳統規則重寫（`openspec/changes/update-fortune-engine-accuracy`）— `src/utils/ganzhi.ts` 為干支五行唯一來源；時辰改用黃道黑道十二神；四個引擎依擇日、日主喜忌、紫微安星與四化、納音生剋重寫並列出加減分由來；`buildBirthChart` 節氣四柱；康熙筆畫姓名學；`src/utils/backtest.ts` 真實回測（`src/utils/scheduling.ts` 分段計算不卡畫面）；CI 加格式檢查與相依稽核 ✅
 - **Step 15**: 數據分析頁 3D 圖解改版（`openspec/changes/update-analytics-3d-scenes`）— 共用舞台 `SceneStage`（`src/utils/three-scene.ts`：token 色票、霧面打光、自動框景、HTML 標籤、hover／拖曳、按需重繪、捲出視窗暫停、完整釋放）＋ `useSceneStage`、`SceneCard`；四個場景改為 K 線、五行能量、二十四節氣輪、技術指標量規；節氣改用實際資料；純函式 `src/utils/sceneLayout.ts`、`src/utils/solarTerms.ts`；移除 `@tweenjs/tween.js` ✅
 
+- **Step 16**: 技術指標依台灣券商慣例重寫（`openspec/changes/update-technical-indicators`）— `src/utils/indicators.ts` 改為回傳序列的純函式（暖機期為 null；KD(9,3,3)、MACD(12,26,9)、RSI(6,12) Wilder、布林、SAR、DMI／ADX、乖離率、威廉 %R、CCI、ATR、OBV、52 週區間、期間報酬）；`src/utils/priceAdjust.ts` 還原分割與除息（係數來自 FinMind 分割與除權息結果表）；`src/utils/technical.ts` 技術面快照、判讀與列出依據的綜合訊號；技術指標固定用約 800 天日 K、只收真實行情；`TechnicalPanel.vue` 取代技術指標摘要；休市日曆依證交所公告更新為 2024–2027 年，超出涵蓋年度會標示；數值與 toalpha.tw 對照一致 ✅
+
 ## Routes
 
 | Path         | Name         | NavBar     |
@@ -61,8 +63,8 @@ Keep this managed block so 'openspec update' can refresh the instructions.
 
 ## Tests
 
-- 444 tests across 35 test files（`pnpm check` 一次跑完 lint、格式、型別、測試、建置）
-- Key: `ganzhi.test.ts`、`almanac.test.ts`、`tenGods.test.ts`、`ziwei.test.ts`（以上與 lunar-javascript 交叉驗證）、`engines.test.ts`、`registry.test.ts`、`birthChart.test.ts`、`integratedFortune.test.ts`、`backtest.test.ts`、`nameStrokes.test.ts`、`sceneLayout.test.ts`、`solarTerms.test.ts`
+- 519 tests across 37 test files（`pnpm check` 一次跑完 lint、格式、型別、測試、建置）
+- Key: `ganzhi.test.ts`、`almanac.test.ts`、`tenGods.test.ts`、`ziwei.test.ts`（以上與 lunar-javascript 交叉驗證）、`engines.test.ts`、`registry.test.ts`、`birthChart.test.ts`、`integratedFortune.test.ts`、`backtest.test.ts`、`nameStrokes.test.ts`、`sceneLayout.test.ts`、`solarTerms.test.ts`、`indicators.test.ts`（手算與暴力解對照）、`technical.test.ts`（0050 實際行情對照外部數值）、`priceAdjust.test.ts`、`taiwanStock.test.ts`
 
 ## Tech Stack
 
