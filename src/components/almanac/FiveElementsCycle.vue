@@ -1,14 +1,8 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { polar } from '@/utils/chart'
-import {
-  ELEMENT_CYCLE,
-  ELEMENT_LABEL,
-  STRENGTH_RANK,
-  type ElementKey,
-  type ElementReading,
-  type Strength,
-} from '@/utils/almanac'
+import { STRENGTH_RANK, type ElementReading, type Strength } from '@/utils/almanac'
+import { ELEMENT_CYCLE, ELEMENT_LABEL, type ElementKey } from '@/utils/ganzhi'
 
 const props = defineProps<{
   strengths: Readonly<Record<ElementKey, Strength>>

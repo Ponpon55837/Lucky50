@@ -1,6 +1,6 @@
 {
   "name": "lucky50-investment",
-  "version": "1.0.2",
+  "version": "1.1.0",
   "type": "module",
   "description": "農民曆智慧投資 - 0050 ETF 投資建議系統",
   "scripts": {
@@ -10,7 +10,11 @@
     "build:analyze": "vite build --mode analyze",
     "preview": "vite preview",
     "lint": "eslint . --fix",
+    "lint:check": "eslint . --max-warnings 0",
+    "typecheck": "vue-tsc --noEmit",
     "format": "prettier --write src/",
+    "format:check": "prettier --check \"src/**/*.ts\" \"scripts/**/*.mjs\"",
+    "check": "pnpm lint:check && pnpm format:check && pnpm typecheck && pnpm test:run && pnpm build",
     "test": "vitest",
     "test:ui": "vitest --ui",
     "test:run": "vitest run",

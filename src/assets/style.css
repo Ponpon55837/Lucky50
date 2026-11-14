@@ -49,8 +49,12 @@
   html {
     @apply font-sans antialiased;
     -webkit-text-size-adjust: 100%;
-    /* 固定預留捲軸寬度：短頁（無捲軸）與長頁切換時版面不會左右跳動 */
-    scrollbar-gutter: stable;
+    /*
+     * 永遠保留直向捲軸，短頁與長頁切換時內容寬度才不會變。
+     * 不用 scrollbar-gutter：首次進入某頁時會插入該頁的樣式表，
+     * Chrome 在頁面還沒超出視窗的那一瞬間會漏掉預留空間，內容相對於左側選單左右跳一下。
+     */
+    overflow-y: scroll;
   }
 
   body {

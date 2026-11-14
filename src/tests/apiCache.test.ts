@@ -190,25 +190,6 @@ describe('CacheKeyGenerator', () => {
       'stock_2330_2024-01-01_2024-01-31'
     )
   })
-
-  it('lunar 產生正確格式', () => {
-    const key = CacheKeyGenerator.lunar(new Date('2024-01-15'))
-    expect(key).toBe('lunar_2024-01-15')
-  })
-
-  it('fortune 產生正確格式', () => {
-    const key = CacheKeyGenerator.fortune('user123', new Date('2024-06-15'))
-    expect(key).toBe('fortune_user123_2024-06-15')
-  })
-
-  it('technical 產生正確格式', () => {
-    expect(CacheKeyGenerator.technical('2330', 'rsi')).toBe('technical_2330_rsi')
-  })
-
-  it('marketStatus 產生正確格式', () => {
-    const key = CacheKeyGenerator.marketStatus(new Date('2024-10-10'))
-    expect(key).toBe('market_status_2024-10-10')
-  })
 })
 
 describe('ApiCacheService single-flight', () => {

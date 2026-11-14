@@ -1,66 +1,168 @@
-// 天干陰陽屬性
-const GAN_YIN_YANG: Record<string, 'yang' | 'yin'> = {
-  甲: 'yang',
-  乙: 'yin',
-  丙: 'yang',
-  丁: 'yin',
-  戊: 'yang',
-  己: 'yin',
-  庚: 'yang',
-  辛: 'yin',
-  壬: 'yang',
-  癸: 'yin',
-}
+/**
+ * 八字十神（純函式）
+ *
+ * 十神是日主（日干）與其他干支的五行生剋加上陰陽異同：
+ * 同我為比劫、我生為食傷、我剋為財、剋我為官殺、生我為印；同性為偏、異性為正。
+ */
+import {
+  elementRelation,
+  hiddenStems,
+  isStem,
+  isYangStem,
+  mainStem,
+  stemElement,
+  type ElementRelation,
+  type GanZhi,
+  type Stem,
+} from './ganzhi'
 
-// 天干五行
-const GAN_ELEMENT: Record<string, string> = {
-  甲: 'wood',
-  乙: 'wood',
-  丙: 'fire',
-  丁: 'fire',
-  戊: 'earth',
-  己: 'earth',
-  庚: 'metal',
-  辛: 'metal',
-  壬: 'water',
-  癸: 'water',
-}
-
-// 五行相生：A 生 B
-const ELEMENT_GENERATES: Record<string, string> = {
-  wood: 'fire',
-  fire: 'earth',
-  earth: 'metal',
-  metal: 'water',
-  water: 'wood',
-}
-
-// 五行相剋：A 剋 B
-const ELEMENT_DESTROYS: Record<string, string> = {
-  wood: 'earth',
-  fire: 'metal',
-  earth: 'water',
-  water: 'fire',
-  metal: 'wood',
-}
-
-// 驗證：wood 剋 earth, earth 剋 water, water 剋 fire, fire 剋 metal, metal 剋 wood
-
-// 十神名稱
 export type TenGodName =
-  | '比肩'
-  | '劫財'
-  | '食神'
-  | '傷官'
-  | '偏財'
-  | '正財'
-  | '七殺'
-  | '正官'
-  | '偏印'
-  | '正印'
+  '比肩' | '劫財' | '食神' | '傷官' | '偏財' | '正財' | '七殺' | '正官' | '偏印' | '正印'
 
-// 十神 → 投資性格映射
-export const TEN_GODS_INVESTMENT_STYLE: Record<TenGodName, string> = {
+/** 十神五類：比劫、食傷、財、官殺、印 */
+export type TenGodGroup = 'peer' | 'output' | 'wealth' | 'officer' | 'resource'
+
+export const TEN_GOD_GROUP_LABEL: Readonly<Record<TenGodGroup, string>> = {
+  peer: '比劫',
+  output: '食傷',
+  wealth: '財星',
+  officer: '官殺',
+  resource: '印星',
+}
+
+/** 各五行關係對應的十神：[陰陽相同, 陰陽相異] */
+const GODS_BY_RELATION: Readonly<
+  Record<ElementRelation, { group: TenGodGroup; gods: readonly [TenGodName, TenGodName] }>
+> = {
+  same: { group: 'peer', gods: ['比肩', '劫財'] },
+  generates: { group: 'output', gods: ['食神', '傷官'] },
+  controls: { group: 'wealth', gods: ['偏財', '正財'] },
+  controlledBy: { group: 'officer', gods: ['七殺', '正官'] },
+  generatedBy: { group: 'resource', gods: ['偏印', '正印'] },
+}
+
+const GROUP_BY_GOD = new Map<TenGodName, TenGodGroup>(
+  Object.values(GODS_BY_RELATION).flatMap(({ group, gods }) => gods.map(god => [god, group]))
+)
+
+export function tenGodGroup(god: TenGodName): TenGodGroup {
+  return GROUP_BY_GOD.get(god)!
+}
+
+/** 以日主看另一個天干的十神 */
+export function tenGodOf(dayMaster: Stem, other: Stem): TenGodName {
+  const { gods } = GODS_BY_RELATION[elementRelation(stemElement(dayMaster), stemElement(other))]
+  return gods[isYangStem(dayMaster) === isYangStem(other) ? 0 : 1]
+}
+
+/** 字串版本：任一方不是天干時回傳 null */
+export function getTenGodRelation(dayMaster: string, otherStem: string): TenGodName | null {
+  return isStem(dayMaster) && isStem(otherStem) ? tenGodOf(dayMaster, otherStem) : null
+}
+
+// ── 四柱十神 ──
+
+export const PILLAR_KEYS = ['year', 'month', 'day', 'hour'] as const
+export type PillarKey = (typeof PILLAR_KEYS)[number]
+export type FourPillars = Readonly<Record<PillarKey, GanZhi>>
+
+export interface PillarGods {
+  /** 天干十神；日柱天干即日主，為 null */
+  stem: TenGodName | null
+  /** 地支本氣的十神 */
+  branch: TenGodName
+}
+
+export type FourPillarsGods = Readonly<Record<PillarKey, PillarGods>>
+
+export function calculateFourPillarsTenGods(pillars: FourPillars): FourPillarsGods {
+  const dayMaster = pillars.day.stem
+  const gods = {} as Record<PillarKey, PillarGods>
+  for (const key of PILLAR_KEYS) {
+    const { stem, branch } = pillars[key]
+    gods[key] = {
+      stem: key === 'day' ? null : tenGodOf(dayMaster, stem),
+      branch: tenGodOf(dayMaster, mainStem(branch)),
+    }
+  }
+  return gods
+}
+
+/** 統計命盤七個位置（三個天干加四個地支本氣）的十神次數 */
+export function countTenGods(gods: FourPillarsGods): Map<TenGodName, number> {
+  const counts = new Map<TenGodName, number>()
+  const add = (god: TenGodName | null) => {
+    if (god) counts.set(god, (counts.get(god) ?? 0) + 1)
+  }
+  for (const key of PILLAR_KEYS) {
+    add(gods[key].stem)
+    add(gods[key].branch)
+  }
+  return counts
+}
+
+/** 出現最多次的十神（可能並列） */
+export function findDominantTenGods(counts: ReadonlyMap<TenGodName, number>): TenGodName[] {
+  let max = 0
+  for (const count of counts.values()) max = Math.max(max, count)
+  return [...counts].filter(([, count]) => count === max).map(([god]) => god)
+}
+
+// ── 日主旺衰與喜忌 ──
+
+/** 月令佔三份，其餘三支與三干各一份 */
+const MONTH_BRANCH_WEIGHT = 3
+const STRENGTH_TOTAL = MONTH_BRANCH_WEIGHT + 3 + 3
+
+export interface DayMasterStrength {
+  /** 生扶日主的力量（印與比劫） */
+  support: number
+  total: number
+  /** 月令本氣是否生扶日主 */
+  inSeason: boolean
+  strong: boolean
+}
+
+/**
+ * 以得令、得地、得勢衡量日主強弱：
+ * 生扶（同我、生我）的力量過半為身強，否則為身弱。地支依藏干比例計入。
+ */
+export function dayMasterStrength(pillars: FourPillars): DayMasterStrength {
+  const dayMaster = stemElement(pillars.day.stem)
+  const supports = (stem: Stem) => {
+    const relation = elementRelation(dayMaster, stemElement(stem))
+    return relation === 'same' || relation === 'generatedBy'
+  }
+
+  let support = 0
+  for (const key of PILLAR_KEYS) {
+    const { stem, branch } = pillars[key]
+    if (key !== 'day' && supports(stem)) support += 1
+    const branchWeight = key === 'month' ? MONTH_BRANCH_WEIGHT : 1
+    for (const hidden of hiddenStems(branch)) {
+      if (supports(hidden.stem)) support += branchWeight * hidden.weight
+    }
+  }
+
+  return {
+    support,
+    total: STRENGTH_TOTAL,
+    inSeason: supports(mainStem(pillars.month.branch)),
+    strong: support * 2 > STRENGTH_TOTAL,
+  }
+}
+
+const STRONG_FAVORS: ReadonlySet<TenGodGroup> = new Set(['output', 'wealth', 'officer'])
+const WEAK_FAVORS: ReadonlySet<TenGodGroup> = new Set(['resource', 'peer'])
+
+/** 身強喜洩耗剋（食傷、財、官殺），身弱喜生扶（印、比劫） */
+export function favorableGroups(strong: boolean): ReadonlySet<TenGodGroup> {
+  return strong ? STRONG_FAVORS : WEAK_FAVORS
+}
+
+// ── 投資性格 ──
+
+export const TEN_GODS_INVESTMENT_STYLE: Readonly<Record<TenGodName, string>> = {
   比肩: '獨立自主型，偏好自主決策',
   劫財: '競爭積極型，善於把握機會',
   食神: '穩健規劃型，注重長期佈局',
@@ -73,10 +175,16 @@ export const TEN_GODS_INVESTMENT_STYLE: Record<TenGodName, string> = {
   正印: '學習成長型，持續精進投資',
 }
 
-// 十神 → 投資風格分類
 export type InvestmentStyle = 'active' | 'conservative' | 'analytical' | 'creative'
 
-export const TEN_GODS_STYLE_MAP: Record<TenGodName, InvestmentStyle> = {
+export const INVESTMENT_STYLE_LABEL: Readonly<Record<InvestmentStyle, string>> = {
+  active: '積極交易',
+  conservative: '穩健持有',
+  analytical: '研究分析',
+  creative: '創意突破',
+}
+
+export const TEN_GODS_STYLE_MAP: Readonly<Record<TenGodName, InvestmentStyle>> = {
   比肩: 'conservative',
   劫財: 'active',
   食神: 'conservative',
@@ -89,155 +197,33 @@ export const TEN_GODS_STYLE_MAP: Record<TenGodName, InvestmentStyle> = {
   正印: 'analytical',
 }
 
-// 取得天干的五行
-export function getStemElement(stem: string): string | null {
-  return GAN_ELEMENT[stem] || null
-}
-
-// 取得天干的陰陽
-export function getStemYinYang(stem: string): 'yang' | 'yin' | null {
-  return GAN_YIN_YANG[stem] || null
-}
-
-// 判斷兩個天干的十神關係
-// dayMaster: 日主天干（我）
-// otherStem: 其他天干（他）
-export function getTenGodRelation(dayMaster: string, otherStem: string): TenGodName {
-  const myElement = getStemElement(dayMaster)
-  const myYinYang = getStemYinYang(dayMaster)
-  const otherElement = getStemElement(otherStem)
-  const otherYinYang = getStemYinYang(otherStem)
-
-  if (!myElement || !myYinYang || !otherElement || !otherYinYang) {
-    return '比肩' // 預設
-  }
-
-  const samePolarity = myYinYang === otherYinYang
-
-  // 同我者（比劫）
-  if (myElement === otherElement) {
-    return samePolarity ? '比肩' : '劫財'
-  }
-
-  // 我生者（食傷）
-  if (ELEMENT_GENERATES[myElement] === otherElement) {
-    return samePolarity ? '食神' : '傷官'
-  }
-
-  // 我剋者（財星）
-  if (ELEMENT_DESTROYS[myElement] === otherElement) {
-    return samePolarity ? '偏財' : '正財'
-  }
-
-  // 剋我者（官殺）
-  if (ELEMENT_DESTROYS[otherElement] === myElement) {
-    return samePolarity ? '七殺' : '正官'
-  }
-
-  // 生我者（印星）
-  if (ELEMENT_GENERATES[otherElement] === myElement) {
-    return samePolarity ? '偏印' : '正印'
-  }
-
-  return '比肩' // 不應到達這裡
-}
-
-// 計算四柱的十神分佈
-export interface TenGodsDistribution {
-  year: TenGodName // 年柱
-  month: TenGodName // 月柱
-  day: TenGodName // 日柱（日主本身，固定為比肩）
-  hour: TenGodName // 時柱
-}
-
-export function calculateFourPillarsTenGods(
-  yearGanZhi: string,
-  monthGanZhi: string,
-  dayGanZhi: string,
-  hourGanZhi: string
-): TenGodsDistribution {
-  const dayMaster = dayGanZhi[0] // 日主天干
-
-  return {
-    year: getTenGodRelation(dayMaster, yearGanZhi[0]),
-    month: getTenGodRelation(dayMaster, monthGanZhi[0]),
-    day: '比肩', // 日主本身就是比肩
-    hour: getTenGodRelation(dayMaster, hourGanZhi[0]),
-  }
-}
-
-// 計算十神出現次數
-export function countTenGods(distribution: TenGodsDistribution): Record<TenGodName, number> {
-  const counts: Record<TenGodName, number> = {
-    比肩: 0,
-    劫財: 0,
-    食神: 0,
-    傷官: 0,
-    偏財: 0,
-    正財: 0,
-    七殺: 0,
-    正官: 0,
-    偏印: 0,
-    正印: 0,
-  }
-
-  const gods = Object.values(distribution) as TenGodName[]
-  for (const god of gods) {
-    counts[god]++
-  }
-
-  return counts
-}
-
-// 找出最強旺的十神（出現次數最多）
-export function findDominantTenGods(counts: Record<TenGodName, number>): TenGodName[] {
-  const maxCount = Math.max(...Object.values(counts))
-  return (Object.entries(counts) as [TenGodName, number][])
-    .filter(([_, count]) => count === maxCount)
-    .map(([name]) => name)
-}
-
-// 從十神分佈推斷投資性格
-export function inferInvestmentPersonality(distribution: TenGodsDistribution): {
+export interface InvestmentPersonality {
   dominantGods: TenGodName[]
   style: InvestmentStyle
   description: string
-} {
-  const counts = countTenGods(distribution)
+}
+
+/** 由十神分佈推斷投資性格：各十神的次數累加到所屬風格，取最高者 */
+export function inferInvestmentPersonality(gods: FourPillarsGods): InvestmentPersonality {
+  const counts = countTenGods(gods)
   const dominantGods = findDominantTenGods(counts)
 
-  // 計算各風格的權重
-  const styleWeights: Record<InvestmentStyle, number> = {
-    active: 0,
-    conservative: 0,
-    analytical: 0,
-    creative: 0,
-  }
-
-  for (const [god, count] of Object.entries(counts) as [TenGodName, number][]) {
-    const style = TEN_GODS_STYLE_MAP[god]
-    styleWeights[style] += count
-  }
-
-  // 找出最強風格
-  const dominantStyle = (Object.entries(styleWeights) as [InvestmentStyle, number][]).reduce(
-    (max, [style, weight]) => (weight > max.weight ? { style, weight } : max),
-    {
-      style: 'conservative' as InvestmentStyle,
-      weight: 0,
+  const weights = new Map<InvestmentStyle, number>()
+  let style: InvestmentStyle = 'conservative'
+  let best = 0
+  for (const [god, count] of counts) {
+    const key = TEN_GODS_STYLE_MAP[god]
+    const weight = (weights.get(key) ?? 0) + count
+    weights.set(key, weight)
+    if (weight > best) {
+      best = weight
+      style = key
     }
-  ).style
-
-  // 生成描述
-  const descriptions = dominantGods.map(god => TEN_GODS_INVESTMENT_STYLE[god])
-  const description =
-    descriptions.length > 0
-      ? `您的投資性格偏向「${dominantStyle === 'active' ? '積極交易' : dominantStyle === 'conservative' ? '穩健持有' : dominantStyle === 'analytical' ? '研究分析' : '創意突破'}型」。${descriptions[0]}。`
-      : '您的投資性格均衡，適合多元配置。'
+  }
 
   return {
     dominantGods,
-    style: dominantStyle,
-    description,
+    style,
+    description: `您的投資性格偏向「${INVESTMENT_STYLE_LABEL[style]}型」。${TEN_GODS_INVESTMENT_STYLE[dominantGods[0]]}。`,
   }
 }

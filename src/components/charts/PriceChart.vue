@@ -55,7 +55,6 @@ const token = (name: string, alpha = 1): string => {
 // 計算圖表數據
 const chartData = computed(() => {
   if (!props.etfData || props.etfData.length === 0) {
-    console.log('PriceChart - No data available')
     return null
   }
 
@@ -63,15 +62,6 @@ const chartData = computed(() => {
   const sortedData = [...props.etfData].sort(
     (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
   )
-
-  if (sortedData.length > 0) {
-    console.log(
-      'PriceChart - 日期範圍:',
-      sortedData[0].date,
-      '至',
-      sortedData[sortedData.length - 1].date
-    )
-  }
 
   const labels = sortedData.map(item => {
     const date = new Date(item.date)

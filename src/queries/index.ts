@@ -10,11 +10,11 @@ import { defineQueryOptions } from '@pinia/colada'
 import type { ETFData } from '@/types'
 import type { LunarData, InvestmentAdvice } from '@/services/lunar'
 import type { IntegratedFortuneData, UserProfileCompat } from '@/services/integratedFortune'
+import { ENGINE_SETTINGS_STORAGE_KEY } from '@/services/engines/settings'
 import { toLocalDateString } from '@/utils/date'
 import { fnv1a, profileHash } from '@/utils/hash'
 
 const MINUTE = 60 * 1000
-const ENGINE_SETTINGS_STORAGE_KEY = 'lucky50-engine-settings'
 
 /** 查詢鍵工廠：集中管理，確保失效時前綴一致 */
 export const queryKeys = {

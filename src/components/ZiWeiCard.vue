@@ -1,15 +1,25 @@
 <script setup lang="ts">
-import { computed } from 'vue'
 import EngineCard from '@/components/engines/EngineCard.vue'
+import { useEngineResult } from '@/composables/useEngineResult'
 import { ZiWeiEngine } from '@/services/engines/ziWei'
-import { buildBirthChart, energyWord } from '@/services/engines/birthChart'
+import { energyWord } from '@/services/engines/birthChart'
 import type { UserProfileCompat } from '@/services/integratedFortune'
 
-interface PalaceResult {
+interface PalaceDetail {
+  name: string
+  ganZhi: string
   stars: string[]
-  score: number
-  dominantStar: string
-  risk: string
+  borrowed: boolean
+  transformations: string[]
+}
+
+interface ZiWeiDetails {
+  bureau: string
+  lifeStars: string[]
+  lifeBorrowed: boolean
+  investmentStyle: string
+  riskProfile: string
+  palaces: PalaceDetail[]
 }
 
 const props = defineProps<{
@@ -18,36 +28,27 @@ const props = defineProps<{
   date: Date
 }>()
 
-const engine = new ZiWeiEngine()
-
-const state = computed(() => {
-  const profile = props.profile
-  if (!profile) return { result: null, error: null }
-  try {
-    const { lunarData, baZi, elements } = buildBirthChart(profile)
-    const raw = engine.calculate(profile, props.date, lunarData, baZi, elements)
-    const details = (raw.details ?? {}) as Record<string, unknown>
-    const palaces = (details.palaces ?? {}) as Record<string, PalaceResult>
-
+const state = useEngineResult(
+  new ZiWeiEngine(),
+  () => props.profile,
+  () => props.date,
+  raw => {
+    const details = raw.details as unknown as ZiWeiDetails
     return {
-      result: {
-        dominantStar: (details.dominantStar as string) || '紫微',
-        investmentStyle: (details.investmentStyle as string) || '',
-        riskProfile: (details.riskProfile as string) || '中風險',
-        energy: energyWord(raw.score),
-        palaces: Object.entries(palaces).map(([name, palace]) => ({
-          name,
-          star: palace.dominantStar,
-          risk: palace.risk,
-          energy: energyWord(palace.score),
-        })),
-      },
-      error: null,
+      lifeStars: details.lifeStars.join('、') || '無主星',
+      lifeBorrowed: details.lifeBorrowed,
+      bureau: details.bureau,
+      investmentStyle: details.investmentStyle,
+      riskProfile: details.riskProfile,
+      energy: energyWord(raw.score),
+      palaces: details.palaces.map(palace => ({
+        name: palace.name,
+        stars: `${palace.borrowed ? '借' : ''}${palace.stars.join('、') || '—'}`,
+        transformations: palace.transformations.join('、'),
+      })),
     }
-  } catch (e) {
-    return { result: null, error: e instanceof Error ? e.message : '計算失敗' }
   }
-})
+)
 </script>
 
 <template>
@@ -59,9 +60,11 @@ const state = computed(() => {
   >
     <template v-if="state.result">
       <p class="flex flex-wrap items-baseline gap-x-3">
-        <span class="text-[13px] text-ink-3">命主星</span>
-        <span class="font-kai text-[22px] font-bold">{{ state.result.dominantStar }}</span>
-        <span class="text-[13px] text-ink-3">紫微能量{{ state.result.energy }}</span>
+        <span class="text-[13px] text-ink-3">{{
+          state.result.lifeBorrowed ? '命無正曜，借對宮' : '命宮主星'
+        }}</span>
+        <span class="font-kai text-[22px] font-bold">{{ state.result.lifeStars }}</span>
+        <span class="text-[13px] text-ink-3">{{ state.result.bureau }} · 今日能量{{ state.result.energy }}</span>
       </p>
       <p
         v-if="state.result.investmentStyle"
@@ -76,12 +79,15 @@ const state = computed(() => {
           class="grid grid-cols-[56px_minmax(0,1fr)_auto] gap-2"
         >
           <span class="text-ink-3">{{ palace.name }}</span>
-          <span class="truncate">{{ palace.star }} · {{ palace.risk }}</span>
-          <span class="text-ink-3">{{ palace.energy }}</span>
+          <span class="truncate">{{ palace.stars }}</span>
+          <span class="text-ink-3">{{ palace.transformations }}</span>
         </li>
       </ul>
-      <p class="text-[13px] text-ink-2">
-        <span class="text-ink">風險評估：</span>{{ state.result.riskProfile }}
+      <p
+        v-if="state.result.riskProfile"
+        class="text-[13px] text-ink-2"
+      >
+        <span class="text-ink">風險傾向：</span>{{ state.result.riskProfile }}
       </p>
     </template>
   </EngineCard>

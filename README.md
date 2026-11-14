@@ -6,7 +6,7 @@
   <img alt="Vue" src="https://img.shields.io/badge/Vue-3.5-c0282d?style=flat-square" />
   <img alt="TypeScript" src="https://img.shields.io/badge/TypeScript-5.9-c0282d?style=flat-square" />
   <img alt="Vite" src="https://img.shields.io/badge/Vite-8-c0282d?style=flat-square" />
-  <img alt="Tests" src="https://img.shields.io/badge/tests-416%20passed-b8901f?style=flat-square" />
+  <img alt="Tests" src="https://img.shields.io/badge/tests-415%20passed-b8901f?style=flat-square" />
   <img alt="License" src="https://img.shields.io/github/license/Ponpon55837/Lucky50?style=flat-square&color=5a5750" />
 </p>
 
@@ -23,14 +23,14 @@
 
 ## 壹・今日籤上寫了什麼
 
-| 版面              | 內容                                                                |
-| ----------------- | ------------------------------------------------------------------- |
-| 🎋 **今日籤**     | 搖一搖籤筒抽出籤詩與吉凶等第，附一句白話建議與「宜／忌／財位」      |
+| 版面             | 內容                                                                |
+| ---------------- | ------------------------------------------------------------------- |
+| 🎋 **今日籤**    | 搖一搖籤筒抽出籤詩與吉凶等第，附一句白話建議與「宜／忌／財位」      |
 | 🕰 **十二時辰輪** | 依生肖三合與沖害推算每個時辰吉凶，金色弧線標出 09:00–13:30 開盤時段 |
-| 📜 **今日宜忌**   | 農民曆宜忌（交易相關項目優先列出）、沖煞、財神、喜神、納音          |
+| 📜 **今日宜忌**  | 農民曆宜忌（交易相關項目優先列出）、沖煞、財神、喜神、納音          |
 | ☯ **五行生剋**   | 月令旺相休囚死，對照你的本命與姓名五行，說明今天該補什麼            |
 | 🖌 **走勢吉印**   | 0050 近 20 個交易日水墨走勢，紅印標出你的吉日，看吉日與漲跌是否同步 |
-| 🧭 **命理引擎**   | 八字十神、紫微斗數、風水方位三張卡片，與經典命理一起加權成綜合分數  |
+| 🧭 **命理引擎**  | 八字十神、紫微斗數、風水方位三張卡片，與經典命理一起加權成綜合分數  |
 
 <table>
   <tr>
@@ -75,29 +75,39 @@
 
 插件式架構，每個引擎實作同一個介面，由 registry 統一加權。權重可在「個人設定」調整並存在 localStorage。
 
-| 引擎     | 預設權重 | 說明                             |
-| -------- | -------- | -------------------------------- |
-| 經典命理 | 30%      | 五行、生肖、星座綜合運勢         |
-| 八字十神 | 25%      | 四柱十神推算投資性格             |
-| 紫微斗數 | 20%      | 命宮、財帛宮、事業宮主星簡化分析 |
-| 風水方位 | 15%      | 流日五行與吉凶方位               |
+| 引擎     | 預設權重 | 依據                                                                 |
+| -------- | -------- | -------------------------------------------------------------------- |
+| 經典命理 | 30%      | 擇日：值日天神黃黑道、建除十二神、宜忌，日支與太歲對本命的沖合害     |
+| 八字十神 | 25%      | 以得令、得地、得勢定日主強弱與喜忌，再看流日干支十神與日支沖合       |
+| 紫微斗數 | 20%      | 依農曆生辰排命宮、五行局、十四主星，以本命與流日四化落入命財官遷評分 |
+| 風水方位 | 15%      | 當日財神、喜神、福神方位與三煞方，日納音對本命納音的生剋             |
+
+每個引擎都從 50 分出發，把每一項加減分列在 `factors`，畫面上看得到分數的由來。
+時辰吉凶則依「黃道黑道十二神 + 日破 + 本命沖合害」推算，會隨日支每天變化。
+干支、五行、藏干、納音與安星都以 `lunar-javascript` 交叉測試（六十甲子、連續六十天的十二時辰、四柱十神）。
 
 ```typescript
+interface EngineInput {
+  profile: UserProfileCompat
+  date: Date
+  today: LunarData // 當日農民曆
+  chart: BirthChart // 節氣四柱、農曆生辰、生肖、本命納音
+}
+
 interface MetaphysicsEngine {
+  readonly engineId: string
   readonly name: string
-  readonly description: string
-  readonly version: string
-  calculate(profile, date, lunarData, personalBaZi, elements): MetaphysicsResult
+  calculate(input: EngineInput): MetaphysicsResult
   getWeight(): number
   isEnabled(): boolean
 }
 
-const registry = new MetaphysicsEngineRegistry()
-registry.register(new ClassicFortuneEngine())
-registry.register(new BaziTenGodsEngine())
-registry.register(new ZiWeiEngine())
-registry.register(new FengShuiEngine())
+// 內建四個引擎的註冊表；名稱、說明與預設權重集中在 engines/settings.ts
+const registry = createDefaultRegistry()
 ```
+
+已知範圍：紫微斗數只安十四主星與左輔、右弼、文昌、文曲，不含星曜亮度與雜曜；
+姓名學採康熙筆畫（Unicode Unihan），少數字與部分姓名學書籍相差一畫。
 
 ## 肆・效能與演算法
 
@@ -113,16 +123,21 @@ registry.register(new FengShuiEngine())
 
 ### 演算法
 
-| 計算           | 做法                                           |
-| -------------- | ---------------------------------------------- |
-| KD 指標        | 單調雙端佇列求滑動極值，O(n)（LeetCode 239）   |
-| 波動率         | Welford 線上演算法，單次掃描、數值穩定         |
-| 最大回撤       | 單次掃描維護歷史高點（LeetCode 121 同型）      |
-| MACD           | 真正的 EMA12 − EMA26                           |
-| 走勢圖範圍     | 單次掃描同時求最大／最小值（`utils/chart.ts`） |
-| 宜忌排序       | 穩定 O(n) 分割，交易相關項目排前               |
-| 時辰、生肖對照 | 預先建好 `Set` / `Map`，查詢 O(1)              |
-| 個人資料快取鍵 | FNV-1a 32-bit 雜湊，避免同長度姓名碰撞         |
+| 計算           | 做法                                                                        |
+| -------------- | --------------------------------------------------------------------------- |
+| KD 指標        | 單調雙端佇列求滑動極值，O(n)（LeetCode 239）                                |
+| 波動率         | Welford 線上演算法，單次掃描、數值穩定                                      |
+| 最大回撤       | 單次掃描維護歷史高點（LeetCode 121 同型）                                   |
+| MACD           | 真正的 EMA12 − EMA26                                                        |
+| 走勢圖範圍     | 單次掃描同時求最大／最小值（`utils/chart.ts`）                              |
+| 宜忌排序       | 穩定 O(n) 分割，交易相關項目排前                                            |
+| 沖合害、生剋   | 地支與五行環上的索引運算，O(1)，不逐對列表                                  |
+| 值時十二神     | 由日支算出青龍起點後取餘數，O(1)                                            |
+| 策略回測       | 逐日單趟掃描同時算報酬、回撤、波動與勝率，O(n)                              |
+| 逐日評分       | 以時間配額分段執行並讓出主執行緒，五年回測不卡畫面（`utils/scheduling.ts`） |
+| 本命盤         | 與日期無關的十神、紫微命盤以命盤為鍵快取（WeakMap），逐日只算流日           |
+| 康熙筆畫       | 兩萬字壓成一個字串，以碼點位移查表，O(1)                                    |
+| 個人資料快取鍵 | FNV-1a 32-bit 雜湊，避免同長度姓名碰撞                                      |
 
 儀表板改用自繪 SVG 走勢圖取代 Chart.js，頁面 chunk 約 31 KB；Chart.js 只留在數據分析頁。
 
@@ -173,7 +188,7 @@ src/
 ├── composables/              # useDashboardAlmanac、useTheme、useEscapeKey、useElementWidth…
 ├── queries/                  # Pinia Colada 查詢定義
 ├── services/
-│   ├── engines/              # 命理引擎（classic、baziTenGods、ziWei、fengShui、birthChart）
+│   ├── engines/              # 命理引擎（classic、baziTenGods、ziWei、fengShui）、birthChart、registry
 │   ├── lunar.ts              # 農民曆資料
 │   ├── finmind.ts            # FinMind 行情
 │   ├── taiwanStock.ts        # 台股交易日判斷
@@ -181,12 +196,17 @@ src/
 │   └── fortuneStore.ts       # IndexedDB 運勢歷史
 ├── stores/                   # Pinia：user、dashboard、analytics、investment
 ├── utils/
-│   ├── almanac.ts            # 時辰、沖合、五行旺衰、抽籤（純函式）
+│   ├── ganzhi.ts             # 干支、五行、沖合害、藏干、納音（唯一來源）
+│   ├── almanac.ts            # 時辰十二神、擇日評分、五行旺衰、抽籤（純函式）
+│   ├── tenGods.ts · ziwei.ts # 十神與日主旺衰、紫微斗數安星
+│   ├── backtest.ts           # 策略回測與分數相關性
+│   ├── scheduling.ts         # 長計算分段執行（讓出主執行緒）
+│   ├── nameStrokes.ts        # 康熙筆畫與姓名學五行
 │   ├── chart.ts              # SVG 比例尺、平滑曲線、扇形
 │   ├── indicators.ts         # O(n) 技術指標
-│   └── hash.ts · date.ts · zodiac.ts · tenGods.ts
+│   └── hash.ts · date.ts · zodiac.ts
 ├── views/                    # Home、Dashboard、History、Analytics、Profile、dev/*
-└── tests/                    # 29 個測試檔，416 個測試
+└── tests/                    # 33 個測試檔，415 個測試
 ```
 
 | 路徑         | 頁面             |

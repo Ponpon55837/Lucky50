@@ -101,12 +101,10 @@ export const useUserStore = defineStore(
 
           // 檢查是否有profile資料且當前store為空
           if (parsed && parsed.profile && parsed.profile.name && !profile.value.name) {
-            console.log('UserStore - 手動恢復profile資料:', parsed.profile)
             profile.value = { ...parsed.profile }
           }
           // 也檢查是否直接儲存在根層級（針對pinia-plugin-persistedstate的不同版本）
           else if (parsed && parsed.name && !profile.value.name) {
-            console.log('UserStore - 從根層級恢復profile資料:', parsed)
             profile.value = { ...parsed }
           }
         }
@@ -116,7 +114,44 @@ export const useUserStore = defineStore(
       }
     }
 
+    /**
+     * 生肖、本命五行與姓名學五行一律由出生日期與姓名推算。
+     * 舊版以西元年估算生肖、以碼點估算筆畫，存下來的資料在此校正。
+     * 命盤與筆畫表以動態載入，避免進入主要 chunk。
+     */
+    const syncDerivedFields = async () => {
+      const { birthDate, name } = profile.value
+      if (!birthDate) return
+      try {
+        const [{ deriveBirthProfile }, { getElementFromName }] = await Promise.all([
+          import('@/services/engines/birthChart'),
+          import('@/utils/nameStrokes'),
+        ])
+        const birth = deriveBirthProfile(birthDate)
+        const nameResult = getElementFromName(name)
+        const current = profile.value
+        // 等待載入期間資料若已被改動，交給下一次同步
+        if (current.birthDate !== birthDate || current.name !== name) return
+        const stale =
+          current.zodiac !== birth.zodiac ||
+          current.element !== birth.element ||
+          current.nameElement !== nameResult.element ||
+          current.nameStrokes !== nameResult.totalStrokes
+        if (stale) {
+          profile.value = {
+            ...current,
+            ...birth,
+            nameElement: nameResult.element,
+            nameStrokes: nameResult.totalStrokes,
+          }
+        }
+      } catch (error) {
+        console.warn('UserStore - 無法由出生資料推算生肖與五行:', error)
+      }
+    }
+
     initializeFromStorage()
+    void syncDerivedFields()
 
     return {
       profile,
@@ -127,12 +162,16 @@ export const useUserStore = defineStore(
       updateProfile,
       validateProfile,
       initializeFromStorage,
+      syncDerivedFields,
     }
   },
   {
     persist: {
       key: 'lucky50-user',
       storage: localStorage,
+      afterHydrate: ({ store }) => {
+        void store.syncDerivedFields()
+      },
       serializer: {
         serialize: JSON.stringify,
         deserialize: JSON.parse,

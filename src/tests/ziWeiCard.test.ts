@@ -1,30 +1,7 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect } from 'vitest'
 import { mount, flushPromises } from '@vue/test-utils'
 import ZiWeiCard from '@/components/ZiWeiCard.vue'
 import type { UserProfileCompat } from '@/services/integratedFortune'
-
-vi.mock('@/services/lunar', () => ({
-  lunarService: {
-    getLunarData: vi.fn(() => ({
-      lunarYear: '庚午',
-      lunarMonth: '四月',
-      lunarDay: '廿一',
-      ganZhi: '庚午',
-      monthGanZhi: '辛巳',
-      dayGanZhi: '丙寅',
-      zodiac: '馬',
-      constellation: '金牛座',
-      naYin: '路旁土',
-      jieQi: '',
-      festivals: [],
-      yi: [],
-      ji: [],
-      pengZu: '',
-      naYinDay: '',
-      jiuXing: '',
-    })),
-  },
-}))
 
 describe('ZiWeiCard', () => {
   const mockProfile: UserProfileCompat = {
@@ -38,10 +15,6 @@ describe('ZiWeiCard', () => {
     luckyColors: ['紅色'],
     luckyNumbers: [2, 7],
   }
-
-  beforeEach(() => {
-    vi.clearAllMocks()
-  })
 
   it('should render title', () => {
     const wrapper = mount(ZiWeiCard, {
@@ -63,8 +36,8 @@ describe('ZiWeiCard', () => {
       props: { profile: mockProfile, date: new Date(2026, 10, 16) },
     })
     await flushPromises()
-    expect(wrapper.text()).toContain('紫微能量')
-    expect(wrapper.text()).toContain('命主星')
+    expect(wrapper.text()).toContain('今日能量')
+    expect(wrapper.text()).toMatch(/命宮主星|命無正曜/)
   })
 
   it('should display three palaces', async () => {
@@ -74,7 +47,8 @@ describe('ZiWeiCard', () => {
     await flushPromises()
     expect(wrapper.text()).toContain('命宮')
     expect(wrapper.text()).toContain('財帛宮')
-    expect(wrapper.text()).toContain('事業宮')
+    expect(wrapper.text()).toContain('官祿宮')
+    expect(wrapper.text()).toContain('遷移宮')
   })
 
   it('should display risk assessment', async () => {
@@ -82,6 +56,6 @@ describe('ZiWeiCard', () => {
       props: { profile: mockProfile, date: new Date(2026, 10, 16) },
     })
     await flushPromises()
-    expect(wrapper.text()).toContain('風險評估')
+    expect(wrapper.text()).toContain('風險傾向')
   })
 })

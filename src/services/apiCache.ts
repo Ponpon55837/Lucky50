@@ -207,35 +207,4 @@ export class CacheKeyGenerator {
     const dateStr = startDate && endDate ? `_${startDate}_${endDate}` : ''
     return `stock_${symbol}${dateStr}`
   }
-
-  /**
-   * 生成農民曆快取鍵
-   */
-  static lunar(date: Date): string {
-    const dateStr = date.toISOString().split('T')[0]
-    return `lunar_${dateStr}`
-  }
-
-  /**
-   * 生成運勢快取鍵
-   */
-  static fortune(userId: string, date: Date): string {
-    const dateStr = date.toISOString().split('T')[0]
-    return `fortune_${userId}_${dateStr}`
-  }
-
-  /**
-   * 生成技術指標快取鍵
-   */
-  static technical(symbol: string, indicator: string): string {
-    return `technical_${symbol}_${indicator}`
-  }
-
-  /**
-   * 生成市場狀態快取鍵
-   */
-  static marketStatus(date: Date): string {
-    const dateStr = date.toISOString().split('T')[0]
-    return `market_status_${dateStr}`
-  }
 }

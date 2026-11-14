@@ -4,10 +4,10 @@ import {
   buildHourWheel,
   classifyTradingDay,
   describeElements,
-  elementFromLabel,
   seasonalStrength,
   type Omen,
 } from '@/utils/almanac'
+import { elementFromLabel } from '@/utils/ganzhi'
 import { fromLocalDateString, toLocalDateString } from '@/utils/date'
 import { fnv1a32, profileHash } from '@/utils/hash'
 import type { LunarData } from '@/services/lunar'
@@ -36,7 +36,7 @@ export function useDashboardAlmanac(
   /** 時辰吉凶依生肖推算，沒有生辰時不顯示 */
   const hourSlots = computed(() => {
     const day = wheelLunar.value
-    return zodiac.value && day ? buildHourWheel(zodiac.value, day.dayGanZhi.charAt(1)) : []
+    return zodiac.value && day ? buildHourWheel(zodiac.value, day.dayGanZhi) : []
   })
 
   const strengths = computed(() => {

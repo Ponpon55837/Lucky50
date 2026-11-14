@@ -1,30 +1,7 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect } from 'vitest'
 import { mount, flushPromises } from '@vue/test-utils'
 import TenGodsCard from '@/components/TenGodsCard.vue'
 import type { UserProfileCompat } from '@/services/integratedFortune'
-
-vi.mock('@/services/lunar', () => ({
-  lunarService: {
-    getLunarData: vi.fn(() => ({
-      lunarYear: '庚午',
-      lunarMonth: '四月',
-      lunarDay: '廿一',
-      ganZhi: '庚午',
-      monthGanZhi: '辛巳',
-      dayGanZhi: '丙寅',
-      zodiac: '馬',
-      constellation: '金牛座',
-      naYin: '路旁土',
-      jieQi: '',
-      festivals: [],
-      yi: [],
-      ji: [],
-      pengZu: '',
-      naYinDay: '',
-      jiuXing: '',
-    })),
-  },
-}))
 
 describe('TenGodsCard', () => {
   const mockProfile: UserProfileCompat = {
@@ -39,20 +16,16 @@ describe('TenGodsCard', () => {
     luckyNumbers: [2, 7],
   }
 
-  beforeEach(() => {
-    vi.clearAllMocks()
-  })
-
   it('should render title', () => {
     const wrapper = mount(TenGodsCard, {
-      props: { profile: mockProfile },
+      props: { profile: mockProfile, date: new Date(2026, 10, 16) },
     })
     expect(wrapper.text()).toContain('八字十神分析')
   })
 
   it('should show empty state when no profile', async () => {
     const wrapper = mount(TenGodsCard, {
-      props: { profile: null },
+      props: { profile: null, date: new Date(2026, 10, 16) },
     })
     await flushPromises()
     expect(wrapper.text()).toContain('請先設定出生資料')
@@ -60,17 +33,17 @@ describe('TenGodsCard', () => {
 
   it('should calculate and display results', async () => {
     const wrapper = mount(TenGodsCard, {
-      props: { profile: mockProfile },
+      props: { profile: mockProfile, date: new Date(2026, 10, 16) },
     })
     await flushPromises()
-    expect(wrapper.text()).toContain('十神能量')
+    expect(wrapper.text()).toContain('今日能量')
     expect(wrapper.text()).toContain('庚午')
     expect(wrapper.text()).toContain('辛巳')
   })
 
   it('should display investment style', async () => {
     const wrapper = mount(TenGodsCard, {
-      props: { profile: mockProfile },
+      props: { profile: mockProfile, date: new Date(2026, 10, 16) },
     })
     await flushPromises()
     expect(wrapper.text()).toContain('投資風格')
@@ -78,7 +51,7 @@ describe('TenGodsCard', () => {
 
   it('should show four pillars grid', async () => {
     const wrapper = mount(TenGodsCard, {
-      props: { profile: mockProfile },
+      props: { profile: mockProfile, date: new Date(2026, 10, 16) },
     })
     await flushPromises()
     expect(wrapper.text()).toContain('年柱')

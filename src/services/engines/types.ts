@@ -1,25 +1,33 @@
 import type { UserProfileCompat } from '@/services/integratedFortune'
 import type { LunarData } from '@/services/lunar'
-import type { PersonalBaZi, ElementsEnergy } from '@/types'
+import type { Recommendation, RiskLevel, ScoreFactor } from '@/utils/almanac'
+import type { BirthChart } from './birthChart'
+
+/** 引擎計算所需的全部資料 */
+export interface EngineInput {
+  profile: UserProfileCompat
+  /** 要推算的日期 */
+  date: Date
+  /** 該日的農民曆 */
+  today: LunarData
+  /** 使用者命盤 */
+  chart: BirthChart
+}
 
 // 命理引擎計算結果
 export interface MetaphysicsResult {
   /** 引擎 ID */
-  engineId?: string
+  engineId: string
   /** 引擎名稱 */
   engineName: string
-  /** 對運勢分數的貢獻 (0-100) */
+  /** 當日對投資的吉凶 (0-100) */
   score: number
-  /** 計算信心度 (0-1) */
-  confidence?: number
+  /** 分數的加減項由來 */
+  factors?: ScoreFactor[]
   /** 結果摘要 */
   summary?: string
   /** 詳細資料 */
   details?: Record<string, unknown>
-  /** 附加資訊 */
-  metadata?: Record<string, unknown>
-  /** 五行能量調整 */
-  elementAdjustments?: Partial<ElementsEnergy>
   /** 幸運方位 */
   luckyDirection?: string
   /** 避開方位 */
@@ -38,9 +46,8 @@ export interface MetaphysicsResult {
   opportunities?: string[]
   /** 投資建議調整 */
   investmentAdjustment?: {
-    recommendation?: 'BUY' | 'SELL' | 'HOLD' | 'OBSERVE'
-    riskLevel?: 'low' | 'medium' | 'high'
-    scoreAdjustment?: number
+    recommendation?: Recommendation
+    riskLevel?: RiskLevel
   }
 }
 
@@ -55,21 +62,8 @@ export interface MetaphysicsEngine {
   /** 引擎版本 */
   readonly version: string
 
-  /**
-   * 執行命理計算
-   * @param profile 使用者資料
-   * @param date 計算日期
-   * @param lunarData 農民曆資料
-   * @param personalBaZi 個人八字
-   * @param elements 當前五行能量
-   */
-  calculate(
-    profile: UserProfileCompat,
-    date: Date,
-    lunarData: LunarData,
-    personalBaZi: PersonalBaZi,
-    elements: ElementsEnergy
-  ): MetaphysicsResult
+  /** 執行命理計算 */
+  calculate(input: EngineInput): MetaphysicsResult
 
   /** 取得引擎權重 (0-100) */
   getWeight(): number
@@ -85,9 +79,4 @@ export interface MetaphysicsEngine {
 export interface MetaphysicsEngineSettings {
   enabled: boolean
   weight: number
-}
-
-// 完整的命理設定
-export interface MetaphysicsSettings {
-  engines: Record<string, MetaphysicsEngineSettings>
 }

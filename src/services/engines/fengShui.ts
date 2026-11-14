@@ -1,313 +1,167 @@
-import type { MetaphysicsEngine, MetaphysicsResult } from './types'
-import type { UserProfileCompat } from '@/services/integratedFortune'
-import type { LunarData } from '@/services/lunar'
-import type { PersonalBaZi, ElementsEnergy } from '@/types'
+import {
+  ELEMENT_LABEL,
+  branchIndex,
+  controllerOf,
+  elementRelation,
+  nayinElement,
+  parentOf,
+  parseGanZhi,
+  zodiacBranch,
+  type ElementKey,
+  type ElementRelation,
+} from '@/utils/ganzhi'
+import type { ScoreFactor } from '@/utils/almanac'
+import { BaseEngine, describeFactor } from './base'
+import { ENGINE_CATALOG } from './settings'
+import type { EngineInput, MetaphysicsResult } from './types'
 
-// 八卦方位對應
-const TRIGRAM_DIRECTIONS: Record<string, { direction: string; element: string; angle: number }> = {
-  乾: { direction: '西北', element: 'metal', angle: 315 },
-  兌: { direction: '西方', element: 'metal', angle: 270 },
-  離: { direction: '南方', element: 'fire', angle: 180 },
-  震: { direction: '東方', element: 'wood', angle: 90 },
-  巽: { direction: '東南', element: 'wood', angle: 135 },
-  坎: { direction: '北方', element: 'water', angle: 0 },
-  艮: { direction: '東北', element: 'earth', angle: 45 },
-  坤: { direction: '西南', element: 'earth', angle: 225 },
+/** 八卦方位的五行：震巽木、離火、坤艮土、兌乾金、坎水 */
+const DIRECTION_ELEMENT: ReadonlyArray<readonly [string, ElementKey]> = [
+  ['東北', 'earth'],
+  ['西南', 'earth'],
+  ['東南', 'wood'],
+  ['西北', 'metal'],
+  ['東', 'wood'],
+  ['南', 'fire'],
+  ['西', 'metal'],
+  ['北', 'water'],
+]
+
+/** 五行的正位；土居中央，不列方位 */
+const ELEMENT_DIRECTION: Readonly<Partial<Record<ElementKey, string>>> = {
+  wood: '正東',
+  fire: '正南',
+  metal: '正西',
+  water: '正北',
 }
 
-// 五行相生
-const GENERATES: Record<string, string> = {
-  wood: 'fire',
-  fire: 'earth',
-  earth: 'metal',
-  metal: 'water',
-  water: 'wood',
+/** 地支三會方：亥子丑北、寅卯辰東、巳午未南、申酉戌西 */
+const CARDINALS = ['北', '東', '南', '西'] as const
+
+function directionElement(direction: string): ElementKey | null {
+  // 斜向在前，先比對到「東北」就不會被「東」搶走
+  return DIRECTION_ELEMENT.find(([name]) => direction.includes(name))?.[1] ?? null
 }
 
-// 流日天干地支（簡化：以日期偏移計算）
-const TEN_STEMS = ['甲', '乙', '丙', '丁', '戊', '己', '庚', '辛', '壬', '癸']
-const TWELVE_BRANCHES = ['子', '丑', '寅', '卯', '辰', '巳', '午', '未', '申', '酉', '戌', '亥']
-
-// 天干五行
-const STEM_ELEMENT: Record<string, string> = {
-  甲: 'wood',
-  乙: 'wood',
-  丙: 'fire',
-  丁: 'fire',
-  戊: 'earth',
-  己: 'earth',
-  庚: 'metal',
-  辛: 'metal',
-  壬: 'water',
-  癸: 'water',
+/** 日納音對本命納音：生我、同我為助，我剋為財，我生為洩，剋我為凶 */
+const NAYIN_DELTA: Readonly<Record<ElementRelation, number>> = {
+  generatedBy: 15,
+  controls: 10,
+  same: 8,
+  generates: -6,
+  controlledBy: -15,
+}
+const NAYIN_TEXT: Readonly<Record<ElementRelation, string>> = {
+  generatedBy: '生本命',
+  controls: '為本命所剋，我剋為財',
+  same: '與本命比和',
+  generates: '洩本命之氣',
+  controlledBy: '剋本命',
+}
+const NAYIN_ADVICE: Readonly<Record<ElementRelation, string>> = {
+  generatedBy: '今日氣場相生，適合積極行動',
+  controls: '今日我剋為財，可把握機會',
+  same: '今日氣場平和，適合穩健操作',
+  generates: '今日氣場外洩，宜量力而為',
+  controlledBy: '今日氣場受剋，建議保守觀望',
 }
 
-// 地支五行
-const BRANCH_ELEMENT: Record<string, string> = {
-  子: 'water',
-  丑: 'earth',
-  寅: 'wood',
-  卯: 'wood',
-  辰: 'earth',
-  巳: 'fire',
-  午: 'fire',
-  未: 'earth',
-  申: 'metal',
-  酉: 'metal',
-  戌: 'earth',
-  亥: 'water',
+/** 財神方位五行對本命的生剋 */
+const WEALTH_DIRECTION_DELTA: Readonly<Partial<Record<ElementRelation, number>>> = {
+  generatedBy: 8,
+  same: 5,
+  controlledBy: -8,
+}
+const SHA_DELTA = -8
+
+interface DirectionNote {
+  direction: string
+  reason: string
 }
 
-// 生肖配對（六合）
-const ZODIAC_SIX_HARMONY: Record<string, string> = {
-  鼠: '牛',
-  虎: '豬',
-  兔: '狗',
-  龍: '雞',
-  蛇: '猴',
-  馬: '羊',
-  牛: '鼠',
-  豬: '虎',
-  狗: '兔',
-  雞: '龍',
-  猴: '蛇',
-  羊: '馬',
-}
-
-// 生肖三合
-const ZODIAC_THREE_HARMONY: Record<string, string[]> = {
-  鼠: ['猴', '龍'],
-  牛: ['蛇', '雞'],
-  虎: ['馬', '狗'],
-  兔: ['羊', '豬'],
-  龍: ['猴', '鼠'],
-  蛇: ['雞', '牛'],
-  馬: ['狗', '虎'],
-  羊: ['豬', '兔'],
-  猴: ['鼠', '龍'],
-  雞: ['牛', '蛇'],
-  狗: ['虎', '馬'],
-  豬: ['兔', '羊'],
-}
-
-// 生肖六沖
-const ZODIAC_SIX_CLASH: Record<string, string> = {
-  鼠: '馬',
-  牛: '羊',
-  虎: '猴',
-  兔: '雞',
-  龍: '狗',
-  蛇: '豬',
-  馬: '鼠',
-  羊: '牛',
-  猴: '虎',
-  雞: '兔',
-  狗: '龍',
-  豬: '蛇',
-}
-
-// 五行中文對應
-const ELEMENT_LABEL: Record<string, string> = {
-  wood: '木',
-  fire: '火',
-  earth: '土',
-  metal: '金',
-  water: '水',
-}
-
-// 計算流日干支
-function calculateDailyGanZhi(date: Date): { stem: string; branch: string } {
-  // 簡化：以 2024-01-01 (甲子日) 為基準
-  const base = new Date(2024, 0, 1)
-  const diff = Math.floor((date.getTime() - base.getTime()) / (1000 * 60 * 60 * 24))
-  const stemIdx = ((diff % 10) + 10) % 10
-  const branchIdx = ((diff % 12) + 12) % 12
-  return { stem: TEN_STEMS[stemIdx], branch: TWELVE_BRANCHES[branchIdx] }
-}
-
-// 計算增強方位（考慮五行、生肖、流日）
-function calculateEnhancedDirection(
-  personalBaZi: PersonalBaZi,
-  lunarData: LunarData,
-  date: Date
-): {
-  luckyDirections: Array<{ direction: string; reason: string; score: number }>
-  avoidDirections: Array<{ direction: string; reason: string }>
-  dailyFortune: {
-    stem: string
-    branch: string
-    element: string
-    favorableElements: string[]
-    unfavorableElements: string[]
-    overallScore: number
-    advice: string
+/** 同一方位只列一次，由來合併 */
+function mergeDirections(entries: ReadonlyArray<readonly [string, string]>): DirectionNote[] {
+  const reasons = new Map<string, string[]>()
+  for (const [direction, reason] of entries) {
+    if (!direction) continue
+    const list = reasons.get(direction)
+    if (list) list.push(reason)
+    else reasons.set(direction, [reason])
   }
-} {
-  const dayElement = STEM_ELEMENT[personalBaZi.dayGanZhi[0]] || 'earth'
-  const userElement = personalBaZi.element
-  const dailyGZ = calculateDailyGanZhi(date)
-  const dailyElement = STEM_ELEMENT[dailyGZ.stem]
+  return [...reasons].map(([direction, list]) => ({ direction, reason: list.join('、') }))
+}
 
-  // 計算每個方位的分數
-  const directionScores: Array<{
-    direction: string
-    trigram: string
-    score: number
-    reason: string
-  }> = []
-
-  for (const [trigram, info] of Object.entries(TRIGRAM_DIRECTIONS)) {
-    let score = 50
-    const reasons: string[] = []
-
-    // 五行相生加分
-    if (GENERATES[dayElement] === info.element) {
-      score += 20
-      reasons.push(`日干${ELEMENT_LABEL[dayElement]}生${ELEMENT_LABEL[info.element]}`)
-    }
-    if (GENERATES[info.element] === dayElement) {
-      score += 15
-      reasons.push(`${ELEMENT_LABEL[info.element]}生日干`)
-    }
-
-    // 同五行加分
-    if (dayElement === info.element) {
-      score += 10
-      reasons.push('同五行')
-    }
-
-    // 生肖合沖
-    const userZodiac = lunarData.zodiac
-    const harmony = ZODIAC_SIX_HARMONY[userZodiac]
-    const clashes = ZODIAC_SIX_CLASH[userZodiac]
-    if (harmony && info.element === BRANCH_ELEMENT[harmony]) {
-      score += 10
-      reasons.push('六合加成')
-    }
-    if (clashes && info.element === BRANCH_ELEMENT[clashes]) {
-      score -= 20
-      reasons.push('六沖減分')
-    }
-
-    directionScores.push({
-      direction: info.direction,
-      trigram,
-      score: Math.max(0, Math.min(100, score)),
-      reason: reasons.join('、') || '基本方位',
-    })
+/** 風水方位：當日神位與三煞方，加上日納音對本命納音的生剋 */
+export class FengShuiEngine extends BaseEngine {
+  constructor() {
+    super(ENGINE_CATALOG.fengShui)
   }
 
-  // 排序取吉方
-  directionScores.sort((a, b) => b.score - a.score)
-  const luckyDirections = directionScores.slice(0, 3).map(d => ({
-    direction: d.direction,
-    reason: d.reason,
-    score: d.score,
-  }))
+  calculate({ today, chart }: EngineInput): MetaphysicsResult {
+    const own = chart.element
+    const ownLabel = ELEMENT_LABEL[own]
+    const factors: ScoreFactor[] = []
 
-  // 凶方
-  const avoidDirections = directionScores.slice(-2).map(d => ({
-    direction: d.direction,
-    reason: '能量較弱或相剋',
-  }))
+    const day = parseGanZhi(today.dayGanZhi)
+    const dayElement = day ? nayinElement(day) : null
+    const dayRelation = dayElement ? elementRelation(own, dayElement) : null
+    if (dayElement && dayRelation) {
+      factors.push({
+        label: `日納音${ELEMENT_LABEL[dayElement]}${NAYIN_TEXT[dayRelation]}${ownLabel}`,
+        delta: NAYIN_DELTA[dayRelation],
+      })
+    }
 
-  // 流日吉凶：favorable = 生我 + 日主本身，unavoidable = 克我 + 我生（排除日主本身）
-  const favorableElements = [GENERATES[dailyElement], dailyElement]
-  const unfavorableElements = [
-    Object.entries(GENERATES).find(([_, v]) => v === dailyElement)?.[0] || '',
-    Object.entries(GENERATES).find(([k, _]) => k === dailyElement)?.[0] || '',
-  ].filter(e => e && e !== dailyElement)
+    const wealthElement = directionElement(today.caiShen)
+    if (wealthElement) {
+      const relation = elementRelation(own, wealthElement)
+      const delta = WEALTH_DIRECTION_DELTA[relation]
+      if (delta) {
+        factors.push({
+          label: `財神在${today.caiShen}屬${ELEMENT_LABEL[wealthElement]}，${NAYIN_TEXT[relation]}`,
+          delta,
+        })
+      }
+    }
 
-  // 流日分數
-  let dailyScore = 60
-  if (dailyElement === userElement) dailyScore += 15
-  if (GENERATES[dailyElement] === userElement) dailyScore += 10
-  if (GENERATES[userElement] === dailyElement) dailyScore += 5
+    const ownBranch = zodiacBranch(chart.zodiac)!
+    const ownCardinal = CARDINALS[Math.floor(((branchIndex(ownBranch) + 1) % 12) / 3)]
+    if (today.sha === ownCardinal) {
+      factors.push({
+        label: `本命生肖${chart.zodiac}居${ownCardinal}，正逢三煞方`,
+        delta: SHA_DELTA,
+      })
+    }
 
-  const zodiacHarmony = ZODIAC_THREE_HARMONY[lunarData.zodiac] || []
-  if (zodiacHarmony.includes(lunarData.zodiac)) dailyScore += 5
+    const controller = controllerOf(own)
+    const avoidDirections = mergeDirections([
+      [today.sha ? `正${today.sha}` : '', '三煞方'],
+      [ELEMENT_DIRECTION[controller] ?? '', `屬${ELEMENT_LABEL[controller]}，剋本命${ownLabel}`],
+    ])
+    // 神位落在凶方時以凶方為準，不再列為吉方
+    const avoided = new Set(avoidDirections.map(note => note.direction))
+    const luckyDirections = mergeDirections([
+      [today.caiShen, '財神'],
+      [today.xiShen, '喜神'],
+      [today.fuShen, '福神'],
+    ]).filter(note => !avoided.has(note.direction))
 
-  dailyScore = Math.max(20, Math.min(95, dailyScore))
-
-  const advice =
-    dailyScore >= 75
-      ? '今日能量充沛，適合積極行動'
-      : dailyScore >= 55
-        ? '今日能量平穩，適合穩健操作'
-        : '今日能量較弱，建議保守觀望'
-
-  return {
-    luckyDirections,
-    avoidDirections,
-    dailyFortune: {
-      stem: dailyGZ.stem,
-      branch: dailyGZ.branch,
-      element: dailyElement,
-      favorableElements,
-      unfavorableElements: unfavorableElements.filter(Boolean),
-      overallScore: dailyScore,
-      advice,
-    },
-  }
-}
-
-export class FengShuiEngine implements MetaphysicsEngine {
-  readonly engineId = 'feng-shui'
-  readonly name = '風水方位'
-  readonly description = '基於五行、生肖、流日的風水方位與吉凶分析'
-  readonly version = '1.0.0'
-
-  private enabled = true
-  private weight = 15
-
-  calculate(
-    _profile: UserProfileCompat,
-    date: Date,
-    lunarData: LunarData,
-    personalBaZi: PersonalBaZi,
-    _elements: ElementsEnergy
-  ): MetaphysicsResult {
-    const analysis = calculateEnhancedDirection(personalBaZi, lunarData, date)
-
-    const overallScore = Math.round(
-      (analysis.luckyDirections.reduce((sum, d) => sum + d.score, 0) /
-        analysis.luckyDirections.length) *
-        0.6 +
-        analysis.dailyFortune.overallScore * 0.4
-    )
-
-    return {
-      engineId: 'feng-shui',
-      engineName: this.name,
-      score: overallScore,
-      confidence: 0.65,
-      summary: `吉方：${analysis.luckyDirections.map(d => d.direction).join('、')}，流日${analysis.dailyFortune.stem}${analysis.dailyFortune.branch}（${ELEMENT_LABEL[analysis.dailyFortune.element] || analysis.dailyFortune.element}）`,
+    return this.result(factors, {
+      summary: `本命納音屬${ownLabel}，財神在${today.caiShen}，煞${today.sha}`,
+      advice: factors.map(describeFactor),
+      luckyDirection: luckyDirections[0]?.direction,
+      avoidDirection: avoidDirections[0]?.direction,
+      luckyElements: [parentOf(own), own],
+      avoidElements: [controller],
       details: {
-        luckyDirections: analysis.luckyDirections,
-        avoidDirections: analysis.avoidDirections,
-        dailyFortune: analysis.dailyFortune,
-      } as Record<string, unknown>,
-      luckyDirection: analysis.luckyDirections[0]?.direction,
-      avoidDirection: analysis.avoidDirections[0]?.direction,
-      luckyElements: analysis.dailyFortune.favorableElements,
-      avoidElements: analysis.dailyFortune.unfavorableElements,
-      metadata: {
-        dailyGanZhi: `${analysis.dailyFortune.stem}${analysis.dailyFortune.branch}`,
-        dailyElement: analysis.dailyFortune.element,
-      } as Record<string, unknown>,
-    }
-  }
-
-  getWeight(): number {
-    return this.weight
-  }
-  setWeight(w: number): void {
-    this.weight = Math.max(0, Math.min(100, w))
-  }
-  isEnabled(): boolean {
-    return this.enabled
-  }
-  setEnabled(enabled: boolean): void {
-    this.enabled = enabled
+        luckyDirections,
+        avoidDirections,
+        dailyFortune: {
+          ganZhi: today.dayGanZhi,
+          element: dayElement,
+          advice: dayRelation ? NAYIN_ADVICE[dayRelation] : '',
+        },
+      },
+    })
   }
 }

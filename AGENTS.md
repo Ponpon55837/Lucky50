@@ -39,6 +39,8 @@ Keep this managed block so 'openspec update' can refresh the instructions.
 - **Step 12**: 性能優化 — Pinia Colada 查詢快取（`src/queries/`），dashboard store 改用 query cache；`src/utils/indicators.ts` O(n) 技術指標（KD 單調佇列、Welford），修正 KD/MACD 計算、運勢快取鍵與 profileHash 碰撞、Dashboard listener 洩漏 ✅
 - **Step 13**: 農民曆風格 UI 改版（`openspec/changes/update-almanac-ui-redesign`）— 設計 tokens（CSS 變數 + Tailwind 語意色，漲紅跌綠）、儀表板今日籤／十二時辰輪／五行相生圖／SVG 走勢吉印、直排書脊導覽、首頁農民曆封面；純函式 `src/utils/almanac.ts`、`src/utils/chart.ts` ✅
 
+- **Step 14**: 命理計算依傳統規則重寫（`openspec/changes/update-fortune-engine-accuracy`）— `src/utils/ganzhi.ts` 為干支五行唯一來源；時辰改用黃道黑道十二神；四個引擎依擇日、日主喜忌、紫微安星與四化、納音生剋重寫並列出加減分由來；`buildBirthChart` 節氣四柱；康熙筆畫姓名學；`src/utils/backtest.ts` 真實回測（`src/utils/scheduling.ts` 分段計算不卡畫面）；CI 加格式檢查與相依稽核 ✅
+
 ## Routes
 
 | Path         | Name         | NavBar     |
@@ -58,8 +60,8 @@ Keep this managed block so 'openspec update' can refresh the instructions.
 
 ## Tests
 
-- 416 tests across 29 test files
-- Key: `fortuneStore.test.ts` (12), `fortuneLogViewer.test.ts` (8), `dashboard.test.ts` (18), `analytics.test.ts` (17), `user.test.ts` (15), `metaphysicsEngine.test.ts` (20), `indicators.test.ts` (11), `hash.test.ts` (3), `almanac.test.ts`, `chart.test.ts`
+- 415 tests across 33 test files（`pnpm check` 一次跑完 lint、格式、型別、測試、建置）
+- Key: `ganzhi.test.ts`、`almanac.test.ts`、`tenGods.test.ts`、`ziwei.test.ts`（以上與 lunar-javascript 交叉驗證）、`engines.test.ts`、`registry.test.ts`、`birthChart.test.ts`、`integratedFortune.test.ts`、`backtest.test.ts`、`nameStrokes.test.ts`
 
 ## Tech Stack
 
