@@ -1,10 +1,18 @@
 import { ELEMENT_LABEL, parseGanZhi, type Stem } from '@/utils/ganzhi'
 import {
+  MALEFIC_STARS,
   PALACES,
+  brightnessOf,
   buildZiWeiChart,
+  isBright,
+  isDim,
+  isMainStar,
   mainStarsOf,
+  starBrightness,
   transformationsOf,
+  type Brightness,
   type MainStar,
+  type Star,
   type Transformation,
   type ZiWeiChart,
 } from '@/utils/ziwei'
@@ -66,9 +74,67 @@ const DAILY_DELTA: Readonly<Record<Transformation, number>> = {
   化忌: -15,
 }
 
-/** 財星坐財帛宮 */
+/**
+ * 亮度對四化的影響：星曜廟旺時吉化更有力、化忌較輕；失陷時吉化打折、化忌更重。
+ */
+const BRIGHT_SCALE = 1.25
+const DIM_SCALE = 0.75
+
+function brightnessScale(type: Transformation, brightness: Brightness | null): number {
+  const harmful = type === '化忌'
+  if (isBright(brightness)) return harmful ? DIM_SCALE : BRIGHT_SCALE
+  if (isDim(brightness)) return harmful ? BRIGHT_SCALE : DIM_SCALE
+  return 1
+}
+
+/** 財星坐財帛宮：廟旺全額、平常減半，失陷不計 */
 const WEALTH_STARS: ReadonlySet<MainStar> = new Set(['武曲', '太陰', '天府'])
 const WEALTH_STAR_DELTA = 6
+/** 祿存主財，坐財帛宮最直接，坐命宮次之 */
+const LU_CUN_DELTA: ReadonlyMap<number, number> = new Map([
+  [WEALTH, 6],
+  [LIFE, 4],
+])
+/** 煞星坐財帛宮：廟旺時為我所用，影響輕；失陷或無亮度可言（地空、地劫）時最重 */
+const MALEFIC_DELTA = -3
+const MALEFIC_BRIGHT_DELTA = -1
+const MALEFIC_DIM_DELTA = -4
+
+/** 星名後面附上亮度，例如「太陰（旺）」；不論亮度的星只有星名 */
+function withBrightness(star: Star, brightness: Brightness | null): string {
+  return brightness ? `${star}（${brightness}）` : star
+}
+
+/** 本命盤上與四化無關的加減項：財星、祿存與煞星坐守 */
+function seatedFactors(chart: ZiWeiChart): ScoreFactor[] {
+  const factors: ScoreFactor[] = []
+  const wealth = chart.palaces[WEALTH]
+
+  for (const star of wealth.stars) {
+    const brightness = brightnessOf(star, wealth.branch)
+    const label = `${withBrightness(star, brightness)}坐財帛宮`
+    if (isMainStar(star)) {
+      if (WEALTH_STARS.has(star) && !isDim(brightness)) {
+        factors.push({
+          label: `財星${label}`,
+          delta: isBright(brightness) ? WEALTH_STAR_DELTA : WEALTH_STAR_DELTA / 2,
+        })
+      }
+    } else if (MALEFIC_STARS.has(star)) {
+      let delta = MALEFIC_DELTA
+      if (isBright(brightness)) delta = MALEFIC_BRIGHT_DELTA
+      else if (brightness === null || isDim(brightness)) delta = MALEFIC_DIM_DELTA
+      factors.push({ label: `煞星${label}`, delta })
+    }
+  }
+
+  const luCunPalace = chart.starPalace.get('祿存')!
+  const luCunDelta = LU_CUN_DELTA.get(luCunPalace)
+  if (luCunDelta !== undefined) {
+    factors.push({ label: `祿存坐${PALACES[luCunPalace]}`, delta: luCunDelta })
+  }
+  return factors
+}
 
 function transformationFactors(
   chart: ZiWeiChart,
@@ -80,9 +146,10 @@ function transformationFactors(
   for (const { type, star, palaceIndex } of transformationsOf(chart, stem)) {
     const weight = PALACE_WEIGHT.get(palaceIndex)
     if (weight === undefined) continue
+    const brightness = starBrightness(chart, star)
     factors.push({
-      label: `${source}${star}${type}入${PALACES[palaceIndex]}`,
-      delta: Math.round(deltas[type] * weight),
+      label: `${source}${withBrightness(star, brightness)}${type}入${PALACES[palaceIndex]}`,
+      delta: Math.round(deltas[type] * weight * brightnessScale(type, brightness)),
     })
   }
   return factors
@@ -101,22 +168,18 @@ function readNatal(birth: BirthChart): NatalReading {
   const yearStem = birth.lunarYear.stem
   const chart = buildZiWeiChart({
     yearStem,
+    yearBranch: birth.lunarYear.branch,
     lunarMonth: birth.lunarMonth,
     lunarDay: birth.lunarDay,
     hourBranch: birth.hourBranch,
   })
 
   const natal = transformationsOf(chart, yearStem)
-  const factors = transformationFactors(chart, yearStem, '生年', NATAL_DELTA)
-  // 空宮借來的對宮主星不算坐守，不加分
-  const wealth = mainStarsOf(chart, WEALTH)
-  if (!wealth.borrowed) {
-    for (const star of wealth.stars) {
-      if (WEALTH_STARS.has(star)) {
-        factors.push({ label: `財星${star}坐財帛宮`, delta: WEALTH_STAR_DELTA })
-      }
-    }
-  }
+  // 坐守只看宮內實際有的星；空宮借來的對宮主星不算
+  const factors = [
+    ...transformationFactors(chart, yearStem, '生年', NATAL_DELTA),
+    ...seatedFactors(chart),
+  ]
 
   const palaces = KEY_PALACES.map(index => {
     const palace = chart.palaces[index]
@@ -125,7 +188,13 @@ function readNatal(birth: BirthChart): NatalReading {
       name: palace.name,
       ganZhi: `${palace.stem}${palace.branch}`,
       stars,
+      /** 主星附亮度，例如「太陰（旺）」 */
+      starLabels: stars.map(star => withBrightness(star, starBrightness(chart, star))),
       borrowed,
+      assistStars: palace.stars
+        .filter(star => !isMainStar(star))
+        .map(star => withBrightness(star, brightnessOf(star, palace.branch))),
+      minorStars: palace.minorStars,
       transformations: natal.filter(t => t.palaceIndex === index).map(t => `${t.star}${t.type}`),
     }
   })

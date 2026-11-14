@@ -53,6 +53,7 @@
     "eslint-plugin-vue": "^10.12.1",
     "fake-indexeddb": "^6.2.8",
     "happy-dom": "^21.0.4",
+    "iztro": "2.6.5",
     "jsdom": "^27.4.0",
     "postcss": "^8.5.32",
     "prettier": "^3.10.1",

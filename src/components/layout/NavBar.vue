@@ -38,7 +38,7 @@ watch(
     >
       福
     </RouterLink>
-    <ul class="flex flex-col gap-1">
+    <ul class="flex w-full flex-col items-center gap-1">
       <li
         v-for="item in NAV_ITEMS"
         :key="item.to"
@@ -128,8 +128,12 @@ watch(
   @apply grid place-items-center rounded-[10px] bg-seal font-kai font-bold text-gold;
 }
 
+/*
+ * 寬度寫死：直排文字的方塊若讓瀏覽器自行推算寬度，外層清單會先以較窄的寬度排版，
+ * 連結再往右溢出，整排選單就偏離中線（字型載入前後、切頁時尤其明顯）。
+ */
 .spine-link {
-  @apply relative block rounded-[10px] px-2.5 py-3.5 font-serif text-[15px] tracking-[0.25em] text-ink-2 transition-colors duration-150 hover:bg-raised hover:text-ink;
+  @apply relative grid w-11 place-items-center rounded-[10px] py-3.5 font-serif text-[15px] tracking-[0.25em] text-ink-2 transition-colors duration-150 hover:bg-raised hover:text-ink;
   writing-mode: vertical-rl;
 }
 

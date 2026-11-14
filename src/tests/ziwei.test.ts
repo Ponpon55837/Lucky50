@@ -33,7 +33,13 @@ describe('紫微星位置', () => {
 
 describe('排盤', () => {
   // 庚年正月初一子時：命宮在寅，戊寅納音城頭土，土五局
-  const chart = buildZiWeiChart({ yearStem: '庚', lunarMonth: 1, lunarDay: 1, hourBranch: '子' })
+  const chart = buildZiWeiChart({
+    yearStem: '庚',
+    yearBranch: '午',
+    lunarMonth: 1,
+    lunarDay: 1,
+    hourBranch: '子',
+  })
 
   it('命宮、身宮與五行局', () => {
     expect(chart.palaces[0]).toMatchObject({ name: '命宮', stem: '戊', branch: '寅' })
@@ -71,7 +77,13 @@ describe('排盤', () => {
   })
 
   it('三月辰時命宮在子', () => {
-    const other = buildZiWeiChart({ yearStem: '甲', lunarMonth: 3, lunarDay: 10, hourBranch: '辰' })
+    const other = buildZiWeiChart({
+      yearStem: '甲',
+      yearBranch: '子',
+      lunarMonth: 3,
+      lunarDay: 10,
+      hourBranch: '辰',
+    })
     expect(other.palaces[0].branch).toBe('子')
   })
 
@@ -83,7 +95,13 @@ describe('排盤', () => {
       for (let lunarMonth = 1; lunarMonth <= 12; lunarMonth++) {
         for (const lunarDay of [1, 7, 15, 23, 30]) {
           for (const hourBranch of EARTHLY_BRANCHES) {
-            const each = buildZiWeiChart({ yearStem, lunarMonth, lunarDay, hourBranch })
+            const each = buildZiWeiChart({
+              yearStem,
+              yearBranch: '子',
+              lunarMonth,
+              lunarDay,
+              hourBranch,
+            })
             const placed = each.palaces
               .flatMap(palace => palace.stars)
               .filter(isMainStar)
@@ -108,7 +126,13 @@ describe('排盤', () => {
 describe('空宮與四化', () => {
   it('空宮借對宮主星', () => {
     // 上面的命盤中，酉宮（疾厄宮）與未宮（交友宮）沒有主星
-    const chart = buildZiWeiChart({ yearStem: '庚', lunarMonth: 1, lunarDay: 1, hourBranch: '子' })
+    const chart = buildZiWeiChart({
+      yearStem: '庚',
+      yearBranch: '午',
+      lunarMonth: 1,
+      lunarDay: 1,
+      hourBranch: '子',
+    })
     const empty = chart.palaces.findIndex(palace => !palace.stars.some(isMainStar))
     expect(empty).toBeGreaterThanOrEqual(0)
     const { stars, borrowed } = mainStarsOf(chart, empty)
@@ -118,7 +142,13 @@ describe('空宮與四化', () => {
   })
 
   it('庚干四化：太陽化祿、武曲化權、太陰化科、天同化忌', () => {
-    const chart = buildZiWeiChart({ yearStem: '庚', lunarMonth: 1, lunarDay: 1, hourBranch: '子' })
+    const chart = buildZiWeiChart({
+      yearStem: '庚',
+      yearBranch: '午',
+      lunarMonth: 1,
+      lunarDay: 1,
+      hourBranch: '子',
+    })
     const transformed = transformationsOf(chart, '庚')
     expect(transformed.map(item => `${item.star}${item.type}`)).toEqual([
       '太陽化祿',

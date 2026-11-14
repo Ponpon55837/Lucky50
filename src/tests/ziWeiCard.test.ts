@@ -51,6 +51,15 @@ describe('ZiWeiCard', () => {
     expect(wrapper.text()).toContain('遷移宮')
   })
 
+  it('顯示星曜亮度與說明', async () => {
+    const wrapper = mount(ZiWeiCard, {
+      props: { profile: mockProfile, date: new Date(2026, 10, 16) },
+    })
+    await flushPromises()
+    expect(wrapper.text()).toMatch(/（[廟旺得利平不陷]）/)
+    expect(wrapper.text()).toContain('括號內為星曜亮度')
+  })
+
   it('should display risk assessment', async () => {
     const wrapper = mount(ZiWeiCard, {
       props: { profile: mockProfile, date: new Date(2026, 10, 16) },
