@@ -1,9 +1,17 @@
 import axios from 'axios'
 import type { AxiosError, InternalAxiosRequestConfig } from 'axios'
-import type { ETFData, FinMindDataItem } from '@/types'
+import type { ETFData, FinMindDataItem, FinMindDividendResultItem, FinMindSplitItem } from '@/types'
 import { apiCache, CacheKeyGenerator } from './apiCache'
 import { toLocalDateString } from '@/utils/date'
 import { isSortedByDate } from '@/utils/indicators'
+import { dividendFactor, splitFactor, type PriceAdjustment } from '@/utils/priceAdjust'
+
+const SYMBOL = '0050'
+/** 0050 掛牌日，查詢除權息紀錄的起點 */
+const LISTING_DATE = '2003-06-30'
+const PRICE_CACHE_MS = 10 * 60 * 1000
+/** 除權息一年只有兩次，還原係數快取半天 */
+const ADJUSTMENT_CACHE_MS = 12 * 60 * 60 * 1000
 
 // API 監控介面
 interface ApiMonitor {
@@ -139,68 +147,107 @@ export class FinMindService {
   }
 
   /**
-   * 取得 0050 ETF 歷史資料 (支援快取)
+   * 向 FinMind 取得 0050 日 K（原始價，未還原）。沒有資料或回應異常時丟出錯誤，由呼叫端決定怎麼處理。
+   */
+  private static async fetchDailyBars(startDate: string, endDate: string): Promise<ETFData[]> {
+    const response = await finmindAPI.get('/data', {
+      params: {
+        dataset: 'TaiwanStockPrice',
+        data_id: SYMBOL,
+        start_date: startDate,
+        end_date: endDate,
+      },
+    })
+    const rows: FinMindDataItem[] | undefined = response.data?.data
+    if (response.data?.status !== 200 || !rows || rows.length === 0) {
+      throw new Error('FinMind API 無數據')
+    }
+
+    const bars = rows.map((item): ETFData => {
+      const open = parseFloatSafe(item.open)
+      const close = parseFloatSafe(item.close)
+      // spread 是對前一交易日收盤的漲跌；舊格式沒有這個欄位時退回當日收盤減開盤
+      const spread = Number(item.spread)
+      const hasSpread = item.spread !== undefined && Number.isFinite(spread)
+      const change = hasSpread ? spread : close - open
+      const base = hasSpread ? close - spread : open
+      return {
+        date: item.date,
+        open,
+        high: parseFloatSafe(item.max || item.high || item.close),
+        low: parseFloatSafe(item.min || item.low || item.close),
+        close,
+        volume: parseIntSafe(item.Trading_Volume || item.volume),
+        change,
+        changePercent: base > 0 ? (change / base) * 100 : 0,
+      }
+    })
+
+    // API 通常已依日期遞增；保險起見 O(n) 檢查，亂序時才排序
+    if (!isSortedByDate(bars)) bars.sort((a, b) => (a.date < b.date ? -1 : 1))
+    return bars
+  }
+
+  /**
+   * 取得 0050 日 K，失敗時丟出錯誤、不以模擬資料代替。
+   * 技術指標必須算在真實行情上，所以走這條路；與 getETFData 共用同一份快取。
+   */
+  static getDailyBars(startDate: string, endDate: string): Promise<ETFData[]> {
+    return apiCache.cached(
+      CacheKeyGenerator.stock(SYMBOL, startDate, endDate),
+      () => this.fetchDailyBars(startDate, endDate),
+      PRICE_CACHE_MS
+    )
+  }
+
+  /**
+   * 取得 0050 ETF 歷史資料 (支援快取)；API 失敗時退回模擬資料讓圖表仍可顯示
    */
   static async getETFData(startDate: string, endDate: string): Promise<ETFData[]> {
-    // 生成快取鍵
-    const cacheKey = CacheKeyGenerator.stock('0050', startDate, endDate)
-
     try {
-      // 使用快取包裝器
-      return await apiCache.cached(
-        cacheKey,
-        async () => {
-          const response = await finmindAPI.get('/data', {
-            params: {
-              dataset: 'TaiwanStockPrice',
-              data_id: '0050',
-              start_date: startDate,
-              end_date: endDate,
-            },
-          })
-
-          // 檢查 API 回應狀態
-          if (
-            response.data.status !== 200 ||
-            !response.data.data ||
-            response.data.data.length === 0
-          ) {
-            console.warn('FinMind API 無數據，使用備用模擬數據')
-            const mockData = this.getMockETFData(startDate, endDate)
-            return mockData
-          }
-
-          const formattedData = response.data.data.map((item: FinMindDataItem) => ({
-            date: item.date,
-            open: parseFloatSafe(item.open),
-            high: parseFloatSafe(item.max || item.high || item.close),
-            low: parseFloatSafe(item.min || item.low || item.close),
-            close: parseFloatSafe(item.close),
-            volume: parseIntSafe(item.Trading_Volume || item.volume),
-            change: parseFloatSafe(item.close) - parseFloatSafe(item.open),
-            changePercent:
-              ((parseFloatSafe(item.close) - parseFloatSafe(item.open)) /
-                parseFloatSafe(item.open, 1)) *
-              100,
-          }))
-
-          // API 通常已依日期遞增；保險起見 O(n) 檢查，亂序時才排序
-          if (!isSortedByDate(formattedData)) {
-            formattedData.sort((a: ETFData, b: ETFData) => (a.date < b.date ? -1 : 1))
-          }
-
-          return formattedData
-        },
-        10 * 60 * 1000
-      ) // 10分鐘快取
+      return await this.getDailyBars(startDate, endDate)
     } catch (error: unknown) {
       console.error('FinMind API 請求失敗:', error instanceof Error ? error.message : String(error))
-
-      // 無論什麼錯誤都使用備用數據
       console.warn('使用備用模擬數據替代')
-      const mockData = this.getMockETFData(startDate, endDate)
-      return mockData
+      return this.getMockETFData(startDate, endDate)
     }
+  }
+
+  /**
+   * 取得 0050 歷來的分割與除息還原係數（FinMind 免費資料集）。
+   * TaiwanStockPrice 是未還原的原始價，還原要靠這兩張表；任何一張抓不到就丟出錯誤。
+   */
+  static getPriceAdjustments(): Promise<PriceAdjustment[]> {
+    return apiCache.cached(
+      CacheKeyGenerator.stock(SYMBOL, 'adjustments', LISTING_DATE),
+      async () => {
+        const fetchRows = async <T>(dataset: string): Promise<T[]> => {
+          const response = await finmindAPI.get('/data', {
+            params: { dataset, data_id: SYMBOL, start_date: LISTING_DATE },
+          })
+          if (response.data?.status !== 200 || !Array.isArray(response.data.data)) {
+            throw new Error(`FinMind ${dataset} 無數據`)
+          }
+          return response.data.data
+        }
+        const [splits, dividends] = await Promise.all([
+          fetchRows<FinMindSplitItem>('TaiwanStockSplitPrice'),
+          fetchRows<FinMindDividendResultItem>('TaiwanStockDividendResult'),
+        ])
+
+        const adjustments: PriceAdjustment[] = []
+        for (const row of splits) {
+          const factor = splitFactor(Number(row.before_price), Number(row.after_price))
+          if (factor !== null) adjustments.push({ date: row.date, kind: 'split', factor })
+        }
+        for (const row of dividends) {
+          const factor = dividendFactor(Number(row.before_price), Number(row.reference_price))
+          if (factor !== null) adjustments.push({ date: row.date, kind: 'dividend', factor })
+        }
+        return adjustments
+      },
+      ADJUSTMENT_CACHE_MS
+    )
   }
 
   /**
@@ -235,48 +282,6 @@ export class FinMindService {
   }
 
   /**
-   * 取得技術指標
-   */
-  static async getTechnicalIndicators(startDate: string, endDate: string) {
-    try {
-      const response = await finmindAPI.get('/data', {
-        params: {
-          dataset: 'TaiwanStockPrice',
-          data_id: '0050',
-          start_date: startDate,
-          end_date: endDate,
-        },
-      })
-
-      if (response.data.status !== 200 || !response.data.data) {
-        // 返回模擬技術指標數據
-        return {
-          RSI: 65.2,
-          MACD: { MACD: 1.25, Signal: 1.18, Histogram: 0.07 },
-          KD: { K: 72, D: 68 },
-          MA5: 132.8,
-          MA20: 130.5,
-          MA60: 128.9,
-        }
-      }
-
-      return response.data.data
-    } catch (error) {
-      console.error('取得技術指標失敗:', error)
-
-      // 返回模擬技術指標數據
-      return {
-        RSI: 65.2,
-        MACD: { MACD: 1.25, Signal: 1.18, Histogram: 0.07 },
-        KD: { K: 72, D: 68 },
-        MA5: 132.8,
-        MA20: 130.5,
-        MA60: 128.9,
-      }
-    }
-  }
-
-  /**
    * 檢查 API 狀態
    */
   static async checkAPIStatus(): Promise<boolean> {
@@ -284,7 +289,7 @@ export class FinMindService {
       const response = await finmindAPI.get('/data', {
         params: {
           dataset: 'TaiwanStockPrice',
-          data_id: '0050',
+          data_id: SYMBOL,
           start_date: '2024-01-01',
           end_date: '2024-01-01',
         },

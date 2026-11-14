@@ -1,15 +1,12 @@
 import { describe, it, expect } from 'vitest'
 import {
   CONTROL_STAR,
-  bollingerZone,
   candleLayout,
   elementPillars,
   fitDistance,
   macdRatio,
-  movingAverage,
   niceTicks,
   oscillatorState,
-  overallSignal,
   ringPosition,
   toneOf,
 } from '@/utils/sceneLayout'
@@ -103,12 +100,6 @@ describe('candleLayout', () => {
   })
 })
 
-describe('movingAverage', () => {
-  it('資料不足時為 null，之後為滑動平均', () => {
-    expect(movingAverage([1, 2, 3, 4, 5], 3)).toEqual([null, null, 2, 3, 4])
-  })
-})
-
 describe('ringPosition', () => {
   it('索引 0 在正後方，依俯視順時針排列', () => {
     const [x0, z0] = ringPosition(0, 4, 2)
@@ -156,24 +147,6 @@ describe('CONTROL_STAR', () => {
 })
 
 describe('技術指標顯示', () => {
-  it('overallSignal 加總 RSI、MACD、KD 訊號', () => {
-    expect(overallSignal({ rsi: 25, macd: 1, bollingerBand: '中軌', kd: { k: 60, d: 50 } })).toBe(
-      '買入'
-    )
-    expect(overallSignal({ rsi: 75, macd: -1, bollingerBand: '中軌', kd: { k: 40, d: 50 } })).toBe(
-      '賣出'
-    )
-    expect(overallSignal({ rsi: 50, macd: 1, bollingerBand: '中軌', kd: { k: 40, d: 50 } })).toBe(
-      '持有'
-    )
-  })
-
-  it('bollingerZone 正規化中英混合的回傳值', () => {
-    expect(bollingerZone('upper')).toBe('upper')
-    expect(bollingerZone('lower')).toBe('lower')
-    expect(bollingerZone('中軌')).toBe('middle')
-  })
-
   it('oscillatorState 依上下界判斷', () => {
     expect(oscillatorState(75, 30, 70)).toBe('超買')
     expect(oscillatorState(15, 20, 80)).toBe('超賣')

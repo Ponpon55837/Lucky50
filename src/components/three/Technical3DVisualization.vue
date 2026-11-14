@@ -3,16 +3,19 @@ import { computed, ref } from 'vue'
 import * as THREE from 'three'
 import SceneCard, { type SceneTooltip } from '@/components/three/SceneCard.vue'
 import { useSceneStage } from '@/composables/useSceneStage'
-import { useDashboardStore } from '@/stores/dashboard'
 import { useAnalyticsStore } from '@/stores/analytics'
+import { BOLLINGER_ZONE_TEXT, macdRatio, oscillatorState } from '@/utils/sceneLayout'
 import {
-  BOLLINGER_ZONE_TEXT,
+  KD_LIMITS,
+  RSI_LIMITS,
+  TECHNICAL_PARAMS,
   bollingerZone,
-  macdRatio,
-  oscillatorState,
-  overallSignal,
+  compositeSignal,
+  formatSigned,
+  formatValue,
   type BollingerZone,
-} from '@/utils/sceneLayout'
+  type Tone,
+} from '@/utils/technical'
 import {
   createBase,
   createColumns,
@@ -29,34 +32,48 @@ const GAUGE_HEIGHT = 3
 const GAUGE_X = [-3.3, -1.1, 1.1, 3.3] as const
 const SLAB_WIDTH = 1.6
 const SLAB_Z = -0.25
-const RSI_LIMITS = { low: 30, high: 70 }
-const KD_LIMITS = { low: 20, high: 80 }
+const RSI_PERIOD = TECHNICAL_PARAMS.rsi[1]
 
-const dashboardStore = useDashboardStore()
 const analyticsStore = useAnalyticsStore()
+const snapshot = computed(() => analyticsStore.technicalSnapshot)
 
-const indicators = computed(() =>
-  analyticsStore.calculateTechnicalIndicators(dashboardStore.etfData)
-)
-const close = computed(
-  () => analyticsStore.getAdjustedEtfData(dashboardStore.etfData).at(-1)?.close ?? 0
-)
+/**
+ * 四座量規需要的數值；任何一項還在暖機期就整張不畫（改顯示說明），不拿假值充數。
+ * RSI 取 12 日，MACD 取 DIF（快慢線差）。
+ */
+const indicators = computed(() => {
+  const { close, rsi, kd, macd } = snapshot.value
+  const zone = bollingerZone(snapshot.value)
+  if (
+    close === null ||
+    rsi.long === null ||
+    kd.k === null ||
+    kd.d === null ||
+    macd.dif === null ||
+    zone === null
+  ) {
+    return null
+  }
+  return { close, rsi: rsi.long, kd: { k: kd.k, d: kd.d }, macd: macd.dif, zone }
+})
 
-const signal = computed(() => overallSignal(indicators.value))
+const signal = computed(() => compositeSignal(snapshot.value))
 const rsiState = computed(() =>
-  oscillatorState(indicators.value.rsi, RSI_LIMITS.low, RSI_LIMITS.high)
+  oscillatorState(indicators.value?.rsi ?? 50, RSI_LIMITS.low, RSI_LIMITS.high)
 )
-const kState = computed(() => oscillatorState(indicators.value.kd.k, KD_LIMITS.low, KD_LIMITS.high))
-const zone = computed(() => bollingerZone(indicators.value.bollingerBand))
-const ratio = computed(() => macdRatio(indicators.value.macd, close.value))
+const kState = computed(() =>
+  oscillatorState(indicators.value?.kd.k ?? 50, KD_LIMITS.low, KD_LIMITS.high)
+)
+const zone = computed<BollingerZone>(() => indicators.value?.zone ?? 'middle')
+const macdValue = computed(() => indicators.value?.macd ?? 0)
+const ratio = computed(() => macdRatio(macdValue.value, indicators.value?.close ?? 0))
 
 const signalClass = computed(() => {
-  if (signal.value === '買入') return 'text-rise'
-  if (signal.value === '賣出') return 'text-fall'
+  if (signal.value.label === '偏多') return 'text-rise'
+  if (signal.value.label === '偏空') return 'text-fall'
   return 'text-ink'
 })
 
-type Tone = 'rise' | 'fall' | 'ink'
 const TONE_CLASS: Readonly<Record<Tone, string>> = {
   rise: 'text-rise',
   fall: 'text-fall',
@@ -65,37 +82,48 @@ const TONE_CLASS: Readonly<Record<Tone, string>> = {
 const oscillatorTone = (state: '超買' | '超賣' | '中性'): Tone =>
   state === '超買' ? 'rise' : state === '超賣' ? 'fall' : 'ink'
 const macdTone = computed<Tone>(() =>
-  indicators.value.macd > 0 ? 'rise' : indicators.value.macd < 0 ? 'fall' : 'ink'
+  macdValue.value > 0 ? 'rise' : macdValue.value < 0 ? 'fall' : 'ink'
 )
 const macdSide = computed(() =>
-  indicators.value.macd > 0 ? '多方' : indicators.value.macd < 0 ? '空方' : '持平'
+  macdValue.value > 0 ? '多方' : macdValue.value < 0 ? '空方' : '持平'
 )
 const zoneTone = (value: BollingerZone): Tone =>
   value === 'upper' ? 'rise' : value === 'lower' ? 'fall' : 'ink'
-
-const signed = (value: number, digits = 2) => `${value > 0 ? '+' : ''}${value.toFixed(digits)}`
 
 const GAUGE_NAMES = ['RSI', 'KD', 'MACD', '布林'] as const
 
 /** 各量規頂部的數值文字與色調 */
 const readouts = computed<{ text: string; tone: Tone }[]>(() => {
-  const { rsi, macd, kd } = indicators.value
+  const values = indicators.value
+  if (!values) return []
   return [
-    { text: rsi.toFixed(1), tone: oscillatorTone(rsiState.value) },
-    { text: `${Math.round(kd.k)}／${Math.round(kd.d)}`, tone: oscillatorTone(kState.value) },
-    { text: signed(macd), tone: macdTone.value },
+    { text: values.rsi.toFixed(1), tone: oscillatorTone(rsiState.value) },
+    {
+      text: `${Math.round(values.kd.k)}／${Math.round(values.kd.d)}`,
+      tone: oscillatorTone(kState.value),
+    },
+    { text: formatSigned(values.macd), tone: macdTone.value },
     { text: BOLLINGER_ZONE_TEXT[zone.value], tone: 'ink' },
   ]
 })
 
-const hasData = computed(() => dashboardStore.etfData.length > 0)
+const hasData = computed(() => indicators.value !== null)
+const emptyText = computed(() => {
+  if (hasData.value) return ''
+  if (analyticsStore.technicalState === 'failed') return '無法取得行情，技術指標暫不提供'
+  if (analyticsStore.technicalState === 'ready') return '行情資料不足，無法計算技術指標'
+  return '行情載入中…'
+})
+const subtitle = computed(() =>
+  snapshot.value.date ? `資料日期 ${snapshot.value.date}，價格已還原` : '依還原後的日 K 計算'
+)
 const threeContainer = ref<HTMLElement>()
 
 const { unsupported, hover } = useSceneStage(threeContainer, {
   view: [0, 0.6, 2.4],
-  sources: [indicators, close],
+  sources: [indicators],
   build: (stage, root, palette) => {
-    if (!hasData.value) return
+    if (!indicators.value) return
 
     const { rsi, kd } = indicators.value
     const heightOf = (value: number) => (Math.min(100, Math.max(0, value)) / 100) * GAUGE_HEIGHT
@@ -233,14 +261,14 @@ const { unsupported, hover } = useSceneStage(threeContainer, {
 
 const tooltip = computed<SceneTooltip | null>(() => {
   const hit = hover.value
-  if (!hit || hit.instanceId === undefined || !hasData.value) return null
+  if (!hit || hit.instanceId === undefined || !indicators.value) return null
   const { rsi, macd, kd } = indicators.value
   const base = { x: hit.x, y: hit.y }
   switch (hit.instanceId) {
     case 0:
       return {
         ...base,
-        title: 'RSI 相對強弱指標',
+        title: `RSI 相對強弱指標（${RSI_PERIOD} 日）`,
         lines: [
           { label: '數值', value: rsi.toFixed(1) },
           {
@@ -283,16 +311,18 @@ const tooltip = computed<SceneTooltip | null>(() => {
         ...base,
         title: 'MACD 指數平滑異同',
         lines: [
-          { label: '數值', value: signed(macd), tone: TONE_CLASS[macdTone.value] },
+          { label: 'DIF', value: formatSigned(macd), tone: TONE_CLASS[macdTone.value] },
+          { label: 'MACD 線', value: formatSigned(snapshot.value.macd.signal) },
+          { label: '柱', value: formatSigned(snapshot.value.macd.histogram) },
           { label: '狀態', value: macdSide.value, tone: TONE_CLASS[macdTone.value] },
           {
             label: '判讀',
             value:
               macd > 0
-                ? 'MACD 在零軸之上，動能偏多'
+                ? 'DIF 在零軸之上，短期均價高於長期'
                 : macd < 0
-                  ? 'MACD 在零軸之下，動能偏空'
-                  : 'MACD 在零軸',
+                  ? 'DIF 在零軸之下，短期均價低於長期'
+                  : 'DIF 在零軸',
           },
         ],
       }
@@ -326,9 +356,9 @@ const tooltip = computed<SceneTooltip | null>(() => {
 <template>
   <SceneCard
     :title="title"
-    subtitle="依目前區間收盤價計算"
+    :subtitle="subtitle"
     :unsupported="unsupported"
-    :empty="hasData ? '' : '尚無股價資料，無法計算技術指標'"
+    :empty="emptyText"
     :tooltip="tooltip"
   >
     <template #stats>
@@ -337,23 +367,23 @@ const tooltip = computed<SceneTooltip | null>(() => {
           綜合訊號
         </dt>
         <dd :class="['font-serif text-base font-bold', signalClass]">
-          {{ signal }}
+          {{ signal.label }}
         </dd>
       </div>
       <div>
         <dt class="text-ink-3">
-          RSI
+          RSI {{ RSI_PERIOD }}
         </dt>
         <dd :class="['font-mono text-base', TONE_CLASS[oscillatorTone(rsiState)]]">
-          {{ indicators.rsi.toFixed(1) }}
+          {{ formatValue(snapshot.rsi.long, 1) }}
         </dd>
       </div>
       <div>
         <dt class="text-ink-3">
-          MACD
+          DIF
         </dt>
         <dd :class="['font-mono text-base', TONE_CLASS[macdTone]]">
-          {{ signed(indicators.macd) }}
+          {{ formatSigned(snapshot.macd.dif) }}
         </dd>
       </div>
     </template>
@@ -374,22 +404,30 @@ const tooltip = computed<SceneTooltip | null>(() => {
       <dl class="grid grid-cols-2 gap-x-6 gap-y-1">
         <dt>綜合訊號</dt>
         <dd :class="['font-serif font-bold', signalClass]">
-          {{ signal }}
+          {{ signal.label }}
         </dd>
-        <dt>RSI</dt>
+        <dt>RSI {{ RSI_PERIOD }}</dt>
         <dd :class="['font-mono', TONE_CLASS[oscillatorTone(rsiState)]]">
-          {{ indicators.rsi.toFixed(1) }}（{{ rsiState }}）
+          {{ formatValue(snapshot.rsi.long, 1) }}<template v-if="hasData">
+            （{{ rsiState }}）
+          </template>
         </dd>
         <dt>KD</dt>
         <dd class="font-mono">
-          K {{ indicators.kd.k.toFixed(1) }}／D {{ indicators.kd.d.toFixed(1) }}（{{ kState }}）
+          K {{ formatValue(snapshot.kd.k, 1) }}／D {{ formatValue(snapshot.kd.d, 1) }}<template
+            v-if="hasData"
+          >
+            （{{ kState }}）
+          </template>
         </dd>
-        <dt>MACD</dt>
+        <dt>MACD DIF</dt>
         <dd :class="['font-mono', TONE_CLASS[macdTone]]">
-          {{ signed(indicators.macd) }}（{{ macdSide }}）
+          {{ formatSigned(snapshot.macd.dif) }}<template v-if="hasData">
+            （{{ macdSide }}）
+          </template>
         </dd>
         <dt>布林通道</dt>
-        <dd>{{ BOLLINGER_ZONE_TEXT[zone] }}</dd>
+        <dd>{{ hasData ? BOLLINGER_ZONE_TEXT[zone] : '–' }}</dd>
       </dl>
     </template>
   </SceneCard>

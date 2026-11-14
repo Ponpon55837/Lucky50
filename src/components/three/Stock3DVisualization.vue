@@ -6,7 +6,8 @@ import { useSceneStage } from '@/composables/useSceneStage'
 import { useDashboardStore } from '@/stores/dashboard'
 import { useAnalyticsStore } from '@/stores/analytics'
 import { evenIndices } from '@/utils/chart'
-import { candleLayout, movingAverage, toneOf, type SceneTone } from '@/utils/sceneLayout'
+import { sma } from '@/utils/indicators'
+import { candleLayout, toneOf, type SceneTone } from '@/utils/sceneLayout'
 import {
   createBase,
   createColumns,
@@ -30,7 +31,7 @@ const analyticsStore = useAnalyticsStore()
 const allDays = computed(() => analyticsStore.getAdjustedEtfData(dashboardStore.etfData))
 const days = computed(() => allDays.value.slice(-VISIBLE_DAYS))
 const movingAverages = computed(() =>
-  movingAverage(
+  sma(
     allDays.value.map(d => d.close),
     MA_PERIOD
   ).slice(-VISIBLE_DAYS)

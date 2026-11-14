@@ -2,6 +2,16 @@ import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { setActivePinia, createPinia } from 'pinia'
 import { useAnalyticsStore } from '@/stores/analytics'
 import type { ETFData } from '@/types'
+import { KNOWN_SPLITS } from '@/utils/priceAdjust'
+import { ETF_0050_BARS } from './fixtures/etf0050'
+
+const { getDailyBars, getPriceAdjustments } = vi.hoisted(() => ({
+  getDailyBars: vi.fn(),
+  getPriceAdjustments: vi.fn(),
+}))
+vi.mock('@/services/finmind', () => ({
+  FinMindService: { getDailyBars, getPriceAdjustments },
+}))
 
 const mockETFData: ETFData[] = [
   {
@@ -143,18 +153,71 @@ describe('useAnalyticsStore', () => {
     })
   })
 
-  describe('calculateTechnicalIndicators', () => {
-    it('空資料回傳預設值', () => {
-      const ind = store.calculateTechnicalIndicators([])
-      expect(ind.rsi).toBe(50)
-      expect(ind.macd).toBe(0)
-      expect(ind.bollingerBand).toBe('中軌')
+  describe('除息還原', () => {
+    const bars: ETFData[] = [
+      { ...mockETFData[0], date: '2026-07-20', close: 100 },
+      { ...mockETFData[1], date: '2026-07-21', close: 98 },
+    ]
+
+    it('載入前只還原分割，dividendAdjusted 為 false', () => {
+      expect(store.dividendAdjusted).toBe(false)
+      expect(store.getAdjustedEtfData(bars)[0].close).toBe(100)
     })
 
-    it('資料不足 14 筆時回傳預設值', () => {
-      const ind = store.calculateTechnicalIndicators(mockETFData)
-      expect(ind.rsi).toBe(50)
-      expect(ind.macd).toBe(0)
+    it('載入除權息資料後套用除息係數，同一份資料的快取跟著失效', async () => {
+      store.getAdjustedEtfData(bars)
+      getPriceAdjustments.mockResolvedValue([
+        ...KNOWN_SPLITS,
+        { date: '2026-07-21', kind: 'dividend', factor: 0.98 },
+      ])
+
+      await store.loadPriceAdjustments()
+
+      expect(store.dividendAdjusted).toBe(true)
+      const adjusted = store.getAdjustedEtfData(bars)
+      expect(adjusted[0].close).toBeCloseTo(98)
+      expect(adjusted[1].close).toBe(98)
+    })
+
+    it('除權息資料抓不到時維持只還原分割並標示', async () => {
+      vi.spyOn(console, 'error').mockImplementation(() => {})
+      getPriceAdjustments.mockRejectedValue(new Error('Network error'))
+
+      await store.loadPriceAdjustments()
+
+      expect(store.dividendAdjusted).toBe(false)
+      expect(store.adjustments).toEqual(KNOWN_SPLITS)
+    })
+  })
+
+  describe('technicalSnapshot', () => {
+    it('尚未載入時各值為 null', () => {
+      expect(store.technicalState).toBe('idle')
+      expect(store.technicalSnapshot.date).toBeNull()
+      expect(store.technicalSnapshot.kd.k).toBeNull()
+    })
+
+    it('載入成功後以還原後的日 K 計算', async () => {
+      getDailyBars.mockResolvedValue(ETF_0050_BARS)
+
+      await store.loadTechnicalBars()
+
+      expect(store.technicalState).toBe('ready')
+      expect(store.technicalSnapshot.date).toBe('2026-11-13')
+      expect(store.technicalSnapshot.kd.k).toBeCloseTo(71.1, 1)
+      // 固定抓 800 天，不跟著分析區間走
+      const [startDate, endDate] = getDailyBars.mock.calls[0]
+      expect((Date.parse(endDate) - Date.parse(startDate)) / 86_400_000).toBe(800)
+    })
+
+    it('行情抓不到時標記 failed，不產生假數值', async () => {
+      vi.spyOn(console, 'error').mockImplementation(() => {})
+      getDailyBars.mockRejectedValue(new Error('Network error'))
+
+      await store.loadTechnicalBars()
+
+      expect(store.technicalState).toBe('failed')
+      expect(store.technicalSnapshot.close).toBeNull()
     })
   })
 
