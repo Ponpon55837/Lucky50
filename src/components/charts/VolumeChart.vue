@@ -124,7 +124,7 @@ const chartOptions = computed(() => {
         displayColors: false,
         callbacks: {
           label: function (context: TooltipItem<'bar'>) {
-            return `成交量: ${context.parsed.y.toFixed(1)}M`
+            return `成交量: ${(context.parsed.y ?? 0).toFixed(1)}M`
           },
         },
       },

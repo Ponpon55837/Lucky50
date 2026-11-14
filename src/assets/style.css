@@ -49,6 +49,8 @@
   html {
     @apply font-sans antialiased;
     -webkit-text-size-adjust: 100%;
+    /* 固定預留捲軸寬度：短頁（無捲軸）與長頁切換時版面不會左右跳動 */
+    scrollbar-gutter: stable;
   }
 
   body {
