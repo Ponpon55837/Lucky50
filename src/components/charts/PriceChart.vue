@@ -135,7 +135,7 @@ const chartOptions = computed(() => {
         displayColors: false,
         callbacks: {
           label: function (context: TooltipItem<'line'>) {
-            return `收盤價: $${context.parsed.y.toFixed(2)}`
+            return `收盤價: $${(context.parsed.y ?? 0).toFixed(2)}`
           },
         },
       },

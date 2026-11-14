@@ -1,5 +1,25 @@
 # Changelog
 
+## [1.0.2] - 2026-11-14 選單跳動修正與相依套件資安更新
+
+### 修正
+
+- 桌面版左側書脊選單切換頁面時畫面左右跳動：短頁（無捲軸）與長頁切換造成內容寬度變化 15px，`html` 加上 `scrollbar-gutter: stable` 固定預留捲軸寬度
+- 手機選單改為覆蓋式並加入捲軸展開動畫、宣紙霧面遮罩
+- chart.js 4.6 型別中 `parsed.y` 可能為 `null`，tooltip 改以 `?? 0` 防護
+
+### 資安與相依套件
+
+- `pnpm audit` 由 109 項（54 high、47 moderate、8 low）降為 1 項 low
+- 同主版本內更新全部套件，重點：axios 1.12 → 1.21、vue 3.5.45、vue-router 5.5、vite 8.3.8、postcss 8.5.32、chart.js 4.6.1
+- happy-dom 20 → 21（僅測試環境，修補兩項 high）
+- `pnpm-workspace.yaml` 以 overrides 將間接相依 glob 升至 ^14.0.2、minimatch 升至 ^11.0.1
+- 剩餘：`deepmerge` 4.3.1（low，原型汙染）上游尚無修補版本，僅存在於 workbox-build 建置流程，不進入前端 bundle
+
+### 文件
+
+- README 改為農民曆風格，附亮暗色與手機版截圖
+
 ## [1.0.1] - 2026-11-14 農民曆風格 UI/UX 改版
 
 ### 設計系統 (`tailwind.config.js`, `src/assets/style.css`)
