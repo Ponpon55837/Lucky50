@@ -63,7 +63,7 @@ describe('TenGodsCard', () => {
       props: { profile: mockProfile },
     })
     await flushPromises()
-    expect(wrapper.text()).toContain('十神能量分數')
+    expect(wrapper.text()).toContain('十神能量')
     expect(wrapper.text()).toContain('庚午')
     expect(wrapper.text()).toContain('辛巳')
   })

@@ -37,6 +37,7 @@ Keep this managed block so 'openspec update' can refresh the instructions.
 - **Step 11**: 引擎結果寫入歷史 + 運勢記錄卡片重設計 + Bug Fixes — `recordFortuneHistory()` 保存 enginesResults + engineWeightedScore，FortuneLogViewer mobile/desktop 卡片佈局全面翻新，修復 classic.ts 缺少 engineId 導致 Analytics 權重 0%，EngineSettingsCard 新增權重加總指示器 ✅
 
 - **Step 12**: 性能優化 — Pinia Colada 查詢快取（`src/queries/`），dashboard store 改用 query cache；`src/utils/indicators.ts` O(n) 技術指標（KD 單調佇列、Welford），修正 KD/MACD 計算、運勢快取鍵與 profileHash 碰撞、Dashboard listener 洩漏 ✅
+- **Step 13**: 農民曆風格 UI 改版（`openspec/changes/update-almanac-ui-redesign`）— 設計 tokens（CSS 變數 + Tailwind 語意色，漲紅跌綠）、儀表板今日籤／十二時辰輪／五行相生圖／SVG 走勢吉印、直排書脊導覽、首頁農民曆封面；純函式 `src/utils/almanac.ts`、`src/utils/chart.ts` ✅
 
 ## Routes
 
@@ -57,9 +58,9 @@ Keep this managed block so 'openspec update' can refresh the instructions.
 
 ## Tests
 
-- 378 tests across 27 test files
-- Key: `fortuneStore.test.ts` (12), `fortuneLogViewer.test.ts` (8), `dashboard.test.ts` (18), `analytics.test.ts` (17), `user.test.ts` (15), `metaphysicsEngine.test.ts` (20), `indicators.test.ts` (11), `hash.test.ts` (3)
+- 416 tests across 29 test files
+- Key: `fortuneStore.test.ts` (12), `fortuneLogViewer.test.ts` (8), `dashboard.test.ts` (18), `analytics.test.ts` (17), `user.test.ts` (15), `metaphysicsEngine.test.ts` (20), `indicators.test.ts` (11), `hash.test.ts` (3), `almanac.test.ts`, `chart.test.ts`
 
 ## Tech Stack
 
-Vue 3.5 + TypeScript 5.9 + Vite 8.1 + Pinia 3.0 + Pinia Colada 1.4 + TailwindCSS 3.3 + Vitest 4.1
+Vue 3.5 + TypeScript 5.9 + Vite 8.1 + Pinia 3.0 + Pinia Colada 1.4 + TailwindCSS 3.4 + Vitest 4.1

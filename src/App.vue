@@ -6,12 +6,12 @@ import ToastContainer from './components/ui/ToastContainer.vue'
 </script>
 
 <template>
-  <div id="app">
-    <NavBar />
-    <main class="min-h-screen">
+  <NavBar />
+  <div class="flex min-h-screen flex-col lg:pl-[88px]">
+    <main class="mx-auto w-full max-w-[1440px] flex-1 px-4 py-6 sm:px-6 lg:px-10 lg:py-8">
       <RouterView />
     </main>
     <Footer />
-    <ToastContainer />
   </div>
+  <ToastContainer />
 </template>

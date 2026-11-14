@@ -32,6 +32,20 @@ export interface LunarData {
   pengZu: string
   naYinDay: string
   jiuXing: string
+
+  // 沖煞與神位
+  /** 沖煞描述，例如「(丙戌)狗」 */
+  chongDesc: string
+  /** 煞方，例如「南」 */
+  sha: string
+  /** 財神方位，例如「正南」 */
+  caiShen: string
+  /** 喜神方位 */
+  xiShen: string
+  /** 值日天神，例如「司命」 */
+  tianShen: string
+  /** 值日天神吉凶：「吉」或「凶」 */
+  tianShenLuck: string
 }
 
 export interface InvestmentAdvice {
@@ -63,103 +77,60 @@ class LunarService {
 
     // 先檢查全域快取
     const cached = apiCache.get<LunarData>(cacheKey)
-    if (cached) {
-      console.log('LunarService - 使用全域快取資料:', cacheKey)
-      return cached
-    }
+    if (cached) return cached
 
-    // 檢查本地快取 (向後相容)
     const localCacheKey = `${targetDate.getFullYear()}-${targetDate.getMonth()}-${targetDate.getDate()}`
-    if (this.cache.has(localCacheKey)) {
-      console.log('LunarService - 使用本地快取資料:', localCacheKey)
-      return this.cache.get(localCacheKey)!
+    const local = this.cache.get(localCacheKey)
+    if (local) return local
+
+    const year = targetDate.getFullYear()
+    const month = targetDate.getMonth() + 1
+    const day = targetDate.getDate()
+
+    if (isNaN(year) || isNaN(month) || isNaN(day)) {
+      throw new Error(`無效的日期參數: year=${year}, month=${month}, day=${day}`)
+    }
+    if (year < 1900 || year > 2100) {
+      throw new Error(`年份超出範圍 (1900-2100): ${year}`)
     }
 
     try {
-      const year = targetDate.getFullYear()
-      const month = targetDate.getMonth() + 1
-      const day = targetDate.getDate()
-
-      // 驗證日期參數
-      if (isNaN(year) || isNaN(month) || isNaN(day)) {
-        throw new Error(`無效的日期參數: year=${year}, month=${month}, day=${day}`)
-      }
-
-      if (year < 1900 || year > 2100) {
-        throw new Error(`年份超出範圍 (1900-2100): ${year}`)
-      }
-
-      const solar = Solar.fromYmd(year, month, day)
-      const lunar = solar.getLunar()
-
-      const lunarData: LunarData = {
-        lunarYear: lunar.getYearInChinese(),
-        lunarMonth: lunar.getMonthInChinese(),
-        lunarDay: lunar.getDayInChinese(),
-        ganZhi: lunar.getYearInGanZhi(),
-        monthGanZhi: lunar.getMonthInGanZhi(),
-        dayGanZhi: lunar.getDayInGanZhi(),
-        zodiac: lunar.getYearShengXiao(),
-        constellation: this.getSafeString(solar, 'getXingZuo'),
-        naYin: this.getSafeString(lunar, 'getYearNaYin'),
-        jieQi: this.getJieQi(solar),
-        festivals: this.getFestivals(lunar, solar),
-        yi: this.getSafeArray(lunar, 'getDayYi'),
-        ji: this.getSafeArray(lunar, 'getDayJi'),
-        pengZu: this.getSafeString(lunar, 'getDayPengZu'),
-        naYinDay: this.getSafeString(lunar, 'getDayNaYin'),
-        jiuXing: this.getSafeString(lunar, 'getDayJiuXing'),
-      }
-
-      // 同時存儲到本地和全域快取
+      const lunarData = this.buildLunarData(Solar.fromYmd(year, month, day))
       this.cache.set(localCacheKey, lunarData)
-      apiCache.set(cacheKey, lunarData, 12 * 60 * 60 * 1000) // 12小時快取
+      apiCache.set(cacheKey, lunarData, 12 * 60 * 60 * 1000) // 12 小時快取
       return lunarData
     } catch (error) {
       console.error('LunarService - 農民曆計算錯誤:', error)
-      console.log('錯誤詳情:', {
-        date: targetDate,
-        dateString: targetDate.toString(),
-        isoString: targetDate.toISOString(),
-      })
+      throw new Error(`無法計算農民曆資料: ${error}`, { cause: error })
+    }
+  }
 
-      // 嘗試重新計算，使用不同的方法
-      try {
-        console.log('LunarService - 嘗試重新計算農民曆...')
-        const solar = Solar.fromYmd(
-          targetDate.getFullYear(),
-          targetDate.getMonth() + 1,
-          targetDate.getDate()
-        )
-        const lunar = solar.getLunar()
+  private buildLunarData(solar: SolarObject): LunarData {
+    const lunar = solar.getLunar() as LunarObject & Record<string, () => string>
 
-        const retryData: LunarData = {
-          lunarYear: lunar.getYearInChinese(),
-          lunarMonth: lunar.getMonthInChinese(),
-          lunarDay: lunar.getDayInChinese(),
-          ganZhi: lunar.getYearInGanZhi(),
-          monthGanZhi: lunar.getMonthInGanZhi(),
-          dayGanZhi: lunar.getDayInGanZhi(),
-          zodiac: lunar.getYearShengXiao(),
-          constellation: this.getSafeString(solar, 'getXingZuo'),
-          naYin: this.getSafeString(lunar, 'getYearNaYin'),
-          jieQi: this.getJieQi(solar),
-          festivals: [],
-          yi: this.getSafeArray(lunar, 'getDayYi'),
-          ji: this.getSafeArray(lunar, 'getDayJi'),
-          pengZu: this.getSafeString(lunar, 'getDayPengZu'),
-          naYinDay: this.getSafeString(lunar, 'getDayNaYin'),
-          jiuXing: this.getSafeString(lunar, 'getDayJiuXing'),
-        }
-
-        console.log('LunarService - 重試成功:', retryData)
-        this.cache.set(cacheKey, retryData)
-        return retryData
-      } catch (retryError) {
-        console.error('LunarService - 重試也失敗:', retryError)
-        // 拋出錯誤，不返回錯誤的預設值，並保留原始錯誤堆疊供除錯使用
-        throw new Error(`無法計算農民曆資料: ${error}`, { cause: retryError })
-      }
+    return {
+      lunarYear: lunar.getYearInChinese(),
+      lunarMonth: lunar.getMonthInChinese(),
+      lunarDay: lunar.getDayInChinese(),
+      ganZhi: lunar.getYearInGanZhi(),
+      monthGanZhi: lunar.getMonthInGanZhi(),
+      dayGanZhi: lunar.getDayInGanZhi(),
+      zodiac: this.getSafeString(lunar, 'getYearShengXiao'),
+      constellation: this.getSafeString(solar, 'getXingZuo'),
+      naYin: this.getSafeString(lunar, 'getYearNaYin'),
+      jieQi: this.getJieQi(solar),
+      festivals: this.getFestivals(lunar, solar),
+      yi: this.getSafeArray(lunar, 'getDayYi'),
+      ji: this.getSafeArray(lunar, 'getDayJi'),
+      pengZu: this.getSafeString(lunar, 'getDayPengZu'),
+      naYinDay: this.getSafeString(lunar, 'getDayNaYin'),
+      jiuXing: this.getSafeString(lunar, 'getDayJiuXing'),
+      chongDesc: this.getSafeString(lunar, 'getDayChongDesc'),
+      sha: this.getSafeString(lunar, 'getDaySha'),
+      caiShen: this.getSafeString(lunar, 'getDayPositionCaiDesc'),
+      xiShen: this.getSafeString(lunar, 'getDayPositionXiDesc'),
+      tianShen: this.getSafeString(lunar, 'getDayTianShen'),
+      tianShenLuck: this.getSafeString(lunar, 'getDayTianShenLuck'),
     }
   }
 

@@ -45,14 +45,14 @@ describe('ZiWeiCard', () => {
 
   it('should render title', () => {
     const wrapper = mount(ZiWeiCard, {
-      props: { profile: mockProfile },
+      props: { profile: mockProfile, date: new Date(2026, 10, 16) },
     })
     expect(wrapper.text()).toContain('紫微斗數分析')
   })
 
   it('should show empty state when no profile', async () => {
     const wrapper = mount(ZiWeiCard, {
-      props: { profile: null },
+      props: { profile: null, date: new Date(2026, 10, 16) },
     })
     await flushPromises()
     expect(wrapper.text()).toContain('請先設定出生資料')
@@ -60,16 +60,16 @@ describe('ZiWeiCard', () => {
 
   it('should calculate and display results', async () => {
     const wrapper = mount(ZiWeiCard, {
-      props: { profile: mockProfile },
+      props: { profile: mockProfile, date: new Date(2026, 10, 16) },
     })
     await flushPromises()
-    expect(wrapper.text()).toContain('紫微能量分數')
+    expect(wrapper.text()).toContain('紫微能量')
     expect(wrapper.text()).toContain('命主星')
   })
 
   it('should display three palaces', async () => {
     const wrapper = mount(ZiWeiCard, {
-      props: { profile: mockProfile },
+      props: { profile: mockProfile, date: new Date(2026, 10, 16) },
     })
     await flushPromises()
     expect(wrapper.text()).toContain('命宮')
@@ -79,7 +79,7 @@ describe('ZiWeiCard', () => {
 
   it('should display risk assessment', async () => {
     const wrapper = mount(ZiWeiCard, {
-      props: { profile: mockProfile },
+      props: { profile: mockProfile, date: new Date(2026, 10, 16) },
     })
     await flushPromises()
     expect(wrapper.text()).toContain('風險評估')

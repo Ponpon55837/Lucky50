@@ -80,6 +80,12 @@ describe('MetaphysicsEngineRegistry', () => {
     pengZu: '壬不汲水',
     naYinDay: '金簿金',
     jiuXing: '一白',
+    chongDesc: '',
+    sha: '',
+    caiShen: '',
+    xiShen: '',
+    tianShen: '',
+    tianShenLuck: '',
   }
 
   const mockBaZi: PersonalBaZi = {

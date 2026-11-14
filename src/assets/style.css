@@ -2,403 +2,166 @@
 @tailwind components;
 @tailwind utilities;
 
-/* CSS 變數定義 - 深色模式 */
+/*
+ * 設計 tokens（RGB 通道，供 Tailwind `rgb(var(--c-x) / alpha)` 使用）
+ * 介面維持紙色與墨色；農民曆紅黃（seal / gold）只出現在亮點區塊。
+ */
 :root {
-  /* 深色模式變數 (預設) */
-  --app-bg: linear-gradient(135deg, #1e3a8a 0%, #1e293b 50%, #0f172a 100%);
-  --card-bg: rgba(30, 58, 138, 0.1);
-  --surface-bg: rgba(255, 255, 255, 0.05);
-  --primary-text: #ffffff;
-  --secondary-text: rgba(255, 255, 255, 0.7);
-  --accent-text: #f59e0b;
-  --border-light: rgba(255, 255, 255, 0.1);
-  --border-medium: rgba(255, 255, 255, 0.2);
-
-  /* 陰影變數 */
-  --shadow-light: rgba(30, 58, 138, 0.1);
-  --shadow-medium: rgba(30, 58, 138, 0.2);
-  --shadow-heavy: rgba(0, 0, 0, 0.3);
+  color-scheme: light;
+  --c-paper: 243 242 238;
+  --c-surface: 255 255 255;
+  --c-raised: 235 233 227;
+  --c-ink: 27 26 24;
+  --c-ink-2: 85 82 76;
+  --c-ink-3: 111 107 100;
+  --c-seal: 192 40 45;
+  --c-seal-deep: 158 29 34;
+  --c-seal-ink: 176 34 39;
+  --c-on-seal: 255 246 230;
+  --c-gold: 240 196 60;
+  --c-rise: 176 34 39;
+  --c-fall: 22 120 84;
+  --c-warn: 150 98 10;
+  --c-danger: 190 70 20;
+  --shadow-card: 0 1px 2px rgb(0 0 0 / 0.04), 0 12px 32px rgb(0 0 0 / 0.05);
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-/* 淺色模式變數 - 重新設計更有層次感的配色 */
-:root.light {
-  /* 背景漸層 - 從天藍到淡紫的優雅漸層 */
-  --app-bg: linear-gradient(135deg, #e0f2fe 0%, #f3e8ff 30%, #fef3c7 70%, #ffe4e1 100%);
-
-  /* 卡片背景 - 半透明白色玻璃效果 */
-  --card-bg: rgba(255, 255, 255, 0.85);
-
-  /* 表面背景 - 輕微色調變化 */
-  --surface-bg: rgba(248, 250, 252, 0.9);
-
-  /* 主要文字 - 深藍灰色提高對比度 */
-  --primary-text: #1e293b;
-
-  /* 次要文字 - 中等灰藍色 */
-  --secondary-text: #475569;
-
-  /* 強調色 - 活力橙色 */
-  --accent-text: #f97316;
-
-  /* 邊框顏色 */
-  --border-light: rgba(30, 41, 59, 0.12);
-  --border-medium: rgba(30, 41, 59, 0.2);
-
-  /* 陰影變數 - 更柔和的陰影 */
-  --shadow-light: rgba(30, 41, 59, 0.06);
-  --shadow-medium: rgba(30, 41, 59, 0.12);
-  --shadow-heavy: rgba(30, 41, 59, 0.18);
+:root.dark {
+  color-scheme: dark;
+  --c-paper: 19 20 22;
+  --c-surface: 26 27 30;
+  --c-raised: 36 37 42;
+  --c-ink: 236 235 232;
+  --c-ink-2: 166 164 160;
+  --c-ink-3: 138 136 132;
+  --c-seal: 185 41 46;
+  --c-seal-deep: 143 28 33;
+  --c-seal-ink: 240 118 107;
+  --c-rise: 240 118 107;
+  --c-fall: 76 195 138;
+  --c-warn: 236 186 80;
+  --c-danger: 245 140 80;
+  --shadow-card: 0 16px 48px rgb(0 0 0 / 0.35);
 }
+
 @layer base {
-  * {
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
-  }
-
   html {
-    font-family: 'Noto Sans TC', 'Microsoft YaHei', 'PingFang TC', sans-serif;
-    scroll-behavior: smooth;
-    -webkit-overflow-scrolling: touch;
-    backface-visibility: hidden;
-    -webkit-backface-visibility: hidden;
+    @apply font-sans antialiased;
+    -webkit-text-size-adjust: 100%;
   }
 
   body {
-    background: var(--app-bg);
-    color: var(--primary-text);
-    min-height: 100vh;
-    transition:
-      background 0.3s ease,
-      color 0.3s ease;
-    transform: translateZ(0);
-    -webkit-transform: translateZ(0);
-    will-change: scroll-position;
+    @apply min-h-screen bg-paper text-ink;
+    line-height: 1.55;
+  }
+
+  :focus-visible {
+    @apply outline outline-2 outline-offset-2 outline-seal-ink;
+  }
+
+  ::selection {
+    @apply bg-gold/40 text-ink;
   }
 }
 
 @layer components {
-  /* 卡片組件 */
+  /* 卡片：紙面 + 細線，不用玻璃與光暈 */
   .card {
-    background: var(--card-bg);
-    backdrop-filter: blur(20px);
-    border-radius: 1rem;
-    padding: 1rem;
-    border: 1px solid var(--border-light);
-    box-shadow: 0 8px 32px var(--shadow-medium);
-    transform: translateZ(0);
-    transition: all 0.3s ease;
+    @apply flex min-w-0 flex-col gap-4 rounded-card border border-line bg-surface p-5 sm:p-6;
   }
 
-  @media (min-width: 640px) {
-    .card {
-      padding: 1.5rem;
-    }
+  .card-title {
+    @apply font-serif text-lg font-bold text-ink;
   }
 
-  .card:hover {
-    box-shadow: 0 12px 48px var(--shadow-heavy);
-    transform: translateY(-2px);
+  .card-meta {
+    @apply text-[13px] text-ink-3;
   }
 
-  /* 淺色模式卡片優化 - 增加玻璃材質效果 */
-  :root.light .card {
-    background: linear-gradient(
-      135deg,
-      rgba(255, 255, 255, 0.9) 0%,
-      rgba(255, 255, 255, 0.8) 50%,
-      rgba(248, 250, 252, 0.85) 100%
-    );
-    border: 1px solid rgba(255, 255, 255, 0.6);
-    box-shadow:
-      0 8px 32px var(--shadow-medium),
-      inset 0 1px 2px rgba(255, 255, 255, 0.8),
-      0 2px 8px rgba(59, 130, 246, 0.05);
+  /* 按鈕：主要＝朱紅，次要＝細框 */
+  .btn-primary,
+  .btn-secondary {
+    @apply inline-flex h-11 items-center justify-center gap-2 rounded-full px-5 text-[15px] font-medium no-underline transition-[background-color,transform] duration-150 ease-out active:scale-[0.97] disabled:pointer-events-none disabled:opacity-50;
   }
 
-  :root.light .card:hover {
-    background: linear-gradient(
-      135deg,
-      rgba(255, 255, 255, 0.95) 0%,
-      rgba(255, 255, 255, 0.85) 50%,
-      rgba(248, 250, 252, 0.9) 100%
-    );
-    box-shadow:
-      0 16px 48px var(--shadow-heavy),
-      inset 0 1px 3px rgba(255, 255, 255, 0.9),
-      0 4px 16px rgba(59, 130, 246, 0.1);
-    transform: translateY(-4px);
-    border-color: rgba(255, 255, 255, 0.8);
-  }
-
-  /* 表面組件 */
-  .surface {
-    background: var(--surface-bg);
-    border: 1px solid var(--border-light);
-    border-radius: 0.75rem;
-    padding: 1rem;
-    backdrop-filter: blur(10px);
-  }
-
-  /* 按鈕組件 */
   .btn-primary {
-    background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
-    color: white;
-    font-weight: 500;
-    padding: 0.75rem 1.5rem;
-    border-radius: 0.75rem;
-    border: none;
-    cursor: pointer;
-    transition: all 0.15s ease-out;
-    box-shadow: 0 4px 12px var(--shadow-medium);
-    transform: translateZ(0);
-  }
-
-  .btn-primary:hover {
-    background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);
-    box-shadow: 0 6px 20px var(--shadow-heavy);
-    transform: translateY(-1px);
-  }
-
-  .btn-primary:active {
-    transform: translateY(0);
-  }
-
-  .btn-primary:focus-visible,
-  .btn-secondary:focus-visible {
-    outline: none;
-    box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.4);
+    @apply bg-seal text-seal-on hover:bg-seal-deep;
   }
 
   .btn-secondary {
-    background: var(--surface-bg);
-    color: var(--primary-text);
-    font-weight: 500;
-    padding: 0.75rem 1.5rem;
-    border-radius: 0.75rem;
-    border: 1px solid var(--border-medium);
-    cursor: pointer;
-    transition: all 0.15s ease-out;
-    backdrop-filter: blur(10px);
+    @apply border border-line-strong text-ink hover:bg-raised;
   }
 
-  .btn-secondary:hover {
-    background: var(--card-bg);
-    border-color: var(--accent-text);
-    transform: translateY(-1px);
+  .btn-sm {
+    @apply h-9 px-4 text-[13px];
   }
 
-  /* 淺色模式按鈕優化 - 更豐富的視覺效果 */
-  :root.light .btn-secondary {
-    background: linear-gradient(
-      135deg,
-      rgba(255, 255, 255, 0.95) 0%,
-      rgba(248, 250, 252, 0.95) 100%
-    );
-    border: 1px solid rgba(30, 41, 59, 0.15);
-    color: var(--primary-text);
+  /* 表單 */
+  .form-input,
+  .date-picker-input,
+  .time-picker,
+  .time-picker-input {
+    @apply w-full rounded-[10px] border border-line-strong bg-surface px-4 py-3 text-base text-ink transition-colors duration-150 placeholder:text-ink-3 focus:border-seal-ink focus:outline-none;
+  }
+
+  .date-picker-wrapper {
+    @apply relative;
+  }
+
+  /* 朱印：當日干支等專屬標記 */
+  .seal-stamp {
+    @apply flex shrink-0 items-center justify-center rounded-md bg-seal font-kai font-bold text-seal-on;
+    writing-mode: vertical-rl;
     box-shadow:
-      0 2px 8px var(--shadow-light),
-      inset 0 1px 2px rgba(255, 255, 255, 0.8);
+      inset 0 0 0 3px rgb(var(--c-seal)),
+      inset 0 0 0 4px rgb(var(--c-on-seal));
   }
 
-  :root.light .btn-secondary:hover {
-    background: linear-gradient(135deg, rgba(59, 130, 246, 0.08) 0%, rgba(99, 102, 241, 0.06) 100%);
-    border-color: #3b82f6;
-    color: #1d4ed8;
+  /* 反白朱印：放在紅底上時使用 */
+  .seal-stamp-inverse {
+    @apply bg-seal-on text-seal;
     box-shadow:
-      0 4px 16px var(--shadow-medium),
-      inset 0 1px 2px rgba(255, 255, 255, 0.9);
-    transform: translateY(-2px);
+      inset 0 0 0 3px rgb(var(--c-on-seal)),
+      inset 0 0 0 4px rgb(var(--c-seal));
   }
 
-  /* 淺色模式主要按鈕優化 */
-  :root.light .btn-primary {
-    background: linear-gradient(135deg, #f97316 0%, #ea580c 100%);
-    box-shadow:
-      0 4px 12px rgba(249, 115, 22, 0.3),
-      inset 0 1px 2px rgba(255, 255, 255, 0.2);
-  }
-
-  :root.light .btn-primary:hover {
-    background: linear-gradient(135deg, #fb923c 0%, #f97316 100%);
-    box-shadow:
-      0 6px 20px rgba(249, 115, 22, 0.4),
-      inset 0 1px 2px rgba(255, 255, 255, 0.3);
-  }
-
-  /* 表單輸入框 */
-  .form-input {
-    width: 100%;
-    padding: 0.75rem 1rem;
-    background: var(--surface-bg);
-    border: 1px solid var(--border-light);
-    border-radius: 0.75rem;
-    color: var(--primary-text);
-    font-size: 1rem;
-    outline: none;
-    transition: all 0.2s ease-out;
-    backdrop-filter: blur(10px);
-  }
-
-  .form-input:focus {
-    border-color: var(--accent-text);
-    box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.2);
-  }
-
-  .form-input::placeholder {
-    color: var(--secondary-text);
-  }
-
-  /* 淺色模式表單輸入框優化 - 更精緻的設計 */
-  :root.light .form-input,
-  :root.light .time-picker {
-    background: linear-gradient(135deg, #ffffff 0%, rgba(248, 250, 252, 0.8) 100%);
-    border: 1px solid rgba(30, 41, 59, 0.15);
-    color: var(--primary-text);
-    box-shadow:
-      inset 0 1px 3px rgba(30, 41, 59, 0.05),
-      0 1px 2px rgba(255, 255, 255, 0.8);
-  }
-
-  :root.light .form-input:focus,
-  :root.light .time-picker:focus {
-    border-color: #3b82f6;
-    background: #ffffff;
-    box-shadow:
-      0 0 0 3px rgba(59, 130, 246, 0.12),
-      inset 0 1px 2px rgba(30, 41, 59, 0.03),
-      0 2px 4px rgba(59, 130, 246, 0.1);
-  }
-
-  :root.light .form-input::placeholder {
-    color: #94a3b8;
-    font-weight: 400;
-  }
-
-  .date-picker::-webkit-calendar-picker-indicator {
-    filter: invert(1);
-    opacity: 0.7;
-    transition: opacity 0.2s ease-out;
-  }
-
-  /* 淺色模式日期選擇器優化 */
-  :root.light .date-picker::-webkit-calendar-picker-indicator {
-    filter: invert(0);
-    opacity: 0.6;
-  }
-
-  :root.light .date-picker:hover::-webkit-calendar-picker-indicator {
-    opacity: 0.9;
-  }
-
-  .date-picker:hover::-webkit-calendar-picker-indicator {
-    opacity: 1;
-  }
-
-  /* 自定義時間選擇器 */
-  .time-picker {
-    width: 100%;
-    padding: 0.75rem 1rem;
-    background: var(--surface-bg);
-    border: 1px solid var(--border-light);
-    border-radius: 0.75rem;
-    color: var(--primary-text);
-    outline: none;
-    backdrop-filter: blur(10px);
-    transition: all 0.2s ease-out;
-  }
-
-  .time-picker:focus {
-    border-color: var(--accent-text);
-    box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.2);
-  }
-
-  .time-picker::-webkit-calendar-picker-indicator {
-    filter: invert(1);
-    opacity: 0.7;
-  }
-
-  /* 優化滾動條 */
-  ::-webkit-scrollbar {
-    width: 6px;
-  }
-
-  ::-webkit-scrollbar-track {
-    background: rgba(255, 255, 255, 0.1);
-    border-radius: 3px;
-  }
-
-  ::-webkit-scrollbar-thumb {
-    background: rgba(245, 158, 11, 0.5);
-    border-radius: 3px;
-    transition: background 0.2s ease-out;
-  }
-
-  ::-webkit-scrollbar-thumb:hover {
-    background: rgba(245, 158, 11, 0.8);
+  /* 狀態小點 */
+  .dot {
+    @apply inline-block h-2 w-2 shrink-0 rounded-full;
   }
 }
 
-@layer utilities {
-  /* 主題適應文字顏色類別 */
-  .text-primary {
-    color: var(--primary-text);
-  }
-
-  .text-secondary {
-    color: var(--secondary-text);
-  }
-
-  .text-accent {
-    color: var(--accent-text);
-  }
-
-  /* 背景色類別 */
-  .bg-surface {
-    background: var(--surface-bg);
-  }
-
-  .bg-card {
-    background: var(--card-bg);
-  }
-
-  /* 性能優化工具類 */
-  .gpu-accelerated {
-    transform: translateZ(0);
-    -webkit-transform: translateZ(0);
-    backface-visibility: hidden;
-    -webkit-backface-visibility: hidden;
-  }
-
-  .smooth-scroll {
-    scroll-behavior: smooth;
-    -webkit-overflow-scrolling: touch;
-  }
+/*
+ * Vue DatePicker：沿用同一組 tokens（元件固定以 dark 模式掛載）。
+ * 套件 CSS 由元件延遲載入、排在本檔之後，因此用 :root 提高權重。
+ */
+:root .dp__theme_dark {
+  --dp-background-color: rgb(var(--c-surface));
+  --dp-text-color: rgb(var(--c-ink));
+  --dp-hover-color: rgb(var(--c-raised));
+  --dp-hover-text-color: rgb(var(--c-ink));
+  --dp-hover-icon-color: rgb(var(--c-ink));
+  --dp-primary-color: rgb(var(--c-seal));
+  --dp-primary-text-color: rgb(var(--c-on-seal));
+  --dp-secondary-color: rgb(var(--c-ink-3));
+  --dp-border-color: rgb(var(--c-ink) / 0.18);
+  --dp-menu-border-color: rgb(var(--c-ink) / 0.18);
+  --dp-border-color-hover: rgb(var(--c-seal-ink));
+  --dp-disabled-color: rgb(var(--c-ink-3));
+  --dp-scroll-bar-background: rgb(var(--c-raised));
+  --dp-scroll-bar-color: rgb(var(--c-ink-3));
+  --dp-success-color: rgb(var(--c-fall));
+  --dp-success-color-disabled: rgb(var(--c-ink-3));
+  --dp-icon-color: rgb(var(--c-ink-3));
+  --dp-danger-color: rgb(var(--c-danger));
+  --dp-highlight-color: rgb(var(--c-gold) / 0.25);
 }
 
-/* 優化的動畫關鍵幀 */
-@keyframes fortune-glow-light {
-  0% {
-    box-shadow: 0 0 20px rgba(245, 158, 11, 0.4);
-    filter: brightness(1);
-  }
-  100% {
-    box-shadow: 0 0 30px rgba(245, 158, 11, 0.6);
-    filter: brightness(1.1);
-  }
+select option {
+  @apply bg-surface text-ink;
 }
 
-@keyframes float {
-  0%,
-  100% {
-    transform: translateY(0px) translateZ(0);
-  }
-  50% {
-    transform: translateY(-10px) translateZ(0);
-  }
-}
-
-/* 減少動畫偏好設定 */
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
@@ -406,710 +169,6 @@
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
-  }
-}
-
-/* 日期選擇器優化 */
-.date-picker-wrapper {
-  position: relative;
-}
-
-.date-picker-input {
-  width: 100% !important;
-  padding: 0.75rem 1rem !important;
-  background-color: rgba(255, 255, 255, 0.1) !important;
-  border: 1px solid rgba(255, 255, 255, 0.2) !important;
-  border-radius: 0.5rem !important;
-  color: white !important;
-  font-size: 1rem !important;
-  outline: none !important;
-  transition: all 0.2s ease-in-out !important;
-
-  /* 提升性能 */
-  will-change: border-color, box-shadow;
-  transform: translateZ(0);
-}
-
-.date-picker-input:focus {
-  border-color: #f59e0b !important;
-  box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.2) !important;
-}
-
-.date-picker-input::placeholder {
-  color: rgba(255, 255, 255, 0.5) !important;
-}
-
-/* 淺色模式日期選擇器輸入框優化 */
-:root.light .date-picker-input {
-  background: linear-gradient(135deg, #ffffff 0%, rgba(248, 250, 252, 0.8) 100%) !important;
-  border: 1px solid rgba(30, 41, 59, 0.15) !important;
-  color: #1e293b !important;
-  box-shadow:
-    inset 0 1px 3px rgba(30, 41, 59, 0.05),
-    0 1px 2px rgba(255, 255, 255, 0.8);
-}
-
-:root.light .date-picker-input:focus {
-  border-color: #3b82f6 !important;
-  background: #ffffff !important;
-  box-shadow:
-    0 0 0 3px rgba(59, 130, 246, 0.12),
-    inset 0 1px 2px rgba(30, 41, 59, 0.03),
-    0 2px 4px rgba(59, 130, 246, 0.1) !important;
-}
-
-:root.light .date-picker-input::placeholder {
-  color: #94a3b8 !important;
-}
-
-/* Vue DatePicker 暗色主題自定義 */
-.dp__theme_dark {
-  --dp-background-color: #1f2937;
-  --dp-text-color: #ffffff;
-  --dp-hover-color: #374151;
-  --dp-hover-text-color: #ffffff;
-  --dp-hover-icon-color: #ffffff;
-  --dp-primary-color: #f59e0b;
-  --dp-primary-text-color: #ffffff;
-  --dp-secondary-color: #4b5563;
-  --dp-border-color: rgba(255, 255, 255, 0.2);
-  --dp-menu-border-color: rgba(255, 255, 255, 0.2);
-  --dp-border-color-hover: #f59e0b;
-  --dp-disabled-color: #6b7280;
-  --dp-scroll-bar-background: #374151;
-  --dp-scroll-bar-color: #f59e0b;
-  --dp-success-color: #10b981;
-  --dp-success-color-disabled: #065f46;
-  --dp-icon-color: #9ca3af;
-  --dp-danger-color: #ef4444;
-  --dp-highlight-color: rgba(245, 158, 11, 0.2);
-}
-
-/* Vue DatePicker 淺色主題自定義 */
-:root.light .dp__theme_dark {
-  --dp-background-color: #ffffff;
-  --dp-text-color: #0f172a;
-  --dp-hover-color: rgba(59, 130, 246, 0.1);
-  --dp-hover-text-color: #1d4ed8;
-  --dp-hover-icon-color: #1d4ed8;
-  --dp-primary-color: #3b82f6;
-  --dp-primary-text-color: #ffffff;
-  --dp-secondary-color: #e2e8f0;
-  --dp-border-color: rgba(15, 23, 42, 0.2);
-  --dp-menu-border-color: rgba(15, 23, 42, 0.2);
-  --dp-border-color-hover: #3b82f6;
-  --dp-disabled-color: #94a3b8;
-  --dp-scroll-bar-background: #e2e8f0;
-  --dp-scroll-bar-color: #3b82f6;
-  --dp-success-color: #10b981;
-  --dp-success-color-disabled: #065f46;
-  --dp-icon-color: #64748b;
-  --dp-danger-color: #ef4444;
-  --dp-highlight-color: rgba(59, 130, 246, 0.2);
-}
-
-/* 時間選擇器樣式 */
-.time-picker-input {
-  width: 100% !important;
-  padding: 0.75rem 1rem !important;
-  background-color: rgba(255, 255, 255, 0.1) !important;
-  border: 1px solid rgba(255, 255, 255, 0.2) !important;
-  border-radius: 0.5rem !important;
-  color: white !important;
-  font-size: 1rem !important;
-  outline: none !important;
-  transition: all 0.2s ease-in-out !important;
-
-  /* 提升性能 */
-  will-change: border-color, box-shadow;
-  transform: translateZ(0);
-}
-
-.time-picker-input:focus {
-  border-color: #f59e0b !important;
-  box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.2) !important;
-}
-
-.time-picker-input::placeholder {
-  color: rgba(255, 255, 255, 0.5) !important;
-}
-
-/* 淺色模式時間選擇器優化 */
-:root.light .time-picker-input {
-  background: linear-gradient(135deg, #ffffff 0%, rgba(248, 250, 252, 0.8) 100%) !important;
-  border: 1px solid rgba(30, 41, 59, 0.15) !important;
-  color: #1e293b !important;
-  box-shadow:
-    inset 0 1px 3px rgba(30, 41, 59, 0.05),
-    0 1px 2px rgba(255, 255, 255, 0.8);
-}
-
-:root.light .time-picker-input:focus {
-  border-color: #3b82f6 !important;
-  background: #ffffff !important;
-  box-shadow:
-    0 0 0 3px rgba(59, 130, 246, 0.12),
-    inset 0 1px 2px rgba(30, 41, 59, 0.03),
-    0 2px 4px rgba(59, 130, 246, 0.1) !important;
-}
-
-:root.light .time-picker-input::placeholder {
-  color: #94a3b8 !important;
-}
-.time-picker {
-  width: 100%;
-  padding: 0.75rem 1rem;
-  background-color: rgba(255, 255, 255, 0.1);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: 0.5rem;
-  color: white;
-  outline: none;
-  transition: all 0.2s ease-in-out;
-
-  /* 優化移動端體驗 */
-  -webkit-appearance: none;
-  -moz-appearance: none;
-  appearance: none;
-
-  /* 提升性能 */
-  will-change: border-color, box-shadow;
-  transform: translateZ(0);
-}
-
-.time-picker:focus {
-  border-color: #f59e0b;
-  box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.2);
-}
-
-/* 淺色模式 time-picker 優化 */
-:root.light .time-picker {
-  background: linear-gradient(135deg, #ffffff 0%, rgba(248, 250, 252, 0.8) 100%);
-  border: 1px solid rgba(30, 41, 59, 0.15);
-  color: #1e293b;
-  box-shadow:
-    inset 0 1px 3px rgba(30, 41, 59, 0.05),
-    0 1px 2px rgba(255, 255, 255, 0.8);
-}
-
-:root.light .time-picker:focus {
-  border-color: #3b82f6;
-  background: #ffffff;
-  box-shadow:
-    0 0 0 3px rgba(59, 130, 246, 0.12),
-    inset 0 1px 2px rgba(30, 41, 59, 0.03),
-    0 2px 4px rgba(59, 130, 246, 0.1);
-}
-
-.time-picker::-webkit-datetime-edit-fields-wrapper {
-  color: white;
-}
-
-.time-picker::-webkit-datetime-edit-text {
-  color: rgba(255, 255, 255, 0.6);
-}
-
-.time-picker::-webkit-datetime-edit-hour-field,
-.time-picker::-webkit-datetime-edit-minute-field {
-  background-color: transparent;
-  color: white;
-  padding: 2px;
-  border-radius: 4px;
-}
-
-.time-picker::-webkit-datetime-edit-hour-field:focus,
-.time-picker::-webkit-datetime-edit-minute-field:focus {
-  background-color: rgba(251, 191, 36, 0.2);
-  outline: none;
-}
-
-/* 淺色模式 time-picker 內部元素優化 */
-:root.light .time-picker::-webkit-datetime-edit-fields-wrapper {
-  color: #1e293b;
-}
-
-:root.light .time-picker::-webkit-datetime-edit-text {
-  color: rgba(30, 41, 59, 0.6);
-}
-
-:root.light .time-picker::-webkit-datetime-edit-hour-field,
-:root.light .time-picker::-webkit-datetime-edit-minute-field {
-  color: #1e293b;
-  font-weight: 500;
-}
-
-:root.light .time-picker::-webkit-datetime-edit-hour-field:focus,
-:root.light .time-picker::-webkit-datetime-edit-minute-field:focus {
-  background-color: rgba(59, 130, 246, 0.15);
-}
-
-/* 淺色模式全域文字顏色覆蓋 - 使用更好的對比度 */
-:root.light .text-white {
-  color: #1e293b !important;
-}
-
-/* 淺色模式 SVG 圖示顏色覆蓋 */
-:root.light .text-white svg {
-  color: #1e293b !important;
-}
-
-/* 淺色模式表格文字覆蓋 */
-:root.light td.text-white,
-:root.light th.text-white {
-  color: #1e293b !important;
-}
-
-/* 淺色模式標題文字覆蓋 */
-:root.light h1.text-white,
-:root.light h2.text-white,
-:root.light h3.text-white,
-:root.light h4.text-white,
-:root.light h5.text-white,
-:root.light h6.text-white {
-  color: #1e293b !important;
-  font-weight: 600;
-}
-
-/* 淺色模式段落和 span 文字覆蓋 */
-:root.light p.text-white,
-:root.light span.text-white,
-:root.light div.text-white {
-  color: #1e293b !important;
-}
-
-/* 淺色模式標籤文字覆蓋 */
-:root.light label.text-white {
-  color: #1e293b !important;
-  font-weight: 500;
-}
-
-/* 淺色模式輸入框文字顏色 */
-:root.light input.text-white,
-:root.light textarea.text-white {
-  color: #1e293b !important;
-  background: linear-gradient(135deg, #ffffff 0%, rgba(248, 250, 252, 0.8) 100%) !important;
-  border: 1px solid rgba(30, 41, 59, 0.15) !important;
-}
-
-/* 淺色模式輸入框 placeholder 顏色 */
-:root.light input.text-white::placeholder,
-:root.light textarea.text-white::placeholder {
-  color: rgba(30, 41, 59, 0.5) !important;
-}
-
-/* 淺色模式特殊元素增強 */
-:root.light .text-gray-300 {
-  color: #64748b !important;
-}
-
-:root.light .text-gray-400 {
-  color: #94a3b8 !important;
-}
-
-/* 淺色模式進度條優化 */
-:root.light .bg-blue-600 {
-  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%) !important;
-}
-
-:root.light .bg-green-600 {
-  background: linear-gradient(135deg, #10b981 0%, #059669 100%) !important;
-}
-
-:root.light .bg-yellow-600 {
-  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%) !important;
-}
-
-:root.light .bg-red-600 {
-  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%) !important;
-}
-
-/* 淺色模式運勢卡片特殊樣式 */
-:root.light .bg-green-500\/20 {
-  background: rgba(34, 197, 94, 0.15) !important;
-  border-color: rgba(34, 197, 94, 0.3) !important;
-}
-
-:root.light .bg-red-500\/20 {
-  background: rgba(239, 68, 68, 0.15) !important;
-  border-color: rgba(239, 68, 68, 0.3) !important;
-}
-
-:root.light .text-green-400 {
-  color: #16a34a !important;
-  font-weight: 600;
-}
-
-:root.light .text-red-400 {
-  color: #dc2626 !important;
-  font-weight: 600;
-}
-
-/* 淺色模式導航優化 */
-:root.light nav {
-  background: rgba(255, 255, 255, 0.95) !important;
-  backdrop-filter: blur(20px);
-  border-bottom: 1px solid rgba(30, 41, 59, 0.1);
-  box-shadow: 0 4px 16px rgba(30, 41, 59, 0.08);
-}
-
-/* Toast 通知樣式 */
-.toast-container {
-  background: var(--surface-primary);
-  backdrop-filter: blur(20px);
-  border: 1px solid var(--border-color);
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
-  min-width: 280px;
-  max-width: 90vw;
-}
-
-@media (max-width: 640px) {
-  .toast-container {
-    min-width: 260px;
-    max-width: calc(100vw - 2rem);
-  }
-}
-
-.toast-title {
-  color: var(--text-primary);
-}
-
-.toast-message {
-  color: var(--text-secondary);
-}
-
-.toast-close-btn {
-  background: var(--surface-primary);
-}
-
-/* 淺色模式 Toast 優化 */
-:root.light .toast-container {
-  background: rgba(255, 255, 255, 0.98);
-  box-shadow: 0 10px 25px rgba(15, 23, 42, 0.15);
-}
-
-:root.light .toast-close-btn {
-  background: rgba(255, 255, 255, 0.98);
-}
-
-/* 移動端優化 */
-@media (max-width: 768px) {
-  .time-picker {
-    font-size: 16px; /* 防止 iOS Safari 縮放 */
-    padding: 12px 16px;
-  }
-}
-
-/* 選擇器下拉框優化 */
-select {
-  /* 提升滾動性能 */
-  will-change: transform;
-  transform: translateZ(0);
-
-  /* 改善觸控體驗 */
-  touch-action: manipulation;
-}
-
-select option {
-  background-color: #1f2937;
-  color: white;
-  padding: 8px 12px;
-}
-
-/* 表單輸入優化 */
-input[type='date'],
-input[type='time'],
-select {
-  /* 硬體加速 */
-  transform: translateZ(0);
-  will-change: border-color, box-shadow;
-
-  /* 減少重繪 */
-  backface-visibility: hidden;
-  -webkit-font-smoothing: antialiased;
-}
-
-/* 焦點狀態優化 */
-input:focus,
-select:focus {
-  /* 使用 transform 而非改變 border 來避免重排 */
-  transform: translateZ(0) scale(1.01);
-  transition:
-    transform 0.15s ease-out,
-    box-shadow 0.15s ease-out;
-}
-
-/* 運勢進度條優化 */
-.fortune-progress-container {
-  position: relative;
-  background: rgba(55, 65, 81, 0.8);
-  border-radius: 0.75rem;
-  overflow: hidden;
-  backdrop-filter: blur(5px);
-}
-
-.fortune-progress-bar {
-  height: 100%;
-  border-radius: 0.75rem;
-  position: relative;
-  overflow: hidden;
-  box-shadow: inset 0 1px 2px rgba(255, 255, 255, 0.1);
-}
-
-.fortune-progress-glow {
-  position: absolute;
-  top: 0;
-  left: -100%;
-  width: 100%;
-  height: 100%;
-  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
-  animation: progressShine 2s infinite;
-}
-
-@keyframes progressShine {
-  0% {
-    left: -100%;
-  }
-  50% {
-    left: 100%;
-  }
-  100% {
-    left: 100%;
-  }
-}
-
-/* 淺色模式進度條優化 */
-:root.light .fortune-progress-container {
-  background: rgba(226, 232, 240, 0.8);
-  border: 1px solid rgba(30, 41, 59, 0.1);
-}
-
-:root.light .bg-gray-700 {
-  background: rgba(226, 232, 240, 0.6) !important;
-  border: 1px solid rgba(30, 41, 59, 0.1);
-}
-
-:root.light .bg-gray-800 {
-  background: rgba(203, 213, 225, 0.8) !important;
-  border-color: rgba(30, 41, 59, 0.15) !important;
-  box-shadow: inset 0 1px 2px rgba(30, 41, 59, 0.05);
-}
-
-:root.light .border-gray-600 {
-  border-color: rgba(30, 41, 59, 0.2) !important;
-}
-
-/* 淺色模式進度條顏色增強 - 提高對比度 */
-:root.light .from-green-400 {
-  --tw-gradient-from: #22c55e !important;
-}
-:root.light .to-emerald-500 {
-  --tw-gradient-to: #10b981 !important;
-}
-:root.light .from-blue-400 {
-  --tw-gradient-from: #60a5fa !important;
-}
-:root.light .to-cyan-500 {
-  --tw-gradient-to: #06b6d4 !important;
-}
-:root.light .from-yellow-400 {
-  --tw-gradient-from: #facc15 !important;
-}
-:root.light .to-amber-500 {
-  --tw-gradient-to: #f59e0b !important;
-}
-:root.light .from-orange-400 {
-  --tw-gradient-from: #fb923c !important;
-}
-:root.light .to-red-500 {
-  --tw-gradient-to: #ef4444 !important;
-}
-:root.light .from-red-500 {
-  --tw-gradient-from: #ef4444 !important;
-}
-:root.light .to-rose-600 {
-  --tw-gradient-to: #e11d48 !important;
-}
-:root.light .from-purple-400 {
-  --tw-gradient-from: #c084fc !important;
-}
-:root.light .to-pink-500 {
-  --tw-gradient-to: #ec4899 !important;
-}
-:root.light .from-indigo-400 {
-  --tw-gradient-from: #818cf8 !important;
-}
-:root.light .to-purple-500 {
-  --tw-gradient-to: #a855f7 !important;
-}
-:root.light .from-teal-400 {
-  --tw-gradient-from: #2dd4bf !important;
-}
-:root.light .to-cyan-500 {
-  --tw-gradient-to: #06b6d4 !important;
-}
-:root.light .from-yellow-500 {
-  --tw-gradient-from: #eab308 !important;
-}
-:root.light .to-orange-500 {
-  --tw-gradient-to: #f97316 !important;
-}
-:root.light .from-gray-400 {
-  --tw-gradient-from: #9ca3af !important;
-}
-:root.light .to-slate-500 {
-  --tw-gradient-to: #64748b !important;
-}
-
-/* 淺色模式漸層色彩優化 */
-:root.light .from-gold-500 {
-  --tw-gradient-from: #f59e0b !important;
-}
-
-:root.light .to-yellow-600 {
-  --tw-gradient-to: #d97706 !important;
-}
-
-:root.light .from-jade-500 {
-  --tw-gradient-from: #10b981 !important;
-}
-
-:root.light .to-green-600 {
-  --tw-gradient-to: #059669 !important;
-}
-
-/* 進度條數值標籤優化 */
-.progress-label {
-  font-variant-numeric: tabular-nums;
-  letter-spacing: 0.025em;
-}
-
-/* 淺色模式文字顏色優化 */
-:root.light .text-gray-300 {
-  color: #64748b !important;
-}
-
-:root.light .text-white.text-sm {
-  color: #1e293b !important;
-  font-weight: 500;
-}
-
-/* 進度條視覺增強 */
-.progress-container-enhanced {
-  position: relative;
-  background: linear-gradient(145deg, rgba(17, 24, 39, 0.9), rgba(31, 41, 55, 0.8));
-  border: 1px solid rgba(75, 85, 99, 0.5);
-  box-shadow:
-    inset 0 1px 2px rgba(0, 0, 0, 0.2),
-    0 1px 3px rgba(0, 0, 0, 0.1);
-}
-
-.progress-bar-enhanced {
-  position: relative;
-  overflow: hidden;
-  box-shadow:
-    0 1px 3px rgba(0, 0, 0, 0.3),
-    inset 0 1px 1px rgba(255, 255, 255, 0.2);
-}
-
-/* 淺色模式進度條容器 */
-:root.light .progress-container-enhanced {
-  background: linear-gradient(145deg, rgba(248, 250, 252, 0.95), rgba(241, 245, 249, 0.9));
-  border-color: rgba(30, 41, 59, 0.15);
-  box-shadow:
-    inset 0 1px 2px rgba(30, 41, 59, 0.08),
-    0 1px 3px rgba(30, 41, 59, 0.05);
-}
-
-:root.light .progress-bar-enhanced {
-  box-shadow:
-    0 1px 3px rgba(30, 41, 59, 0.15),
-    inset 0 1px 1px rgba(255, 255, 255, 0.8);
-}
-
-/* 手機版響應式優化 */
-@media (max-width: 640px) {
-  /* 容器內距調整 */
-  .max-w-7xl {
-    padding-left: 1rem !important;
-    padding-right: 1rem !important;
-  }
-
-  /* 標題字體大小調整 */
-  h1 {
-    font-size: 1.875rem !important; /* text-3xl -> text-2xl */
-    line-height: 2.25rem !important;
-  }
-
-  h2 {
-    font-size: 1.5rem !important; /* text-2xl -> text-xl */
-    line-height: 2rem !important;
-  }
-
-  h3 {
-    font-size: 1.25rem !important; /* text-xl -> text-lg */
-    line-height: 1.75rem !important;
-  }
-
-  /* 間距調整 */
-  .space-y-6 > * + * {
-    margin-top: 1rem !important; /* 6 -> 4 */
-  }
-
-  .space-y-8 > * + * {
-    margin-top: 1.5rem !important; /* 8 -> 6 */
-  }
-
-  /* 按鈕調整 */
-  .btn-primary,
-  .btn-secondary {
-    padding: 0.75rem 1.25rem !important;
-    font-size: 0.875rem !important;
-    min-height: 44px !important; /* 確保觸控友好的最小尺寸 */
-  }
-
-  /* Profile 頁面按鈕容器間距 */
-  .flex.flex-col.gap-4 {
-    gap: 1.5rem !important;
-  }
-
-  .flex.flex-col.gap-4 > button {
-    margin: 0 !important;
-  }
-
-  /* 表格字體調整 */
-  table {
-    font-size: 0.75rem !important;
-  }
-
-  /* 卡片內距調整 */
-  .card {
-    padding: 0.875rem !important;
-  }
-
-  /* 網格間距調整 */
-  .gap-6 {
-    gap: 1rem !important;
-  }
-
-  .gap-8 {
-    gap: 1.25rem !important;
-  }
-
-  /* 圖表高度調整 */
-  .h-96 {
-    height: 16rem !important; /* 24rem -> 16rem */
-  }
-
-  /* 觸摸優化 */
-  button,
-  a,
-  input,
-  select,
-  textarea {
-    min-height: 44px; /* Apple 推薦的最小觸摸目標 */
-  }
-
-  /* 滾動優化 */
-  .overflow-x-auto {
-    -webkit-overflow-scrolling: touch;
+    scroll-behavior: auto !important;
   }
 }

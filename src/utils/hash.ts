@@ -1,13 +1,18 @@
 /**
- * FNV-1a 32-bit 字串雜湊 — O(n)、無配置，分佈均勻，適合作為快取鍵
+ * FNV-1a 32-bit 字串雜湊 — O(n)、無配置，分佈均勻；回傳無號整數
  */
-export function fnv1a(input: string): string {
+export function fnv1a32(input: string): number {
   let hash = 0x811c9dc5
   for (let i = 0; i < input.length; i++) {
     hash ^= input.charCodeAt(i)
     hash = Math.imul(hash, 0x01000193)
   }
-  return (hash >>> 0).toString(36)
+  return hash >>> 0
+}
+
+/** FNV-1a 的 base36 字串版本，適合作為快取鍵 */
+export function fnv1a(input: string): string {
+  return fnv1a32(input).toString(36)
 }
 
 /** 會影響運勢計算結果的個人資料欄位 */

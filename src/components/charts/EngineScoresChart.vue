@@ -25,38 +25,32 @@ const props = withDefaults(defineProps<Props>(), {
   isDark: true,
 })
 
-const ENGINE_ICONS: Record<string, string> = {
-  classic: '🏮',
-  'bazi-ten-gods': '🔮',
-  'zi-wei': '⭐',
-  'feng-shui': '🧭',
+// Chart.js 需要實際色值：渲染時從 CSS tokens（"r g b"）讀取，深淺主題自動跟著切換
+const FALLBACK_TOKENS: Record<string, string> = {
+  ink: '27 26 24',
+  'ink-2': '85 82 76',
+  'ink-3': '111 107 100',
+  surface: '255 255 255',
+  seal: '192 40 45',
 }
-
-const ENGINE_COLORS: Record<string, string> = {
-  classic: '#f59e0b',
-  'bazi-ten-gods': '#8b5cf6',
-  'zi-wei': '#3b82f6',
-  'feng-shui': '#10b981',
+const token = (name: string, alpha = 1): string => {
+  const raw =
+    typeof document === 'undefined'
+      ? ''
+      : getComputedStyle(document.documentElement).getPropertyValue(`--c-${name}`).trim()
+  return `rgb(${raw || FALLBACK_TOKENS[name] || '128 128 128'} / ${alpha})`
 }
 
 const chartData = computed(() => {
   if (!props.results.length) return null
 
-  const labels = props.results.map(r => {
-    const icon = ENGINE_ICONS[r.engineId || ''] || '⚙️'
-    return `${icon} ${r.engineName}`
-  })
-
+  void props.isDark
+  const labels = props.results.map(r => r.engineName)
   const scores = props.results.map(r => r.score)
 
-  const bgColors = props.results.map(r => {
-    const color = ENGINE_COLORS[r.engineId || ''] || '#6b7280'
-    return color + '33'
-  })
-
-  const borderColors = props.results.map(r => {
-    return ENGINE_COLORS[r.engineId || ''] || '#6b7280'
-  })
+  // 所有引擎同為墨色，只有最高分的引擎以朱紅標示
+  const top = Math.max(...scores)
+  const bgColors = scores.map(score => (score === top ? token('seal', 0.85) : token('ink', 0.18)))
 
   return {
     labels,
@@ -65,17 +59,17 @@ const chartData = computed(() => {
         label: '引擎分數',
         data: scores,
         backgroundColor: bgColors,
-        borderColor: borderColors,
-        borderWidth: 2,
+        borderWidth: 0,
         borderRadius: 6,
-        barThickness: 32,
+        barThickness: 24,
       },
     ],
   }
 })
 
 const chartOptions = computed(() => {
-  const textColor = props.isDark ? '#e5e7eb' : '#374151'
+  void props.isDark
+  const textColor = token('ink-3')
 
   return {
     indexAxis: 'y' as const,
@@ -84,12 +78,13 @@ const chartOptions = computed(() => {
     plugins: {
       legend: { display: false },
       tooltip: {
-        backgroundColor: props.isDark ? 'rgba(17, 24, 39, 0.9)' : 'rgba(255, 255, 255, 0.9)',
-        titleColor: textColor,
-        bodyColor: textColor,
-        borderColor: props.isDark ? '#fbbf24' : '#3b82f6',
+        backgroundColor: token('surface', 0.96),
+        titleColor: token('ink-3'),
+        bodyColor: token('ink'),
+        borderColor: token('ink', 0.18),
         borderWidth: 1,
-        cornerRadius: 8,
+        cornerRadius: 10,
+        displayColors: false,
         padding: 12,
         callbacks: {
           label: (ctx: TooltipItem<'bar'>) => {
@@ -106,15 +101,17 @@ const chartOptions = computed(() => {
         max: 100,
         ticks: { color: textColor, stepSize: 20 },
         grid: {
-          color: props.isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)',
+          color: token('ink', 0.08),
         },
+        border: { display: false },
       },
       y: {
         ticks: {
-          color: textColor,
-          font: { size: 13, weight: 'bold' as const },
+          color: token('ink-2'),
+          font: { size: 13 },
         },
         grid: { display: false },
+        border: { display: false },
       },
     },
   } as const
@@ -131,9 +128,9 @@ const chartOptions = computed(() => {
     />
     <div
       v-else
-      class="h-full bg-white/5 rounded-lg flex items-center justify-center"
+      class="flex h-full items-center justify-center rounded-[10px] bg-raised"
     >
-      <p class="text-gray-400">
+      <p class="text-ink-3">
         無引擎數據
       </p>
     </div>

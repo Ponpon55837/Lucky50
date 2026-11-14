@@ -1,112 +1,8 @@
-<template>
-  <div class="card">
-    <h3 class="text-lg font-bold mb-4 flex items-center">
-      <span class="text-gold-400 mr-2">⭐</span>
-      <span class="text-white">紫微斗數分析</span>
-    </h3>
-
-    <div
-      v-if="loading"
-      class="text-center py-8 text-gray-400"
-    >
-      計算中...
-    </div>
-
-    <div
-      v-else-if="error"
-      class="text-center py-8 text-red-400"
-    >
-      {{ error }}
-    </div>
-
-    <template v-else-if="result">
-      <!-- 綜合分數 -->
-      <div class="text-center mb-6">
-        <div
-          class="text-4xl font-bold"
-          :class="scoreColor"
-        >
-          {{ result.score }}
-        </div>
-        <div class="text-sm text-gray-400 mt-1">
-          紫微能量分數
-        </div>
-      </div>
-
-      <!-- 命主星 -->
-      <div class="mb-4 p-4 bg-white/5 rounded-lg text-center">
-        <div class="text-sm text-amber-400 mb-1">
-          命主星
-        </div>
-        <div class="text-xl font-bold text-white">
-          {{ result.dominantStar }}
-        </div>
-        <div class="text-sm text-gray-400 mt-1">
-          {{ result.investmentStyle }}
-        </div>
-      </div>
-
-      <!-- 三星宮位 -->
-      <div class="space-y-3 mb-4">
-        <div
-          v-for="(palace, name) in result.palaces"
-          :key="name"
-          class="p-3 bg-white/5 rounded-lg"
-        >
-          <div class="flex justify-between items-center mb-2">
-            <span class="font-bold text-sm text-white">{{ name }}</span>
-            <span
-              class="text-sm"
-              :class="palaceScoreColor(palace.score)"
-            >
-              {{ palace.score }}分
-            </span>
-          </div>
-          <div class="flex flex-wrap gap-1">
-            <span
-              v-for="star in palace.stars.slice(0, 4)"
-              :key="star"
-              class="text-xs px-2 py-1 bg-amber-500/10 text-amber-300 rounded"
-            >
-              {{ star }}
-            </span>
-            <span
-              v-if="palace.stars.length > 4"
-              class="text-xs px-2 py-1 bg-white/10 text-gray-400 rounded"
-            >
-              +{{ palace.stars.length - 4 }}
-            </span>
-          </div>
-          <div class="text-xs text-gray-500 mt-1">
-            主星：{{ palace.dominantStar }} · {{ palace.risk }}
-          </div>
-        </div>
-      </div>
-
-      <!-- 風險評估 -->
-      <div class="p-3 bg-white/5 rounded-lg">
-        <div class="text-sm font-bold text-amber-400 mb-1">
-          風險評估
-        </div>
-        <div class="text-sm text-gray-300">
-          {{ result.riskProfile }}
-        </div>
-      </div>
-    </template>
-
-    <div
-      v-else
-      class="text-center py-8 text-gray-500"
-    >
-      請先設定出生資料
-    </div>
-  </div>
-</template>
-
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue'
+import { computed } from 'vue'
+import EngineCard from '@/components/engines/EngineCard.vue'
 import { ZiWeiEngine } from '@/services/engines/ziWei'
-import { lunarService } from '@/services/lunar'
+import { buildBirthChart, energyWord } from '@/services/engines/birthChart'
 import type { UserProfileCompat } from '@/services/integratedFortune'
 
 interface PalaceResult {
@@ -116,77 +12,77 @@ interface PalaceResult {
   risk: string
 }
 
-interface ZiWeiResult {
-  score: number
-  dominantStar: string
-  investmentStyle: string
-  riskProfile: string
-  palaces: Record<string, PalaceResult>
-}
-
 const props = defineProps<{
   profile: UserProfileCompat | null
+  /** 流日計算的日期，跟著儀表板目前選的日子 */
+  date: Date
 }>()
 
 const engine = new ZiWeiEngine()
-const result = ref<ZiWeiResult | null>(null)
-const loading = ref(false)
-const error = ref<string | null>(null)
 
-const scoreColor = computed(() => {
-  const score = result.value?.score || 0
-  if (score >= 70) return 'text-green-600'
-  if (score >= 50) return 'text-blue-600'
-  return 'text-orange-600'
-})
-
-function palaceScoreColor(score: number): string {
-  if (score >= 70) return 'text-green-600'
-  if (score >= 50) return 'text-blue-600'
-  return 'text-orange-600'
-}
-
-function calculate() {
-  if (!props.profile) {
-    result.value = null
-    return
-  }
-
-  loading.value = true
-  error.value = null
-
+const state = computed(() => {
+  const profile = props.profile
+  if (!profile) return { result: null, error: null }
   try {
-    const lunarData = lunarService.getLunarData(new Date(props.profile.birthDate))
-    const mockBaZi = {
-      yearGanZhi: lunarData.ganZhi,
-      monthGanZhi: lunarData.monthGanZhi,
-      dayGanZhi: lunarData.dayGanZhi,
-      hourGanZhi: lunarData.ganZhi,
-      zodiac: lunarData.zodiac,
-      element: props.profile.element,
-      naYin: lunarData.naYin,
-    }
-    const mockElements = { wood: 20, fire: 20, earth: 20, metal: 20, water: 20 }
+    const { lunarData, baZi, elements } = buildBirthChart(profile)
+    const raw = engine.calculate(profile, props.date, lunarData, baZi, elements)
+    const details = (raw.details ?? {}) as Record<string, unknown>
+    const palaces = (details.palaces ?? {}) as Record<string, PalaceResult>
 
-    const raw = engine.calculate(props.profile, new Date(), lunarData, mockBaZi, mockElements)
-
-    const details = raw.details as Record<string, unknown>
-    const palaces = details.palaces as Record<string, PalaceResult>
-
-    result.value = {
-      score: raw.score,
-      dominantStar: (details.dominantStar as string) || '紫微',
-      investmentStyle: (details.investmentStyle as string) || '',
-      riskProfile: (details.riskProfile as string) || '中風險',
-      palaces,
+    return {
+      result: {
+        dominantStar: (details.dominantStar as string) || '紫微',
+        investmentStyle: (details.investmentStyle as string) || '',
+        riskProfile: (details.riskProfile as string) || '中風險',
+        energy: energyWord(raw.score),
+        palaces: Object.entries(palaces).map(([name, palace]) => ({
+          name,
+          star: palace.dominantStar,
+          risk: palace.risk,
+          energy: energyWord(palace.score),
+        })),
+      },
+      error: null,
     }
   } catch (e) {
-    error.value = e instanceof Error ? e.message : '計算失敗'
-  } finally {
-    loading.value = false
+    return { result: null, error: e instanceof Error ? e.message : '計算失敗' }
   }
-}
-
-onMounted(calculate)
-watch(() => props.profile, calculate)
+})
 </script>
+
+<template>
+  <EngineCard
+    tab="紫微斗數"
+    title="紫微斗數分析"
+    :error="state.error"
+    :empty="!profile"
+  >
+    <template v-if="state.result">
+      <p class="flex flex-wrap items-baseline gap-x-3">
+        <span class="text-[13px] text-ink-3">命主星</span>
+        <span class="font-kai text-[22px] font-bold">{{ state.result.dominantStar }}</span>
+        <span class="text-[13px] text-ink-3">紫微能量{{ state.result.energy }}</span>
+      </p>
+      <p
+        v-if="state.result.investmentStyle"
+        class="text-[13px] text-ink-2"
+      >
+        {{ state.result.investmentStyle }}
+      </p>
+      <ul class="flex flex-col gap-1.5 border-t border-line pt-3 text-[13px]">
+        <li
+          v-for="palace in state.result.palaces"
+          :key="palace.name"
+          class="grid grid-cols-[56px_minmax(0,1fr)_auto] gap-2"
+        >
+          <span class="text-ink-3">{{ palace.name }}</span>
+          <span class="truncate">{{ palace.star }} · {{ palace.risk }}</span>
+          <span class="text-ink-3">{{ palace.energy }}</span>
+        </li>
+      </ul>
+      <p class="text-[13px] text-ink-2">
+        <span class="text-ink">風險評估：</span>{{ state.result.riskProfile }}
+      </p>
+    </template>
+  </EngineCard>
+</template>

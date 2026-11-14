@@ -3,6 +3,7 @@ import { ref, computed, watch, watchEffect, defineAsyncComponent } from 'vue'
 import { useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import { useToast } from '@/composables/useToast'
+import { CalendarDaysIcon, PencilSquareIcon } from '@heroicons/vue/24/outline'
 import type { UserProfile } from '@/types'
 import '@vuepic/vue-datepicker/dist/main.css'
 import {
@@ -85,7 +86,7 @@ const saveProfile = async () => {
   try {
     saving.value = true
     userStore.setProfile(form.value)
-    success('設定保存成功！', '您的個人資料已成功保存', 3000)
+    success('設定已保存', '您的個人資料已成功保存', 3000)
     setTimeout(() => {
       startRedirect()
     }, 1000)
@@ -181,25 +182,25 @@ const timeToShichen = (time: string): string => {
   return ''
 }
 
-const getColorClass = (color: string): string => {
-  const classMap: { [key: string]: string } = {
-    紅色: 'bg-red-500',
-    橙色: 'bg-orange-500',
-    黃色: 'bg-yellow-500',
-    綠色: 'bg-green-500',
-    藍色: 'bg-blue-500',
-    紫色: 'bg-purple-500',
-    黑色: 'bg-black',
-    白色: 'bg-white',
-    金色: 'bg-gold-500',
-    銀色: 'bg-gray-300',
-    棕色: 'bg-amber-700',
-    灰色: 'bg-gray-500',
-    青色: 'bg-cyan-500',
-    橘色: 'bg-orange-400',
-  }
-  return classMap[color] || 'bg-gray-500'
+// 幸運色是內容本身的顏色，不走介面 tokens
+const COLOR_SWATCHES: Readonly<Record<string, string>> = {
+  紅色: '#d43c3c',
+  橙色: '#e8833a',
+  橘色: '#e8833a',
+  黃色: '#e9c13b',
+  綠色: '#3f9a5b',
+  藍色: '#3b6fc4',
+  紫色: '#7d55b8',
+  黑色: '#1b1a18',
+  白色: '#ffffff',
+  金色: '#c9a03c',
+  銀色: '#c4c4c4',
+  棕色: '#8a5a2b',
+  灰色: '#8a8884',
+  青色: '#2f9c95',
 }
+
+const colorSwatch = (color: string): string => COLOR_SWATCHES[color] ?? '#8a8884'
 
 const onDateChange = (date: Date | null) => {
   if (date) {
@@ -233,329 +234,337 @@ const onShichenChange = () => {
 </script>
 
 <template>
-  <div class="min-h-screen py-6 sm:py-8 lg:py-12">
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-      <!-- Page Header -->
-      <div class="mb-6 sm:mb-8">
-        <h1 class="text-xl sm:text-2xl lg:text-3xl font-bold text-white mb-1 sm:mb-2">
-          個人設定
-        </h1>
-        <p class="text-xs sm:text-sm lg:text-base text-gray-400">
-          設定個人資料以獲得精準的投資運勢分析
-        </p>
-      </div>
+  <div class="flex flex-col gap-6">
+    <header>
+      <h1 class="font-serif text-[28px] font-bold leading-tight text-ink sm:text-[36px]">
+        個人設定
+      </h1>
+      <p class="mt-1.5 text-sm text-ink-2">
+        設定個人資料以獲得精準的投資運勢分析
+      </p>
+    </header>
 
-      <!-- 已儲存的資料預覽 -->
-      <div
-        v-if="userStore.profile && userStore.isProfileComplete"
-        class="card !py-3 !px-3 sm:!py-4 sm:!px-6 mb-5 sm:mb-6"
-      >
-        <h3 class="text-sm sm:text-base font-semibold text-white mb-2 sm:mb-3">
-          當前設定
-        </h3>
-        <div class="grid grid-cols-2 gap-1.5 sm:gap-2 text-xs sm:text-sm">
-          <div class="flex justify-between">
-            <span class="text-gray-500">姓名：</span>
-            <span class="text-white truncate ml-2">{{ userStore.profile.name }}</span>
-          </div>
-          <div class="flex justify-between">
-            <span class="text-gray-500">出生日期：</span>
-            <span class="text-white truncate ml-2">{{ userStore.profile.birthDate }}</span>
-          </div>
-          <div class="flex justify-between">
-            <span class="text-gray-500">出生時間：</span>
-            <span class="text-white truncate ml-2">{{ userStore.profile.birthTime }}（{{
-              timeToShichen(userStore.profile.birthTime)
-            }}）</span>
-          </div>
-          <div class="flex justify-between">
-            <span class="text-gray-500">生肖：</span>
-            <span class="text-white truncate ml-2">{{ userStore.profile.zodiac }}</span>
-          </div>
-          <div class="flex justify-between">
-            <span class="text-gray-500">年份五行：</span>
-            <span class="text-amber-400 truncate ml-2">{{ userStore.profile.element }}</span>
-          </div>
-          <div class="flex justify-between">
-            <span class="text-gray-500">姓名學五行：</span>
-            <span class="text-amber-400 truncate ml-2">{{ userStore.profile.nameElement }} ({{ userStore.profile.nameStrokes }}畫)</span>
-          </div>
+    <!-- 已儲存的資料預覽 -->
+    <section
+      v-if="userStore.profile && userStore.isProfileComplete"
+      class="card"
+    >
+      <h2 class="card-title">
+        當前設定
+      </h2>
+      <dl class="grid grid-cols-1 gap-x-8 gap-y-2 text-sm sm:grid-cols-2 lg:grid-cols-3">
+        <div class="flex justify-between gap-2 border-b border-line pb-2">
+          <dt class="text-ink-3">
+            姓名
+          </dt>
+          <dd class="truncate text-ink">
+            {{ userStore.profile.name }}
+          </dd>
         </div>
-      </div>
+        <div class="flex justify-between gap-2 border-b border-line pb-2">
+          <dt class="text-ink-3">
+            出生日期
+          </dt>
+          <dd class="truncate font-mono text-ink">
+            {{ userStore.profile.birthDate }}
+          </dd>
+        </div>
+        <div class="flex justify-between gap-2 border-b border-line pb-2">
+          <dt class="text-ink-3">
+            出生時間
+          </dt>
+          <dd class="truncate text-ink">
+            <span class="font-mono">{{ userStore.profile.birthTime }}</span>（{{ timeToShichen(userStore.profile.birthTime) }}）
+          </dd>
+        </div>
+        <div class="flex justify-between gap-2 border-b border-line pb-2">
+          <dt class="text-ink-3">
+            生肖
+          </dt>
+          <dd class="truncate text-ink">
+            {{ userStore.profile.zodiac }}
+          </dd>
+        </div>
+        <div class="flex justify-between gap-2 border-b border-line pb-2">
+          <dt class="text-ink-3">
+            年份五行
+          </dt>
+          <dd class="truncate text-ink">
+            {{ userStore.profile.element }}
+          </dd>
+        </div>
+        <div class="flex justify-between gap-2 border-b border-line pb-2">
+          <dt class="text-ink-3">
+            姓名學五行
+          </dt>
+          <dd class="truncate text-ink">
+            {{ userStore.profile.nameElement }} ({{ userStore.profile.nameStrokes }}畫)
+          </dd>
+        </div>
+      </dl>
+    </section>
 
-      <!-- 左右雙欄佈局 -->
-      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <!-- 左側：編輯表單 -->
-        <div class="card !py-4 !px-3 sm:!py-6 sm:!px-6">
-          <h3 class="text-base font-semibold text-white mb-4 flex items-center">
-            <span class="text-gold-400 mr-2">📝</span>
-            個人資料
-          </h3>
-          <form
-            class="space-y-4 sm:space-y-5"
-            @submit.prevent="saveProfile"
-          >
-            <!-- 姓氏 -->
-            <div>
-              <label
-                for="surname"
-                class="block text-xs sm:text-sm font-medium text-white mb-1.5 sm:mb-2"
+    <!-- 左右雙欄佈局 -->
+    <div class="grid grid-cols-1 items-start gap-6 lg:grid-cols-2">
+      <!-- 左側：編輯表單 -->
+      <section class="card">
+        <h2 class="card-title flex items-center gap-2">
+          <PencilSquareIcon
+            class="h-[18px] w-[18px] text-ink-3"
+            aria-hidden="true"
+          />
+          個人資料
+        </h2>
+        <form
+          class="flex flex-col gap-5"
+          @submit.prevent="saveProfile"
+        >
+          <!-- 姓氏 -->
+          <div>
+            <label
+              for="surname"
+              class="mb-2 block text-sm font-medium text-ink"
+            >姓氏</label>
+            <input
+              id="surname"
+              v-model="form.surname"
+              type="text"
+              class="form-input"
+              placeholder="請輸入姓氏（如：王、歐陽）"
+            >
+          </div>
+
+          <!-- 名字 -->
+          <div>
+            <label
+              for="givenName"
+              class="mb-2 block text-sm font-medium text-ink"
+            >名字</label>
+            <input
+              id="givenName"
+              v-model="form.givenName"
+              type="text"
+              class="form-input"
+              placeholder="請輸入名字"
+            >
+            <!-- 姓名學五行即時預覽 -->
+            <p
+              v-if="form.nameElement"
+              class="mt-1.5 text-xs text-ink-2"
+            >
+              姓名學五行：{{ form.nameElement }} ({{ form.nameStrokes }}畫)
+            </p>
+          </div>
+
+          <!-- 出生日期 -->
+          <div>
+            <label
+              for="birthDate"
+              class="mb-2 block text-sm font-medium text-ink"
+            >出生日期</label>
+            <div class="date-picker-wrapper">
+              <VueDatePicker
+                v-model="form.birthDate"
+                :locale="'zh-TW'"
+                :max-date="new Date()"
+                :min-date="new Date(1900, 0, 1)"
+                placeholder="選擇您的出生日期"
+                :dark="true"
+                :enable-time-picker="false"
+                :format="'yyyy年MM月dd日'"
+                text-input
+                :text-input-options="{
+                  format: 'yyyy-MM-dd',
+                }"
+                :ui="{
+                  input: 'date-picker-input',
+                }"
+                @update:model-value="onDateChange"
               >
-                姓氏
-              </label>
-              <input
-                id="surname"
-                v-model="form.surname"
-                type="text"
-                class="w-full px-2.5 sm:px-3 py-1.5 sm:py-2 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500/50 text-xs sm:text-sm transition-all"
-                placeholder="請輸入姓氏（如：王、歐陽）"
-              >
+                <template #input-icon>
+                  <CalendarDaysIcon
+                    class="ml-3 h-4 w-4 text-ink-3"
+                    aria-hidden="true"
+                  />
+                </template>
+              </VueDatePicker>
             </div>
+            <p
+              v-if="form.zodiac"
+              class="mt-1.5 text-xs text-ink-2"
+            >
+              生肖：{{ form.zodiac }}（自動推算）
+            </p>
+          </div>
 
-            <!-- 名字 -->
-            <div>
+          <!-- 出生時間 -->
+          <div>
+            <label
+              for="birthTime"
+              class="mb-2 block text-sm font-medium text-ink"
+            >出生時間</label>
+            <!-- 時間模式選擇 -->
+            <div
+              class="mb-3 inline-flex rounded-[10px] border border-line-strong p-1"
+              role="radiogroup"
+              aria-label="時間輸入方式"
+            >
               <label
-                for="givenName"
-                class="block text-xs sm:text-sm font-medium text-white mb-1.5 sm:mb-2"
+                class="cursor-pointer rounded-md px-3 py-1.5 text-sm transition-colors"
+                :class="timeMode === 'exact' ? 'bg-raised font-medium text-ink' : 'text-ink-3'"
               >
-                名字
-              </label>
-              <input
-                id="givenName"
-                v-model="form.givenName"
-                type="text"
-                class="w-full px-2.5 sm:px-3 py-1.5 sm:py-2 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500/50 text-xs sm:text-sm transition-all"
-                placeholder="請輸入名字"
-              >
-              <!-- 姓名學五行即時預覽 -->
-              <p
-                v-if="form.nameElement"
-                class="text-xs text-amber-400/80 mt-1"
-              >
-                姓名學五行：{{ form.nameElement }} ({{ form.nameStrokes }}畫)
-              </p>
-            </div>
-
-            <!-- 出生日期 -->
-            <div>
-              <label
-                for="birthDate"
-                class="block text-xs sm:text-sm font-medium text-white mb-1.5 sm:mb-2"
-              >
-                出生日期
-              </label>
-              <div class="date-picker-wrapper">
-                <VueDatePicker
-                  v-model="form.birthDate"
-                  :locale="'zh-TW'"
-                  :max-date="new Date()"
-                  :min-date="new Date(1900, 0, 1)"
-                  placeholder="選擇您的出生日期"
-                  :dark="true"
-                  :enable-time-picker="false"
-                  :format="'yyyy年MM月dd日'"
-                  text-input
-                  :text-input-options="{
-                    format: 'yyyy-MM-dd',
-                  }"
-                  :ui="{
-                    input: 'date-picker-input',
-                  }"
-                  @update:model-value="onDateChange"
+                <input
+                  type="radio"
+                  name="timeMode"
+                  value="exact"
+                  :checked="timeMode === 'exact'"
+                  class="sr-only"
+                  @change="switchTimeMode('exact')"
                 >
-                  <template #input-icon>
-                    <svg
-                      class="w-4 h-4"
-                      fill="currentColor"
-                      viewBox="0 0 20 20"
-                    >
-                      <path
-                        fill-rule="evenodd"
-                        d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z"
-                        clip-rule="evenodd"
-                      />
-                    </svg>
-                  </template>
-                </VueDatePicker>
-              </div>
-              <p
-                v-if="form.zodiac"
-                class="text-xs text-amber-400/80 mt-1"
-              >
-                生肖：{{ form.zodiac }}（自動推算）
-              </p>
-            </div>
-
-            <!-- 出生時間 -->
-            <div>
-              <label
-                for="birthTime"
-                class="block text-xs sm:text-sm font-medium text-white mb-1.5 sm:mb-2"
-              >
-                出生時間
+                精確時間
               </label>
-              <!-- 時間模式選擇 -->
-              <div class="flex gap-4 mb-3">
-                <label class="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="radio"
-                    name="timeMode"
-                    value="exact"
-                    :checked="timeMode === 'exact'"
-                    class="w-4 h-4 text-amber-500 bg-white/10 border-white/20 focus:ring-amber-500/50"
-                    @change="switchTimeMode('exact')"
-                  >
-                  <span class="text-xs sm:text-sm text-gray-300">精確時間</span>
-                </label>
-                <label class="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="radio"
-                    name="timeMode"
-                    value="shichen"
-                    :checked="timeMode === 'shichen'"
-                    class="w-4 h-4 text-amber-500 bg-white/10 border-white/20 focus:ring-amber-500/50"
-                    @change="switchTimeMode('shichen')"
-                  >
-                  <span class="text-xs sm:text-sm text-gray-300">傳統時辰</span>
-                </label>
-              </div>
-              <!-- 精確時間 -->
-              <div v-if="timeMode === 'exact'">
-                <VueDatePicker
-                  v-model="form.birthTime"
-                  time-picker
-                  :locale="'zh-TW'"
-                  :dark="true"
-                  placeholder="選擇時間"
-                  :format="'HH:mm'"
-                  text-input
-                  :text-input-options="{
-                    format: 'HH:mm',
-                  }"
-                  :ui="{
-                    input: 'time-picker-input',
-                  }"
-                  @update:model-value="onTimeChange"
-                />
-              </div>
-              <!-- 傳統時辰 -->
-              <div v-else>
-                <select
-                  v-model="selectedShichen"
-                  class="w-full h-[42px] px-2.5 sm:px-3 py-1.5 sm:py-2 bg-white/10 border border-white/20 rounded-lg text-white text-xs sm:text-sm focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500/50 transition-all"
-                  @change="onShichenChange"
+              <label
+                class="cursor-pointer rounded-md px-3 py-1.5 text-sm transition-colors"
+                :class="timeMode === 'shichen' ? 'bg-raised font-medium text-ink' : 'text-ink-3'"
+              >
+                <input
+                  type="radio"
+                  name="timeMode"
+                  value="shichen"
+                  :checked="timeMode === 'shichen'"
+                  class="sr-only"
+                  @change="switchTimeMode('shichen')"
                 >
-                  <option
-                    value=""
-                    class="bg-gray-800"
-                  >
-                    選擇時辰
-                  </option>
-                  <option
-                    v-for="shichen in shichenList"
-                    :key="shichen.name"
-                    :value="shichen.name"
-                    class="bg-gray-800"
-                  >
-                    {{ shichen.name }} ({{ shichen.time }})
-                  </option>
-                </select>
-              </div>
-              <p class="text-xs text-gray-400 mt-1">
-                精確時間有助於更準確的命理分析
-              </p>
+                傳統時辰
+              </label>
             </div>
+            <!-- 精確時間 -->
+            <div v-if="timeMode === 'exact'">
+              <VueDatePicker
+                v-model="form.birthTime"
+                time-picker
+                :locale="'zh-TW'"
+                :dark="true"
+                placeholder="選擇時間"
+                :format="'HH:mm'"
+                text-input
+                :text-input-options="{
+                  format: 'HH:mm',
+                }"
+                :ui="{
+                  input: 'time-picker-input',
+                }"
+                @update:model-value="onTimeChange"
+              />
+            </div>
+            <!-- 傳統時辰 -->
+            <div v-else>
+              <select
+                v-model="selectedShichen"
+                class="form-input"
+                @change="onShichenChange"
+              >
+                <option value="">
+                  選擇時辰
+                </option>
+                <option
+                  v-for="shichen in shichenList"
+                  :key="shichen.name"
+                  :value="shichen.name"
+                >
+                  {{ shichen.name }} ({{ shichen.time }})
+                </option>
+              </select>
+            </div>
+            <p class="mt-1.5 text-xs text-ink-3">
+              精確時間有助於更準確的命理分析
+            </p>
+          </div>
 
+          <!-- 自動推算欄位 -->
+          <dl class="grid grid-cols-1 gap-3 sm:grid-cols-3">
             <!-- 生肖（自動推算，唯讀） -->
-            <div>
-              <label class="block text-xs sm:text-sm font-medium text-white mb-1.5 sm:mb-2">
+            <div class="rounded-[10px] bg-raised px-4 py-3">
+              <dt class="text-xs text-ink-3">
                 生肖（自動推算）
-              </label>
-              <div class="p-2.5 sm:p-3 bg-white/5 rounded-lg">
-                <span class="text-amber-400 font-medium text-xs sm:text-sm">
-                  {{ form.zodiac || '請先填寫出生日期' }}
-                </span>
-              </div>
+              </dt>
+              <dd class="mt-1 text-sm font-medium text-ink">
+                {{ form.zodiac || '請先填寫出生日期' }}
+              </dd>
             </div>
 
             <!-- 年份五行 -->
-            <div>
-              <label class="block text-xs sm:text-sm font-medium text-white mb-1.5 sm:mb-2">
+            <div class="rounded-[10px] bg-raised px-4 py-3">
+              <dt class="text-xs text-ink-3">
                 年份五行屬性（自動計算）
-              </label>
-              <div class="p-2.5 sm:p-3 bg-white/5 rounded-lg">
-                <span class="text-amber-400 font-medium text-xs sm:text-sm">
-                  {{ form.element || '請先填寫出生日期' }}
-                </span>
-              </div>
+              </dt>
+              <dd class="mt-1 text-sm font-medium text-ink">
+                {{ form.element || '請先填寫出生日期' }}
+              </dd>
             </div>
 
             <!-- 姓名學五行 -->
-            <div>
-              <label class="block text-xs sm:text-sm font-medium text-white mb-1.5 sm:mb-2">
+            <div class="rounded-[10px] bg-raised px-4 py-3">
+              <dt class="text-xs text-ink-3">
                 姓名學五行（基於姓名筆畫）
-              </label>
-              <div class="p-2.5 sm:p-3 bg-white/5 rounded-lg">
-                <span
-                  v-if="form.nameElement"
-                  class="text-amber-400 font-medium text-xs sm:text-sm"
-                >
-                  {{ form.nameElement }} ({{ form.nameStrokes }}畫)
-                </span>
-                <span
-                  v-else
-                  class="text-gray-500 text-xs sm:text-sm"
-                > 請先填寫姓氏與名字 </span>
-              </div>
+              </dt>
+              <dd
+                v-if="form.nameElement"
+                class="mt-1 text-sm font-medium text-ink"
+              >
+                {{ form.nameElement }} ({{ form.nameStrokes }}畫)
+              </dd>
+              <dd
+                v-else
+                class="mt-1 text-sm text-ink-3"
+              >
+                請先填寫姓氏與名字
+              </dd>
             </div>
+          </dl>
 
-            <!-- 幸運顏色 -->
-            <div>
-              <label class="block text-xs sm:text-sm font-medium text-white mb-1.5 sm:mb-2">
-                幸運顏色（基於年份五行）
-              </label>
-              <div class="flex space-x-2">
-                <div
-                  v-for="color in form.luckyColors"
-                  :key="color"
-                  :class="`w-6 h-6 sm:w-8 sm:h-8 rounded-full ${getColorClass(color)}`"
-                  :title="color"
-                />
-              </div>
+          <!-- 幸運顏色 -->
+          <div>
+            <p class="mb-2 block text-sm font-medium text-ink">
+              幸運顏色（基於年份五行）
+            </p>
+            <div class="flex gap-2">
+              <div
+                v-for="color in form.luckyColors"
+                :key="color"
+                :style="{ backgroundColor: colorSwatch(color) }"
+                class="h-8 w-8 rounded-full border border-line-strong"
+                :title="color"
+              />
             </div>
+          </div>
 
-            <!-- 提交按鈕 -->
-            <div class="pt-4 sm:pt-6 border-t border-white/10">
-              <div class="flex flex-col-reverse sm:flex-row justify-end gap-2.5 sm:gap-3">
-                <button
-                  type="button"
-                  class="px-4 py-2 text-xs sm:text-sm font-medium text-gray-300 hover:text-white bg-white/10 hover:bg-white/20 rounded-lg transition-all"
-                  @click="clearForm"
-                >
-                  清除設定
-                </button>
-                <button
-                  type="submit"
-                  :disabled="!isFormValid || saving || redirecting"
-                  :class="[
-                    'px-4 py-2 text-xs sm:text-sm font-medium text-white bg-amber-600 hover:bg-amber-500 rounded-lg transition-all',
-                    (!isFormValid || saving || redirecting) && 'opacity-50 cursor-not-allowed',
-                  ]"
-                >
-                  <span v-if="saving">保存中...</span>
-                  <span v-else-if="redirecting">跳轉中...</span>
-                  <span v-else>保存設定</span>
-                </button>
-              </div>
-            </div>
-          </form>
-        </div>
+          <!-- 提交按鈕 -->
+          <div
+            class="flex flex-col-reverse justify-end gap-3 border-t border-line pt-5 sm:flex-row"
+          >
+            <button
+              type="button"
+              class="btn-secondary"
+              @click="clearForm"
+            >
+              清除設定
+            </button>
+            <button
+              type="submit"
+              class="btn-primary"
+              :disabled="!isFormValid || saving || redirecting"
+            >
+              <span v-if="saving">保存中...</span>
+              <span v-else-if="redirecting">跳轉中...</span>
+              <span v-else>保存設定</span>
+            </button>
+          </div>
+        </form>
+      </section>
 
-        <!-- 右側：命理引擎設定 -->
-        <div>
-          <EngineSettingsCard />
-        </div>
-      </div>
+      <!-- 右側：命理引擎設定 -->
+      <EngineSettingsCard />
     </div>
   </div>
 </template>

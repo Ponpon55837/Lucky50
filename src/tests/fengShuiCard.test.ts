@@ -45,14 +45,14 @@ describe('FengShuiCard', () => {
 
   it('should render title', () => {
     const wrapper = mount(FengShuiCard, {
-      props: { profile: mockProfile },
+      props: { profile: mockProfile, date: new Date(2026, 10, 16) },
     })
     expect(wrapper.text()).toContain('風水方位與流日')
   })
 
   it('should show empty state when no profile', async () => {
     const wrapper = mount(FengShuiCard, {
-      props: { profile: null },
+      props: { profile: null, date: new Date(2026, 10, 16) },
     })
     await flushPromises()
     expect(wrapper.text()).toContain('請先設定出生資料')
@@ -60,7 +60,7 @@ describe('FengShuiCard', () => {
 
   it('should calculate and display daily fortune', async () => {
     const wrapper = mount(FengShuiCard, {
-      props: { profile: mockProfile },
+      props: { profile: mockProfile, date: new Date(2026, 10, 16) },
     })
     await flushPromises()
     expect(wrapper.text()).toContain('今日流日')
@@ -69,7 +69,7 @@ describe('FengShuiCard', () => {
 
   it('should display lucky directions', async () => {
     const wrapper = mount(FengShuiCard, {
-      props: { profile: mockProfile },
+      props: { profile: mockProfile, date: new Date(2026, 10, 16) },
     })
     await flushPromises()
     expect(wrapper.text()).toContain('吉方')
@@ -77,7 +77,7 @@ describe('FengShuiCard', () => {
 
   it('should display avoid directions', async () => {
     const wrapper = mount(FengShuiCard, {
-      props: { profile: mockProfile },
+      props: { profile: mockProfile, date: new Date(2026, 10, 16) },
     })
     await flushPromises()
     expect(wrapper.text()).toContain('凶方')

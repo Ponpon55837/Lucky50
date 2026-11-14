@@ -116,10 +116,10 @@ export const useDashboardStore = defineStore('dashboard', () => {
   const priceChange = computed(() => priceMetrics.value.change)
   const priceChangePercent = computed(() => priceMetrics.value.percent)
 
-  // 價格變化顏色
+  // 價格變化顏色（台股慣例：漲紅跌綠）
   const priceChangeColor = computed(() => {
     const change = priceChange.value
-    return change > 0 ? 'text-green-400' : change < 0 ? 'text-red-400' : 'text-gray-400'
+    return change > 0 ? 'text-rise' : change < 0 ? 'text-fall' : 'text-ink-3'
   })
 
   // ===== 方法 =====

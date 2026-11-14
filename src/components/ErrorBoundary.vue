@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { ref, onErrorCaptured, computed, onMounted } from 'vue'
+import { ref, onErrorCaptured, computed, onMounted, onBeforeUnmount } from 'vue'
 import { useRouter } from 'vue-router'
+import { ExclamationCircleIcon } from '@heroicons/vue/24/outline'
 import { useErrorHandler } from '@/composables/useErrorHandler'
 import type { AppError } from '@/types/error'
 
@@ -74,34 +75,34 @@ onErrorCaptured((err: Error) => {
 })
 
 // 捕獲全域未處理的錯誤
+const handleGlobalError = (event: ErrorEvent) => {
+  hasError.value = true
+  error.value = event.error
+  appError.value = handleError(event.error, {
+    showToast: false,
+  })
+  emit('error', event.error)
+}
+
+const handleUnhandledRejection = (event: PromiseRejectionEvent) => {
+  hasError.value = true
+  const err = event.reason instanceof Error ? event.reason : new Error(String(event.reason))
+  error.value = err
+  appError.value = handleError(err, {
+    showToast: false,
+  })
+  emit('error', err)
+}
+
 onMounted(() => {
-  const handleGlobalError = (event: ErrorEvent) => {
-    hasError.value = true
-    error.value = event.error
-    appError.value = handleError(event.error, {
-      showToast: false,
-    })
-    emit('error', event.error)
-  }
-
-  const handleUnhandledRejection = (event: PromiseRejectionEvent) => {
-    hasError.value = true
-    const err = event.reason instanceof Error ? event.reason : new Error(String(event.reason))
-    error.value = err
-    appError.value = handleError(err, {
-      showToast: false,
-    })
-    emit('error', err)
-  }
-
   window.addEventListener('error', handleGlobalError)
   window.addEventListener('unhandledrejection', handleUnhandledRejection)
+})
 
-  // 清理
-  return () => {
-    window.removeEventListener('error', handleGlobalError)
-    window.removeEventListener('unhandledrejection', handleUnhandledRejection)
-  }
+// onMounted 的回傳值不會被 Vue 當成清理函式，必須在卸載時明確移除
+onBeforeUnmount(() => {
+  window.removeEventListener('error', handleGlobalError)
+  window.removeEventListener('unhandledrejection', handleUnhandledRejection)
 })
 
 const retry = async () => {
@@ -126,195 +127,74 @@ const goHome = () => {
 </script>
 
 <template>
-  <div class="error-boundary">
+  <div class="h-full w-full">
     <!-- 正常顯示內容 -->
     <slot v-if="!hasError" />
 
     <!-- 錯誤畫面 -->
-    <div v-else class="error-fallback">
-      <div class="error-container">
-        <div class="error-icon">
-          <svg
-            width="64"
-            height="64"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-          >
-            <circle cx="12" cy="12" r="10" />
-            <line x1="12" y1="8" x2="12" y2="12" />
-            <line x1="12" y1="16" x2="12.01" y2="16" />
-          </svg>
+    <div
+      v-else
+      class="flex min-h-[400px] items-center justify-center p-8"
+      role="alert"
+    >
+      <div class="card w-full max-w-[600px] items-center p-8 text-center sm:p-12">
+        <div
+          class="flex h-14 w-14 items-center justify-center rounded-full bg-danger/10 text-danger"
+        >
+          <ExclamationCircleIcon
+            class="h-7 w-7"
+            aria-hidden="true"
+          />
         </div>
 
-        <h2 class="error-title">
+        <h2 class="font-serif text-2xl font-bold text-ink">
           {{ errorTitle }}
         </h2>
-        <p class="error-message">
+        <p class="leading-relaxed text-ink-2">
           {{ errorMessage }}
         </p>
 
-        <div v-if="showDetails && error" class="error-details">
+        <div
+          v-if="showDetails && error"
+          class="w-full text-left"
+        >
           <details>
-            <summary>錯誤詳情</summary>
-            <pre>{{ errorDetails }}</pre>
+            <summary
+              class="mb-2 cursor-pointer select-none text-sm font-medium text-ink-2 transition-colors hover:text-ink"
+            >
+              錯誤詳情
+            </summary>
+            <pre
+              class="max-h-[300px] overflow-auto rounded-[10px] border border-line bg-raised p-4 font-mono text-xs text-ink-2"
+            >{{ errorDetails }}</pre>
           </details>
         </div>
 
-        <div class="error-actions">
-          <button class="btn-retry" @click="retry">重試</button>
-          <button class="btn-home" @click="goHome">返回首頁</button>
-          <button v-if="showReset" class="btn-reset" @click="reset">清除錯誤</button>
+        <div class="flex flex-wrap justify-center gap-3">
+          <button
+            type="button"
+            class="btn-primary"
+            @click="retry"
+          >
+            重試
+          </button>
+          <button
+            type="button"
+            class="btn-secondary"
+            @click="goHome"
+          >
+            返回首頁
+          </button>
+          <button
+            v-if="showReset"
+            type="button"
+            class="inline-flex h-11 items-center px-3 text-[15px] text-ink-3 transition-colors hover:text-ink"
+            @click="reset"
+          >
+            清除錯誤
+          </button>
         </div>
       </div>
     </div>
   </div>
 </template>
-
-<style scoped>
-.error-boundary {
-  width: 100%;
-  height: 100%;
-}
-
-.error-fallback {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 400px;
-  padding: 2rem;
-  background: linear-gradient(135deg, rgba(239, 68, 68, 0.05) 0%, rgba(239, 68, 68, 0.02) 100%);
-}
-
-.error-container {
-  max-width: 600px;
-  text-align: center;
-  background: var(--card-bg);
-  backdrop-filter: blur(20px);
-  padding: 3rem;
-  border-radius: 16px;
-  border: 1px solid var(--border-light);
-  box-shadow: 0 10px 40px var(--shadow-medium);
-}
-
-.error-icon {
-  color: #ef4444;
-  margin-bottom: 1.5rem;
-  display: inline-block;
-  animation: shake 0.5s ease-in-out;
-}
-
-@keyframes shake {
-  0%,
-  100% {
-    transform: translateX(0);
-  }
-  10%,
-  30%,
-  50%,
-  70%,
-  90% {
-    transform: translateX(-5px);
-  }
-  20%,
-  40%,
-  60%,
-  80% {
-    transform: translateX(5px);
-  }
-}
-
-.error-title {
-  font-size: 1.5rem;
-  font-weight: 600;
-  color: var(--primary-text);
-  margin-bottom: 1rem;
-}
-
-.error-message {
-  font-size: 1rem;
-  color: var(--secondary-text);
-  margin-bottom: 2rem;
-  line-height: 1.6;
-}
-
-.error-details {
-  margin-bottom: 2rem;
-  text-align: left;
-}
-
-.error-details summary {
-  cursor: pointer;
-  font-weight: 500;
-  color: var(--secondary-text);
-  margin-bottom: 0.5rem;
-  user-select: none;
-}
-
-.error-details summary:hover {
-  color: var(--primary-text);
-}
-
-.error-details pre {
-  background: var(--surface-bg);
-  padding: 1rem;
-  border-radius: 8px;
-  font-size: 0.875rem;
-  overflow-x: auto;
-  color: var(--secondary-text);
-  max-height: 300px;
-  overflow-y: auto;
-  border: 1px solid var(--border-light);
-}
-
-.error-actions {
-  display: flex;
-  gap: 1rem;
-  justify-content: center;
-  flex-wrap: wrap;
-}
-
-.error-actions button {
-  padding: 0.75rem 1.5rem;
-  border-radius: 8px;
-  font-weight: 500;
-  font-size: 0.875rem;
-  cursor: pointer;
-  transition: all 0.2s;
-  border: none;
-}
-
-.btn-retry {
-  background: #ef4444;
-  color: white;
-}
-
-.btn-retry:hover {
-  background: #dc2626;
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
-}
-
-.btn-home {
-  background: #3b82f6;
-  color: white;
-}
-
-.btn-home:hover {
-  background: #2563eb;
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
-}
-
-.btn-reset {
-  background: var(--surface-bg);
-  color: var(--secondary-text);
-  border: 1px solid var(--border-light);
-}
-
-.btn-reset:hover {
-  background: var(--card-bg);
-  color: var(--primary-text);
-}
-</style>

@@ -25,6 +25,22 @@ const props = withDefaults(defineProps<Props>(), {
   isDark: true,
 })
 
+// Chart.js 需要實際色值：渲染時從 CSS tokens（"r g b"）讀取，深淺主題自動跟著切換
+const FALLBACK_TOKENS: Record<string, string> = {
+  ink: '27 26 24',
+  'ink-2': '85 82 76',
+  'ink-3': '111 107 100',
+  surface: '255 255 255',
+  seal: '192 40 45',
+}
+const token = (name: string, alpha = 1): string => {
+  const raw =
+    typeof document === 'undefined'
+      ? ''
+      : getComputedStyle(document.documentElement).getPropertyValue(`--c-${name}`).trim()
+  return `rgb(${raw || FALLBACK_TOKENS[name] || '128 128 128'} / ${alpha})`
+}
+
 // 計算圖表數據
 const chartData = computed(() => {
   if (!props.etfData || props.etfData.length === 0) {
@@ -62,16 +78,22 @@ const chartData = computed(() => {
 
   console.log('VolumeChart - Volume data:', volumes.slice(0, 5)) // 顯示前5筆數據
 
+  // 成交量為中性資訊：墨色長條，最新一日以朱紅標示
+  void props.isDark
+  const bars = volumes.map((_, i) =>
+    i === volumes.length - 1 ? token('seal', 0.85) : token('ink', 0.22)
+  )
+
   return {
     labels,
     datasets: [
       {
         label: '成交量 (百萬)',
         data: volumes,
-        backgroundColor: props.isDark ? 'rgba(251, 191, 36, 0.8)' : 'rgba(59, 130, 246, 0.8)',
-        borderColor: props.isDark ? '#fbbf24' : '#3b82f6',
-        borderWidth: 1,
-        borderRadius: 4,
+        backgroundColor: bars,
+        hoverBackgroundColor: token('ink', 0.45),
+        borderWidth: 0,
+        borderRadius: 3,
         borderSkipped: false,
       },
     ],
@@ -80,8 +102,9 @@ const chartData = computed(() => {
 
 // 圖表選項
 const chartOptions = computed(() => {
-  const textColor = props.isDark ? '#e5e7eb' : '#374151'
-  const gridColor = props.isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)'
+  void props.isDark
+  const textColor = token('ink-3')
+  const gridColor = token('ink', 0.08)
 
   return {
     responsive: true,
@@ -91,12 +114,12 @@ const chartOptions = computed(() => {
         display: false,
       },
       tooltip: {
-        backgroundColor: props.isDark ? 'rgba(17, 24, 39, 0.9)' : 'rgba(255, 255, 255, 0.9)',
-        titleColor: textColor,
-        bodyColor: textColor,
-        borderColor: props.isDark ? '#fbbf24' : '#3b82f6',
+        backgroundColor: token('surface', 0.96),
+        titleColor: token('ink-3'),
+        bodyColor: token('ink'),
+        borderColor: token('ink', 0.18),
         borderWidth: 1,
-        cornerRadius: 8,
+        cornerRadius: 10,
         padding: 12,
         displayColors: false,
         callbacks: {
@@ -111,6 +134,7 @@ const chartOptions = computed(() => {
         grid: {
           display: false,
         },
+        border: { color: gridColor },
         ticks: {
           color: textColor,
           font: {
@@ -123,6 +147,7 @@ const chartOptions = computed(() => {
           display: true,
           color: gridColor,
         },
+        border: { display: false },
         ticks: {
           color: textColor,
           font: {
@@ -148,13 +173,13 @@ const chartOptions = computed(() => {
     />
     <div
       v-else
-      class="h-full bg-gray-800/50 rounded-lg flex items-center justify-center"
+      class="flex h-full items-center justify-center rounded-[10px] bg-raised"
     >
       <div class="text-center">
-        <p class="text-gray-400 mb-2">
+        <p class="text-ink-3 mb-2">
           {{ props.etfData.length === 0 ? '無成交量數據' : '載入圖表中...' }}
         </p>
-        <p class="text-gray-500 text-sm">
+        <p class="text-ink-3 text-sm">
           數據筆數: {{ props.etfData.length }}
         </p>
       </div>

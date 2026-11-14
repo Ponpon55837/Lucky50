@@ -1,121 +1,82 @@
 <script setup lang="ts">
+import {
+  CheckCircleIcon,
+  ExclamationCircleIcon,
+  ExclamationTriangleIcon,
+  InformationCircleIcon,
+  XMarkIcon,
+} from '@heroicons/vue/24/outline'
 import { useToast } from '@/composables/useToast'
 
 const { toasts, removeToast } = useToast()
+
+const ICONS = {
+  success: CheckCircleIcon,
+  error: ExclamationCircleIcon,
+  warning: ExclamationTriangleIcon,
+  info: InformationCircleIcon,
+} as const
+
+const ICON_COLORS = {
+  success: 'text-good',
+  error: 'text-danger',
+  warning: 'text-warn',
+  info: 'text-ink-3',
+} as const
 </script>
 
 <template>
   <Teleport to="body">
     <div
       id="toast-viewport"
-      style="
-        position: absolute;
-        top: 0;
-        left: 50%;
-        transform: translateX(-50%);
-        z-index: 999999;
-        padding-top: 1rem;
-        width: 100vw;
-        max-width: 500px;
-        pointer-events: none;
-      "
+      class="pointer-events-none fixed left-1/2 top-0 z-[999999] w-screen max-w-[500px] -translate-x-1/2 px-4 pt-4"
+      aria-live="polite"
     >
       <TransitionGroup
-        enter-active-class="transform ease-out duration-300 transition"
-        enter-from-class="translate-y-2 opacity-0 scale-95"
-        enter-to-class="translate-y-0 opacity-100 scale-100"
-        leave-active-class="transition ease-in duration-200"
-        leave-from-class="opacity-100 scale-100"
-        leave-to-class="opacity-0 scale-95"
+        enter-active-class="transition-[opacity,transform] duration-300 ease-out"
+        enter-from-class="-translate-y-2 opacity-0"
+        enter-to-class="translate-y-0 opacity-100"
+        leave-active-class="transition-opacity duration-200 ease-in"
+        leave-from-class="opacity-100"
+        leave-to-class="opacity-0"
         tag="div"
-        class="space-y-3"
-        style="pointer-events: auto"
+        class="flex flex-col gap-3"
       >
         <div
           v-for="toast in toasts"
           :key="toast.id"
-          class="max-w-md w-full shadow-lg rounded-lg ring-1 ring-opacity-5 overflow-hidden"
-          style="
-            background: rgba(17, 24, 39, 0.95);
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            pointer-events: auto;
-          "
-          :class="[
-            toast.type === 'success' ? 'border-l-4 border-green-400' : '',
-            toast.type === 'error' ? 'border-l-4 border-red-400' : '',
-            toast.type === 'warning' ? 'border-l-4 border-yellow-400' : '',
-            toast.type === 'info' ? 'border-l-4 border-blue-400' : '',
-          ]"
+          class="pointer-events-auto w-full overflow-hidden rounded-[10px] border border-line bg-surface shadow-card"
+          :role="toast.type === 'error' ? 'alert' : 'status'"
         >
-          <div class="p-4">
-            <div class="flex items-start">
-              <div class="flex-shrink-0">
-                <svg
-                  v-if="toast.type === 'success'"
-                  class="h-6 w-6 text-green-400"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    stroke-width="2"
-                    d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
-                  />
-                </svg>
-                <svg
-                  v-else-if="toast.type === 'error'"
-                  class="h-6 w-6 text-red-400"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    stroke-width="2"
-                    d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                  />
-                </svg>
-              </div>
-              <div class="ml-3 w-0 flex-1 pt-0.5">
-                <p
-                  class="text-sm font-medium"
-                  style="color: white"
-                >
-                  {{ toast.title }}
-                </p>
-                <p
-                  v-if="toast.message"
-                  class="mt-1 text-sm"
-                  style="color: rgba(255, 255, 255, 0.8)"
-                >
-                  {{ toast.message }}
-                </p>
-              </div>
-              <div class="ml-4 flex-shrink-0 flex">
-                <button
-                  class="rounded-md inline-flex focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gold-500"
-                  style="color: rgba(255, 255, 255, 0.6)"
-                  @click="removeToast(toast.id)"
-                >
-                  <span class="sr-only">關閉</span>
-                  <svg
-                    class="h-5 w-5"
-                    fill="currentColor"
-                    viewBox="0 0 20 20"
-                  >
-                    <path
-                      fill-rule="evenodd"
-                      d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
-                      clip-rule="evenodd"
-                    />
-                  </svg>
-                </button>
-              </div>
+          <div class="flex items-start gap-3 p-4">
+            <component
+              :is="ICONS[toast.type] ?? InformationCircleIcon"
+              class="mt-0.5 h-5 w-5 shrink-0"
+              :class="ICON_COLORS[toast.type] ?? 'text-ink-3'"
+              aria-hidden="true"
+            />
+            <div class="min-w-0 flex-1">
+              <p class="text-sm font-medium text-ink">
+                {{ toast.title }}
+              </p>
+              <p
+                v-if="toast.message"
+                class="mt-1 text-sm text-ink-2"
+              >
+                {{ toast.message }}
+              </p>
             </div>
+            <button
+              type="button"
+              class="-m-1 inline-flex shrink-0 rounded-md p-1 text-ink-3 transition-colors hover:bg-raised hover:text-ink"
+              @click="removeToast(toast.id)"
+            >
+              <span class="sr-only">關閉</span>
+              <XMarkIcon
+                class="h-4 w-4"
+                aria-hidden="true"
+              />
+            </button>
           </div>
         </div>
       </TransitionGroup>

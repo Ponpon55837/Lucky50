@@ -148,164 +148,64 @@ function getButtonClass(variant?: string) {
 
 <style scoped>
 .modal-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background-color: rgba(0, 0, 0, 0.5);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 9999;
-  padding: 1rem;
+  @apply fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 p-4;
 }
 
 .modal-card {
-  background: white;
-  border-radius: 1rem;
-  box-shadow:
-    0 20px 25px -5px rgba(0, 0, 0, 0.1),
-    0 10px 10px -5px rgba(0, 0, 0, 0.04);
-  max-width: 32rem;
-  width: 100%;
-  max-height: 90vh;
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
+  @apply flex max-h-[90vh] w-full max-w-lg flex-col overflow-hidden rounded-card border border-line bg-surface shadow-card;
 }
 
 .modal-header {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  padding: 1.5rem;
-  border-bottom: 1px solid #e5e7eb;
+  @apply flex items-center gap-3 border-b border-line p-6;
 }
 
 .error-icon {
-  width: 3rem;
-  height: 3rem;
-  color: #ef4444;
-  flex-shrink: 0;
+  @apply h-6 w-6 shrink-0 text-danger;
 }
 
 .modal-title {
-  flex: 1;
-  font-size: 1.25rem;
-  font-weight: 600;
-  color: #111827;
-  margin: 0;
-}
-
-.close-button {
-  width: 2rem;
-  height: 2rem;
-  border: none;
-  background: none;
-  color: #6b7280;
-  cursor: pointer;
-  border-radius: 0.375rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.2s;
-  flex-shrink: 0;
-}
-
-.close-button:hover {
-  background-color: #f3f4f6;
-  color: #111827;
+  @apply m-0 flex-1 font-serif text-xl font-bold text-ink;
 }
 
 .modal-body {
-  padding: 1.5rem;
-  overflow-y: auto;
-  flex: 1;
+  @apply flex-1 overflow-y-auto p-6;
 }
 
 .error-message {
-  color: #374151;
-  line-height: 1.5;
-  margin-bottom: 1rem;
+  @apply mb-4 leading-relaxed text-ink-2;
 }
 
 .details-section {
-  margin-top: 1rem;
+  @apply mt-4;
 }
 
 .details-toggle {
-  background: none;
-  border: none;
-  color: #3b82f6;
-  cursor: pointer;
-  font-size: 0.875rem;
-  padding: 0;
-  text-decoration: underline;
-  margin-bottom: 0.5rem;
-}
-
-.details-toggle:hover {
-  color: #2563eb;
+  @apply mb-2 p-0 text-sm text-ink-3 underline underline-offset-2 transition-colors hover:text-ink;
 }
 
 .error-details {
-  background-color: #f9fafb;
-  border: 1px solid #e5e7eb;
-  border-radius: 0.5rem;
-  padding: 0.75rem;
-  font-size: 0.875rem;
-  color: #6b7280;
-  font-family: 'Courier New', monospace;
-  white-space: pre-wrap;
-  word-break: break-all;
-  max-height: 12rem;
-  overflow-y: auto;
+  @apply max-h-48 overflow-y-auto whitespace-pre-wrap break-all rounded-[10px] border border-line bg-raised p-3 font-mono text-xs text-ink-2;
 }
 
 .modal-footer {
-  padding: 1.5rem;
-  border-top: 1px solid #e5e7eb;
-  display: flex;
-  gap: 0.75rem;
-  justify-content: flex-end;
+  @apply flex justify-end gap-3 border-t border-line p-6;
 }
 
 .action-button {
-  padding: 0.625rem 1.25rem;
-  border: none;
-  border-radius: 0.5rem;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s;
-  font-size: 0.875rem;
+  @apply inline-flex h-9 items-center justify-center rounded-full px-4 text-[13px] font-medium transition-colors duration-150;
 }
 
 .action-button-primary {
-  background-color: #3b82f6;
-  color: white;
+  @apply bg-seal text-seal-on hover:bg-seal-deep;
 }
 
-.action-button-primary:hover {
-  background-color: #2563eb;
-}
-
-.action-button-secondary {
-  background-color: #f3f4f6;
-  color: #374151;
-}
-
-.action-button-secondary:hover {
-  background-color: #e5e7eb;
+.action-button-secondary,
+.action-button-default {
+  @apply border border-line-strong text-ink hover:bg-raised;
 }
 
 .action-button-danger {
-  background-color: #ef4444;
-  color: white;
-}
-
-.action-button-danger:hover {
-  background-color: #dc2626;
+  @apply bg-danger text-seal-on hover:bg-danger/90;
 }
 
 /* Transition animations */
@@ -321,12 +221,14 @@ function getButtonClass(variant?: string) {
 
 .modal-scale-enter-active,
 .modal-scale-leave-active {
-  transition: all 0.3s ease;
+  transition:
+    opacity 0.3s var(--ease-out),
+    transform 0.3s var(--ease-out);
 }
 
 .modal-scale-enter-from,
 .modal-scale-leave-to {
   opacity: 0;
-  transform: scale(0.9);
+  transform: scale(0.96);
 }
 </style>

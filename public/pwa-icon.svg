@@ -1,19 +1,14 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192">
-  <defs>
-    <linearGradient id="lucky50-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#f59e0b" />
-      <stop offset="100%" stop-color="#fbbf24" />
-    </linearGradient>
-  </defs>
-  <rect width="192" height="192" rx="40" fill="#0f172a" />
-  <circle cx="96" cy="96" r="72" fill="url(#lucky50-gradient)" />
+  <!-- PWA 圖示：與 favicon 同一個朱紅印章，四周留白以符合 maskable 安全區 -->
+  <rect width="192" height="192" fill="#c0282d" />
+  <rect x="30" y="30" width="132" height="132" rx="20" fill="none" stroke="#f0c43c" stroke-opacity="0.7" stroke-width="4" />
   <text
     x="96"
-    y="108"
+    y="126"
     text-anchor="middle"
-    font-family="'Noto Sans TC', 'Microsoft YaHei', 'PingFang TC', sans-serif"
-    font-size="56"
+    font-family="'LXGW WenKai TC', 'Kaiti TC', 'BiauKai', 'Noto Serif TC', 'Songti TC', serif"
+    font-size="88"
     font-weight="700"
-    fill="#ffffff"
-  >50</text>
+    fill="#f0c43c"
+  >福</text>
 </svg>

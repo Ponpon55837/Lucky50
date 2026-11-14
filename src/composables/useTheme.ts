@@ -7,6 +7,24 @@ const THEME_KEY = 'lucky50-theme'
 // 全域主題狀態
 const theme = ref<Theme>((localStorage.getItem(THEME_KEY) as Theme) || 'dark')
 
+/** 套用主題：document class、localStorage 與瀏覽器網址列顏色（取自 --c-paper token） */
+const applyTheme = (value: Theme) => {
+  localStorage.setItem(THEME_KEY, value)
+  if (typeof document === 'undefined') return
+
+  const root = document.documentElement
+  root.classList.remove('light', 'dark')
+  root.classList.add(value)
+
+  const paper = getComputedStyle(root).getPropertyValue('--c-paper').trim()
+  if (paper) {
+    document.querySelector('meta[name="theme-color"]')?.setAttribute('content', `rgb(${paper})`)
+  }
+}
+
+// 監聽只註冊一次（模組層級），不論有幾個元件呼叫 useTheme
+watch(theme, applyTheme, { immediate: true, flush: 'sync' })
+
 export const useTheme = () => {
   const isDark = computed(() => theme.value === 'dark')
   const isLight = computed(() => theme.value === 'light')
@@ -18,27 +36,6 @@ export const useTheme = () => {
   const setTheme = (newTheme: Theme) => {
     theme.value = newTheme
   }
-
-  // 監聽主題變化，更新 localStorage 和 document 類別
-  watch(
-    theme,
-    newTheme => {
-      localStorage.setItem(THEME_KEY, newTheme)
-
-      // 更新 document 的 class
-      if (typeof document !== 'undefined') {
-        document.documentElement.classList.remove('light', 'dark')
-        document.documentElement.classList.add(newTheme)
-
-        // 更新 meta theme-color
-        const metaTheme = document.querySelector('meta[name="theme-color"]')
-        if (metaTheme) {
-          metaTheme.setAttribute('content', newTheme === 'dark' ? '#1e3a8a' : '#ffffff')
-        }
-      }
-    },
-    { immediate: true }
-  )
 
   return {
     theme: readonly(theme),

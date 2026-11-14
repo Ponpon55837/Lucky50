@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { ref, onUnmounted, watch, computed, nextTick } from 'vue'
 import * as THREE from 'three'
-import { ThreeJSScene, createThemeGlowMaterial, getThemeColor, disposeObject3D } from '@/utils/three-scene'
+import { ChartBarIcon, XMarkIcon } from '@heroicons/vue/24/outline'
+import { ThreeJSScene, createSceneMaterial, tokenHex, disposeObject3D } from '@/utils/three-scene'
 import { useVisibleOnce } from '@/composables/useVisibleOnce'
 import { useTheme } from '@/composables/useTheme'
 import { useDashboardStore } from '@/stores/dashboard'
@@ -76,28 +77,29 @@ const elementDescriptions: Record<ElementType, string> = {
 }
 
 // ── 計算屬性 ──
+// 圖例色塊以 text-→bg- 轉換，列出完整 class 讓 Tailwind 掃描得到：bg-good bg-bad bg-ink bg-rise bg-fall
 const indicators = computed(() => {
   return analyticsStore.calculateTechnicalIndicators(dashboardStore.etfData)
 })
 
 const rsiColor = computed(() => {
   const rsi = indicators.value.rsi
-  if (rsi > 70) return 'text-error-text'
-  if (rsi < 30) return 'text-success-text'
-  return 'text-accent-text'
+  if (rsi > 70) return 'text-bad'
+  if (rsi < 30) return 'text-good'
+  return 'text-ink'
 })
 
 const macdColor = computed(() => {
   const macd = indicators.value.macd
-  return macd > 0 ? 'text-success-text' : 'text-error-text'
+  return macd > 0 ? 'text-rise' : 'text-fall'
 })
 
 const bollColor = computed(() => {
   return indicators.value.bollingerBand === 'upper'
-    ? 'text-error-text'
+    ? 'text-bad'
     : indicators.value.bollingerBand === 'lower'
-      ? 'text-success-text'
-      : 'text-accent-text'
+      ? 'text-good'
+      : 'text-ink'
 })
 
 const overallSignal = computed(() => {
@@ -118,9 +120,9 @@ const overallSignal = computed(() => {
 
 const overallSignalColor = computed(() => {
   const signal = overallSignal.value
-  if (signal === '買入') return 'text-success-text'
-  if (signal === '賣出') return 'text-error-text'
-  return 'text-accent-text'
+  if (signal === '買入') return 'text-good'
+  if (signal === '賣出') return 'text-bad'
+  return 'text-ink'
 })
 
 // ── 方法與函式 ──
@@ -150,13 +152,9 @@ const createRSISphere = (): THREE.Mesh => {
 
   const radius = Math.max(baseRadius, Math.min(maxRadius, (rsi / 100) * 1.5))
   const geometry = new THREE.SphereGeometry(radius, 32, 32)
-  const color =
-    rsi > 70
-      ? getThemeColor('danger', isDark.value)
-      : rsi < 30
-        ? getThemeColor('success', isDark.value)
-        : getThemeColor('accent', isDark.value)
-  const material = createThemeGlowMaterial(color, Math.abs(rsi - 50) / 50, isDark.value)
+  // 超買偏空用跌綠、超賣偏多用漲紅，中性時以朱印紅作為場景重點
+  const color = rsi > 70 ? tokenHex('fall') : rsi < 30 ? tokenHex('rise') : tokenHex('seal')
+  const material = createSceneMaterial(color, 0.95)
 
   const sphere = new THREE.Mesh(geometry, material)
   sphere.position.set(position.x, position.y, position.z)
@@ -181,9 +179,8 @@ const createMACDBar = (): THREE.Mesh => {
 
   const height = Math.abs(macd) * heightMultiplier + baseHeight
   const geometry = new THREE.CylinderGeometry(radius.top, radius.bottom, height, 12)
-  const color =
-    macd > 0 ? getThemeColor('success', isDark.value) : getThemeColor('danger', isDark.value)
-  const material = createThemeGlowMaterial(color, 1.0, isDark.value)
+  const color = macd > 0 ? tokenHex('rise') : tokenHex('fall')
+  const material = createSceneMaterial(color, 0.92)
 
   const bar = new THREE.Mesh(geometry, material)
   bar.position.set(0, height / 2, 0)
@@ -214,11 +211,11 @@ const createBollingerRing = (): THREE.Mesh => {
   const geometry = new THREE.TorusGeometry(radius, thickness, 16, 100)
   const color =
     bollingerBand === 'upper'
-      ? getThemeColor('danger', isDark.value)
+      ? tokenHex('fall')
       : bollingerBand === 'lower'
-        ? getThemeColor('success', isDark.value)
-        : getThemeColor('warning', isDark.value)
-  const material = createThemeGlowMaterial(color, 0.9, isDark.value)
+        ? tokenHex('rise')
+        : tokenHex('ink-3')
+  const material = createSceneMaterial(color, 0.85)
 
   const ring = new THREE.Mesh(geometry, material)
   ring.position.set(position.x, position.y, position.z)
@@ -248,16 +245,16 @@ const createKDOscillator = (): THREE.Group => {
   // K 線
   const kHeight = baseHeight + (kd.k / 100) * heightMultiplier
   const kGeometry = new THREE.CylinderGeometry(radius, radius, kHeight, 12)
-  const kColor = getThemeColor('info', isDark.value)
-  const kMaterial = createThemeGlowMaterial(kColor, 0.9, isDark.value)
+  const kColor = tokenHex('ink-2')
+  const kMaterial = createSceneMaterial(kColor, 0.9)
   const kLine = new THREE.Mesh(kGeometry, kMaterial)
   kLine.position.set(-spacing / 2, kHeight / 2, 0)
 
   // D 線
   const dHeight = baseHeight + (kd.d / 100) * heightMultiplier
   const dGeometry = new THREE.CylinderGeometry(radius, radius, dHeight, 12)
-  const dColor = getThemeColor('secondary', isDark.value)
-  const dMaterial = createThemeGlowMaterial(dColor, 0.9, isDark.value)
+  const dColor = tokenHex('ink-3')
+  const dMaterial = createSceneMaterial(dColor, 0.7)
   const dLine = new THREE.Mesh(dGeometry, dMaterial)
   dLine.position.set(spacing / 2, dHeight / 2, 0)
 
@@ -306,7 +303,7 @@ const createKDParticles = (kColor: number, dColor: number): THREE.Points => {
     size: 0.05,
     vertexColors: true,
     transparent: true,
-    opacity: 0.8,
+    opacity: 0.5,
   })
 
   const particles = new THREE.Points(geometry, material)
@@ -351,7 +348,6 @@ const initScene = () => {
   if (!threeContainer.value || scene) return
 
   scene = new ThreeJSScene(threeContainer.value, {
-    backgroundColor: getThemeColor('background', isDark.value),
     alpha: true,
     antialias: true,
     isDark: isDark.value,
@@ -435,21 +431,21 @@ onUnmounted(() => {
 
 <template>
   <div
-    class="relative w-full h-full bg-gradient-to-br from-surface-bg/50 via-card-bg to-surface-bg rounded-lg overflow-hidden border border-border-light"
+    class="relative h-full w-full overflow-hidden rounded-card border border-line bg-surface"
     @mousemove="handleMouseMove"
   >
     <div
       ref="threeContainer"
-      class="w-full h-full"
+      class="h-full w-full"
     />
 
     <!-- 動態懸停說明 -->
     <div
       v-if="hoveredElement"
       :style="{ left: mousePosition.x + 10 + 'px', top: mousePosition.y - 10 + 'px' }"
-      class="absolute z-10 bg-card-bg/90 backdrop-blur-sm border border-border-light rounded-lg p-3 shadow-lg pointer-events-none max-w-xs"
+      class="pointer-events-none absolute z-10 max-w-xs rounded-[10px] border border-line bg-surface/95 p-3 shadow-card"
     >
-      <div class="text-sm font-medium text-primary-text mb-1">
+      <div class="mb-1 text-sm font-medium text-ink">
         {{
           hoveredElement === 'rsiSphere'
             ? 'RSI 相對強弱指標'
@@ -462,7 +458,7 @@ onUnmounted(() => {
                   : '連接粒子'
         }}
       </div>
-      <div class="text-xs text-secondary-text">
+      <div class="text-xs text-ink-2">
         {{ elementDescriptions[hoveredElement as ElementType] }}
       </div>
     </div>
@@ -470,31 +466,33 @@ onUnmounted(() => {
     <!-- 技術指標圖例 -->
     <div
       v-if="showLegend"
-      class="absolute top-4 right-4 bg-card-bg/80 backdrop-blur-sm border border-border-light rounded-lg p-3 w-56"
+      class="absolute right-4 top-4 w-56 rounded-[10px] border border-line bg-surface/95 p-3 shadow-card"
     >
-      <div class="flex justify-between items-center mb-2">
-        <h4 class="text-sm font-semibold text-primary-text">
+      <div class="mb-2 flex items-center justify-between">
+        <h4 class="font-serif text-sm font-bold text-ink">
           技術分析
         </h4>
         <button
-          class="text-xs text-secondary-text hover:text-primary-text"
+          type="button"
+          aria-label="關閉"
+          class="rounded text-ink-3 transition-colors hover:text-ink"
           @click="showLegend = false"
         >
-          ×
+          <XMarkIcon class="h-4 w-4" />
         </button>
       </div>
       <div class="space-y-2 text-xs">
         <div
-          class="flex items-center justify-between cursor-pointer hover:bg-surface-bg/50 p-1 rounded"
+          class="flex cursor-pointer items-center justify-between rounded p-1 transition-colors hover:bg-raised"
           @mouseenter="handleElementHover('rsiSphere')"
           @mouseleave="handleElementLeave"
         >
           <div class="flex items-center space-x-2">
             <div
-              class="w-3 h-3 rounded-full"
+              class="h-3 w-3 rounded-full"
               :class="rsiColor.replace('text-', 'bg-')"
             />
-            <span class="text-secondary-text">RSI</span>
+            <span class="text-ink-2">RSI</span>
           </div>
           <span
             :class="rsiColor"
@@ -502,16 +500,16 @@ onUnmounted(() => {
           >{{ indicators.rsi.toFixed(1) }}</span>
         </div>
         <div
-          class="flex items-center justify-between cursor-pointer hover:bg-surface-bg/50 p-1 rounded"
+          class="flex cursor-pointer items-center justify-between rounded p-1 transition-colors hover:bg-raised"
           @mouseenter="handleElementHover('macdBar')"
           @mouseleave="handleElementLeave"
         >
           <div class="flex items-center space-x-2">
             <div
-              class="w-2 h-4"
+              class="h-4 w-2"
               :class="macdColor.replace('text-', 'bg-')"
             />
-            <span class="text-secondary-text">MACD</span>
+            <span class="text-ink-2">MACD</span>
           </div>
           <span
             :class="macdColor"
@@ -519,16 +517,16 @@ onUnmounted(() => {
           >{{ indicators.macd.toFixed(2) }}</span>
         </div>
         <div
-          class="flex items-center justify-between cursor-pointer hover:bg-surface-bg/50 p-1 rounded"
+          class="flex cursor-pointer items-center justify-between rounded p-1 transition-colors hover:bg-raised"
           @mouseenter="handleElementHover('bollingerRing')"
           @mouseleave="handleElementLeave"
         >
           <div class="flex items-center space-x-2">
             <div
-              class="w-3 h-0.5 rounded-full"
+              class="h-0.5 w-3 rounded-full"
               :class="bollColor.replace('text-', 'bg-')"
             />
-            <span class="text-secondary-text">布林帶</span>
+            <span class="text-ink-2">布林帶</span>
           </div>
           <span
             :class="bollColor"
@@ -536,30 +534,30 @@ onUnmounted(() => {
           >{{ indicators.bollingerBand }}</span>
         </div>
         <div
-          class="flex items-center justify-between cursor-pointer hover:bg-surface-bg/50 p-1 rounded"
+          class="flex cursor-pointer items-center justify-between rounded p-1 transition-colors hover:bg-raised"
           @mouseenter="handleElementHover('kdOscillator')"
           @mouseleave="handleElementLeave"
         >
           <div class="flex items-center space-x-2">
             <div class="flex space-x-0.5">
-              <div class="w-0.5 h-3 bg-blue-400" />
-              <div class="w-0.5 h-3 bg-purple-400" />
+              <div class="h-3 w-0.5 bg-ink-2" />
+              <div class="h-3 w-0.5 bg-ink-3" />
             </div>
-            <span class="text-secondary-text">KD</span>
+            <span class="text-ink-2">KD</span>
           </div>
-          <span class="text-accent-text font-mono text-xs">
+          <span class="font-mono text-xs text-ink">
             {{ indicators.kd.k.toFixed(1) }}/{{ indicators.kd.d.toFixed(1) }}
           </span>
         </div>
       </div>
-      <div class="mt-3 pt-2 border-t border-border-light text-center">
+      <div class="mt-3 border-t border-line pt-2 text-center">
         <div
-          class="text-lg font-bold"
+          class="font-serif text-lg font-bold"
           :class="overallSignalColor"
         >
           {{ overallSignal }}
         </div>
-        <div class="text-xs text-secondary-text">
+        <div class="text-xs text-ink-3">
           總合信號
         </div>
       </div>
@@ -568,19 +566,21 @@ onUnmounted(() => {
     <!-- 圖例開關 -->
     <button
       v-if="!showLegend"
-      class="absolute top-4 right-4 bg-card-bg/80 backdrop-blur-sm border border-border-light rounded-lg p-2 text-xs text-secondary-text hover:text-primary-text"
+      type="button"
+      class="absolute right-4 top-4 flex items-center gap-1 rounded-[10px] border border-line bg-surface/95 px-2 py-1.5 text-xs text-ink-2 shadow-card transition-colors hover:text-ink"
       @click="showLegend = true"
     >
-      📈 指標
+      <ChartBarIcon class="h-4 w-4 text-ink-3" />
+      指標
     </button>
-    <div class="absolute top-4 left-4 text-primary-text">
-      <h3 class="text-lg font-semibold mb-2 text-primary-text">
+    <div class="absolute left-4 top-4">
+      <h3 class="mb-2 font-serif text-base font-bold text-ink">
         {{ title }}
       </h3>
-      <div class="text-sm space-y-1">
+      <div class="space-y-1 text-sm text-ink-2">
         <div class="grid grid-cols-2 gap-4">
           <div>
-            <div class="text-xs text-secondary-text">
+            <div class="text-xs text-ink-3">
               RSI
             </div>
             <div
@@ -591,7 +591,7 @@ onUnmounted(() => {
             </div>
           </div>
           <div>
-            <div class="text-xs text-secondary-text">
+            <div class="text-xs text-ink-3">
               MACD
             </div>
             <div
@@ -602,7 +602,7 @@ onUnmounted(() => {
             </div>
           </div>
           <div>
-            <div class="text-xs text-secondary-text">
+            <div class="text-xs text-ink-3">
               布林帶
             </div>
             <div
@@ -613,34 +613,28 @@ onUnmounted(() => {
             </div>
           </div>
           <div>
-            <div class="text-xs text-secondary-text">
+            <div class="text-xs text-ink-3">
               KD
             </div>
-            <div class="text-accent-text font-mono">
+            <div class="font-mono text-ink">
               {{ indicators.kd.k.toFixed(1) }}/{{ indicators.kd.d.toFixed(1) }}
             </div>
           </div>
         </div>
       </div>
     </div>
-    <div class="absolute bottom-4 right-4 text-primary-text text-xs">
+    <div class="absolute bottom-4 right-4 text-xs">
       <div class="text-center">
         <div
-          class="text-lg font-bold"
+          class="font-serif text-lg font-bold"
           :class="overallSignalColor"
         >
           {{ overallSignal }}
         </div>
-        <div class="text-sm text-secondary-text">
+        <div class="text-sm text-ink-3">
           技術信號
         </div>
       </div>
     </div>
   </div>
 </template>
-
-<style scoped>
-.relative {
-  position: relative;
-}
-</style>

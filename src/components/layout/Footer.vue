@@ -1,74 +1,36 @@
 <script setup lang="ts">
 import { ref } from 'vue'
-import { useTheme } from '@/composables/useTheme'
 import LegalModal from './LegalModal.vue'
 
-// 主題狀態
-const { isDark } = useTheme()
-
-// 彈窗狀態
 const showPrivacyModal = ref(false)
 const showTermsModal = ref(false)
-
-const sectionTitleClass = (dark: boolean) => (dark ? 'text-gold-400' : 'text-orange-600')
+const year = new Date().getFullYear()
 </script>
 
 <template>
-  <footer class="bg-black/20 backdrop-blur-md border-t border-white/10 mt-auto">
-    <div class="max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
-      <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6 sm:gap-8">
-        <div>
-          <div class="flex items-center space-x-2 mb-4">
-            <div class="w-8 h-8 rounded-full bg-gradient-to-r from-gold-500 to-yellow-600" />
-            <span class="font-bold text-lg sm:text-xl text-white">農民曆智慧投資</span>
-          </div>
-          <p class="text-gray-300 text-sm">
-            結合傳統農民曆智慧與現代金融科技，為您的 0050 ETF 投資提供個人化建議。
-          </p>
-        </div>
-
-        <div>
-          <h3 class="text-white font-semibold mb-4">
-            功能特色
-          </h3>
-          <ul class="space-y-2 text-gray-300 text-sm">
-            <li>• 個人化運勢分析</li>
-            <li>• 農民曆整合</li>
-            <li>• 3D 投資運勢球體</li>
-            <li>• 0050 ETF 專業分析</li>
-          </ul>
-        </div>
-
-        <div class="sm:col-span-2 md:col-span-1">
-          <h3 class="text-white font-semibold mb-4">
-            免責聲明
-          </h3>
-          <p class="text-gray-300 text-sm">
-            本系統僅供參考，不構成投資建議。投資有風險，請謹慎評估自身財務狀況。
-          </p>
-        </div>
-      </div>
-
-      <div
-        class="border-t border-white/10 mt-8 pt-8 flex flex-col sm:flex-row justify-between items-center"
-      >
-        <p class="text-gray-400 text-sm">
-          © {{ new Date().getFullYear() }} 農民曆智慧投資系統. All rights reserved.
-        </p>
-        <div class="flex space-x-4 mt-4 sm:mt-0">
-          <button
-            class="text-gray-400 hover:text-gold-400 text-sm transition-colors focus:outline-none focus:text-gold-400"
-            @click="showPrivacyModal = true"
-          >
-            隱私政策
-          </button>
-          <button
-            class="text-gray-400 hover:text-gold-400 text-sm transition-colors focus:outline-none focus:text-gold-400"
-            @click="showTermsModal = true"
-          >
-            使用條款
-          </button>
-        </div>
+  <footer class="mt-auto border-t border-line">
+    <div
+      class="mx-auto flex max-w-[1440px] flex-col gap-4 px-4 py-6 text-[13px] text-ink-3 sm:flex-row sm:items-center sm:justify-between sm:px-6 lg:px-10"
+    >
+      <p class="max-w-[40rem]">
+        籤詩與時辰僅供參考，不構成投資建議。投資有風險，請依自身財務狀況判斷
+      </p>
+      <div class="flex shrink-0 items-center gap-4">
+        <span>© {{ year }} Lucky50</span>
+        <button
+          type="button"
+          class="transition-colors hover:text-ink"
+          @click="showPrivacyModal = true"
+        >
+          隱私政策
+        </button>
+        <button
+          type="button"
+          class="transition-colors hover:text-ink"
+          @click="showTermsModal = true"
+        >
+          使用條款
+        </button>
       </div>
     </div>
 
@@ -78,10 +40,7 @@ const sectionTitleClass = (dark: boolean) => (dark ? 'text-gold-400' : 'text-ora
       title="隱私政策"
     >
       <div>
-        <h3
-          class="font-semibold mb-3"
-          :class="sectionTitleClass(isDark)"
-        >
+        <h3 class="mb-3 font-serif font-bold text-ink">
           1. 資料收集與使用
         </h3>
         <p class="mb-3">
@@ -96,10 +55,7 @@ const sectionTitleClass = (dark: boolean) => (dark ? 'text-gold-400' : 'text-ora
       </div>
 
       <div>
-        <h3
-          class="font-semibold mb-3"
-          :class="sectionTitleClass(isDark)"
-        >
+        <h3 class="mb-3 font-serif font-bold text-ink">
           2. 資料保護措施
         </h3>
         <p class="mb-3">
@@ -114,10 +70,7 @@ const sectionTitleClass = (dark: boolean) => (dark ? 'text-gold-400' : 'text-ora
       </div>
 
       <div>
-        <h3
-          class="font-semibold mb-3"
-          :class="sectionTitleClass(isDark)"
-        >
+        <h3 class="mb-3 font-serif font-bold text-ink">
           3. 資料使用目的
         </h3>
         <ul class="list-disc list-inside space-y-1 ml-4">
@@ -130,10 +83,7 @@ const sectionTitleClass = (dark: boolean) => (dark ? 'text-gold-400' : 'text-ora
       </div>
 
       <div>
-        <h3
-          class="font-semibold mb-3"
-          :class="sectionTitleClass(isDark)"
-        >
+        <h3 class="mb-3 font-serif font-bold text-ink">
           4. 資料分享政策
         </h3>
         <p class="mb-3">
@@ -148,10 +98,7 @@ const sectionTitleClass = (dark: boolean) => (dark ? 'text-gold-400' : 'text-ora
       </div>
 
       <div>
-        <h3
-          class="font-semibold mb-3"
-          :class="sectionTitleClass(isDark)"
-        >
+        <h3 class="mb-3 font-serif font-bold text-ink">
           5. 數據儲存方式
         </h3>
         <p class="mb-3">
@@ -167,10 +114,7 @@ const sectionTitleClass = (dark: boolean) => (dark ? 'text-gold-400' : 'text-ora
       </div>
 
       <div>
-        <h3
-          class="font-semibold mb-3"
-          :class="sectionTitleClass(isDark)"
-        >
+        <h3 class="mb-3 font-serif font-bold text-ink">
           6. 您的權利
         </h3>
         <ul class="list-disc list-inside space-y-1 ml-4">
@@ -183,10 +127,7 @@ const sectionTitleClass = (dark: boolean) => (dark ? 'text-gold-400' : 'text-ora
       </div>
 
       <div>
-        <h3
-          class="font-semibold mb-3"
-          :class="sectionTitleClass(isDark)"
-        >
+        <h3 class="mb-3 font-serif font-bold text-ink">
           7. 聯絡我們
         </h3>
         <p>如有任何隱私權相關問題，請聯絡我們：</p>
@@ -211,10 +152,7 @@ const sectionTitleClass = (dark: boolean) => (dark ? 'text-gold-400' : 'text-ora
       title="使用條款"
     >
       <div>
-        <h3
-          class="font-semibold mb-3"
-          :class="sectionTitleClass(isDark)"
-        >
+        <h3 class="mb-3 font-serif font-bold text-ink">
           1. 服務說明
         </h3>
         <p class="mb-3">
@@ -230,20 +168,11 @@ const sectionTitleClass = (dark: boolean) => (dark ? 'text-gold-400' : 'text-ora
       </div>
 
       <div>
-        <h3
-          class="font-semibold mb-3"
-          :class="sectionTitleClass(isDark)"
-        >
+        <h3 class="mb-3 font-serif font-bold text-ink">
           2. 免責聲明
         </h3>
-        <div
-          class="rounded-lg p-4 mb-3 border"
-          :class="isDark ? 'bg-red-900/20 border-red-500/30' : 'bg-red-50 border-red-200'"
-        >
-          <p
-            class="font-semibold mb-2"
-            :class="isDark ? 'text-red-400' : 'text-red-700'"
-          >
+        <div class="mb-3 rounded-[10px] border border-seal/30 bg-seal/5 p-4">
+          <p class="mb-2 font-semibold text-seal-ink">
             重要聲明：
           </p>
           <ul class="list-disc list-inside space-y-1">
@@ -257,10 +186,7 @@ const sectionTitleClass = (dark: boolean) => (dark ? 'text-gold-400' : 'text-ora
       </div>
 
       <div>
-        <h3
-          class="font-semibold mb-3"
-          :class="sectionTitleClass(isDark)"
-        >
+        <h3 class="mb-3 font-serif font-bold text-ink">
           3. 使用規範
         </h3>
         <p class="mb-3">
@@ -276,10 +202,7 @@ const sectionTitleClass = (dark: boolean) => (dark ? 'text-gold-400' : 'text-ora
       </div>
 
       <div>
-        <h3
-          class="font-semibold mb-3"
-          :class="sectionTitleClass(isDark)"
-        >
+        <h3 class="mb-3 font-serif font-bold text-ink">
           4. 智慧財產權
         </h3>
         <ul class="list-disc list-inside space-y-1 ml-4">
@@ -289,10 +212,7 @@ const sectionTitleClass = (dark: boolean) => (dark ? 'text-gold-400' : 'text-ora
       </div>
 
       <div>
-        <h3
-          class="font-semibold mb-3"
-          :class="sectionTitleClass(isDark)"
-        >
+        <h3 class="mb-3 font-serif font-bold text-ink">
           5. 服務可用性
         </h3>
         <ul class="list-disc list-inside space-y-1 ml-4">
@@ -304,10 +224,7 @@ const sectionTitleClass = (dark: boolean) => (dark ? 'text-gold-400' : 'text-ora
       </div>
 
       <div>
-        <h3
-          class="font-semibold mb-3"
-          :class="sectionTitleClass(isDark)"
-        >
+        <h3 class="mb-3 font-serif font-bold text-ink">
           6. 數據準確性
         </h3>
         <ul class="list-disc list-inside space-y-1 ml-4">
@@ -319,10 +236,7 @@ const sectionTitleClass = (dark: boolean) => (dark ? 'text-gold-400' : 'text-ora
       </div>
 
       <div>
-        <h3
-          class="font-semibold mb-3"
-          :class="sectionTitleClass(isDark)"
-        >
+        <h3 class="mb-3 font-serif font-bold text-ink">
           7. 帳戶責任
         </h3>
         <ul class="list-disc list-inside space-y-1 ml-4">
@@ -333,10 +247,7 @@ const sectionTitleClass = (dark: boolean) => (dark ? 'text-gold-400' : 'text-ora
       </div>
 
       <div>
-        <h3
-          class="font-semibold mb-3"
-          :class="sectionTitleClass(isDark)"
-        >
+        <h3 class="mb-3 font-serif font-bold text-ink">
           8. 條款變更
         </h3>
         <p class="mb-3">
@@ -353,10 +264,7 @@ const sectionTitleClass = (dark: boolean) => (dark ? 'text-gold-400' : 'text-ora
       </div>
 
       <div>
-        <h3
-          class="font-semibold mb-3"
-          :class="sectionTitleClass(isDark)"
-        >
+        <h3 class="mb-3 font-serif font-bold text-ink">
           10. 聯絡資訊
         </h3>
         <p>如有任何疑問，請聯絡我們：</p>

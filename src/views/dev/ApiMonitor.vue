@@ -42,93 +42,91 @@ function clearCalls() {
 </script>
 
 <template>
-  <div class="min-h-screen py-8">
-    <div class="max-w-4xl mx-auto px-4">
-      <div class="mb-6">
-        <h1 class="text-2xl font-bold text-white">
-          API 監控
-        </h1>
-        <p class="text-gray-400 text-sm mt-1">
-          開發者工具 — 監控所有 API 請求狀態與耗時
-        </p>
-        <p class="text-gray-500 text-xs mt-1">
-          在應用程式中呼叫
-          <code class="text-gold-400 bg-gray-800 px-1 rounded">window.__apiMonitor.record(endpoint, method, status, duration)</code>
-          即可記錄
-        </p>
-      </div>
+  <div class="flex flex-col gap-6">
+    <header>
+      <h1 class="font-serif text-[28px] font-bold leading-tight text-ink">
+        API 監控
+      </h1>
+      <p class="mt-1.5 text-sm text-ink-2">
+        開發者工具 — 監控所有 API 請求狀態與耗時
+      </p>
+      <p class="mt-1 text-xs text-ink-3">
+        在應用程式中呼叫
+        <code class="rounded bg-raised px-1 font-mono text-ink-2">window.__apiMonitor.record(endpoint, method, status, duration)</code>
+        即可記錄
+      </p>
+    </header>
 
-      <div class="flex gap-3 mb-6">
-        <button
-          class="px-4 py-2 rounded-lg bg-gray-700 hover:bg-gray-600 text-white font-medium transition-colors"
-          @click="clearCalls"
-        >
-          清除紀錄
-        </button>
-      </div>
-
-      <div
-        v-if="calls.length === 0"
-        class="text-center py-12 text-gray-500"
+    <div class="flex gap-3">
+      <button
+        class="btn-secondary btn-sm"
+        @click="clearCalls"
       >
-        尚無 API 呼叫紀錄
-      </div>
+        清除紀錄
+      </button>
+    </div>
 
-      <div
-        v-else
-        class="space-y-2"
+    <div
+      v-if="calls.length === 0"
+      class="py-12 text-center text-ink-3"
+    >
+      尚無 API 呼叫紀錄
+    </div>
+
+    <ul
+      v-else
+      class="divide-y divide-line overflow-hidden rounded-card border border-line bg-surface"
+    >
+      <li
+        v-for="(call, i) in calls.slice().reverse()"
+        :key="i"
+        class="flex items-center justify-between gap-3 px-4 py-3"
       >
-        <div
-          v-for="(call, i) in calls.slice().reverse()"
-          :key="i"
-          class="flex items-center justify-between px-4 py-3 rounded-lg bg-gray-800/50 border border-gray-700/50"
-        >
-          <div class="flex items-center gap-3 flex-1 min-w-0">
-            <span
-              class="text-xs font-mono font-bold px-2 py-0.5 rounded"
-              :class="{
-                'bg-green-600/30 text-green-400': call.status >= 200 && call.status < 300,
-                'bg-yellow-600/30 text-yellow-400': call.status >= 300 && call.status < 500,
-                'bg-red-600/30 text-red-400': call.status >= 500,
-              }"
-            >
-              {{ call.status }}
-            </span>
-            <span class="text-xs font-mono text-gray-500 uppercase">{{ call.method }}</span>
-            <span class="text-white font-mono text-sm truncate">{{ call.endpoint }}</span>
-          </div>
-          <div class="flex items-center gap-3 flex-shrink-0 ml-3">
-            <span class="text-gray-500 text-xs">{{ call.timestamp }}</span>
-            <span
-              class="font-mono font-medium text-sm"
-              :class="
-                call.duration > 2000
-                  ? 'text-red-400'
-                  : call.duration > 800
-                    ? 'text-yellow-400'
-                    : 'text-green-400'
-              "
-            >
-              {{ call.duration }}ms
-            </span>
-          </div>
+        <div class="flex min-w-0 flex-1 items-center gap-3">
+          <span
+            class="rounded px-2 py-0.5 font-mono text-xs font-medium"
+            :class="{
+              'bg-good/10 text-good': call.status >= 200 && call.status < 300,
+              'bg-warn/10 text-warn': call.status >= 300 && call.status < 500,
+              'bg-danger/10 text-danger': call.status >= 500,
+            }"
+          >
+            {{ call.status }}
+          </span>
+          <span class="font-mono text-xs uppercase text-ink-3">{{ call.method }}</span>
+          <span class="truncate font-mono text-sm text-ink">{{ call.endpoint }}</span>
         </div>
-      </div>
+        <div class="flex flex-shrink-0 items-center gap-3">
+          <span class="text-xs text-ink-3">{{ call.timestamp }}</span>
+          <span
+            class="font-mono text-sm font-medium"
+            :class="
+              call.duration > 2000
+                ? 'text-danger'
+                : call.duration > 800
+                  ? 'text-warn'
+                  : 'text-ink-2'
+            "
+          >
+            {{ call.duration }}ms
+          </span>
+        </div>
+      </li>
+    </ul>
 
-      <div
-        v-if="calls.length > 0"
-        class="mt-4 flex justify-between text-sm text-gray-500"
-      >
-        <span>總請求數: {{ calls.length }}</span>
-        <span>
-          平均耗時:
-          {{ (calls.reduce((s, c) => s + c.duration, 0) / calls.length).toFixed(0) }}ms
-        </span>
-        <span>
-          成功率:
-          {{ ((calls.filter(c => c.status < 400).length / calls.length) * 100).toFixed(1) }}%
-        </span>
-      </div>
+    <div
+      v-if="calls.length > 0"
+      class="flex flex-wrap justify-between gap-2 text-sm text-ink-3"
+    >
+      <span>總請求數: {{ calls.length }}</span>
+      <span>
+        平均耗時:
+        {{ (calls.reduce((s, c) => s + c.duration, 0) / calls.length).toFixed(0) }}ms
+      </span>
+      <span>
+        成功率:
+        {{ ((calls.filter(c => c.status < 400).length / calls.length) * 100).toFixed(1) }}%
+      </span>
     </div>
   </div>
 </template>

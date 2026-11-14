@@ -1,6 +1,11 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { mount, flushPromises } from '@vue/test-utils'
 
+// 日期選擇器與本測試無關，且首次動態載入在 CI 上可能超過 5 秒，改用輕量替身
+vi.mock('@vuepic/vue-datepicker', () => ({
+  default: { name: 'VueDatePicker', render: () => null },
+}))
+
 vi.mock('@/services/fortuneStore', () => {
   const mockRecords = [
     {
@@ -89,7 +94,7 @@ describe('FortuneLogViewer', () => {
     const wrapper = mount(FortuneLogViewer)
     await flushPromises()
 
-    const buyBadges = wrapper.findAll('.bg-green-500\\/20')
+    const buyBadges = wrapper.findAll('[data-recommendation="BUY"]')
     expect(buyBadges.length).toBeGreaterThan(0)
     expect(buyBadges[0].text().trim()).toBe('買入')
   })
