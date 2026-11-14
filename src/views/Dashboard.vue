@@ -1,73 +1,110 @@
 <script setup lang="ts">
-import { computed, watch, onMounted, onUnmounted, defineAsyncComponent } from 'vue'
+import { computed, onMounted, onUnmounted, toRef, watch } from 'vue'
+import { RouterLink } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import { useDashboardStore } from '@/stores/dashboard'
-import { useTheme } from '@/composables/useTheme'
+import { useDashboardAlmanac } from '@/composables/useDashboardAlmanac'
+import { lunarService } from '@/services/lunar'
+import { TaiwanStockService } from '@/services/taiwanStock'
+import { ELEMENT_LABEL, primaryMarketSlotIndex } from '@/utils/almanac'
+import { formatFullDate, formatMonthDayWeekday } from '@/utils/date'
+import FortuneLot from '@/components/almanac/FortuneLot.vue'
+import HourWheel from '@/components/almanac/HourWheel.vue'
+import InkPriceChart from '@/components/almanac/InkPriceChart.vue'
+import AlmanacYiJi from '@/components/almanac/AlmanacYiJi.vue'
+import FiveElementsCycle from '@/components/almanac/FiveElementsCycle.vue'
+import TenGodsCard from '@/components/TenGodsCard.vue'
+import ZiWeiCard from '@/components/ZiWeiCard.vue'
+import FengShuiCard from '@/components/FengShuiCard.vue'
 import type { UserProfileCompat } from '@/services/integratedFortune'
 
-// ── 元件 ──
-const PriceChart = defineAsyncComponent({
-  loader: () => import('@/components/charts/PriceChart.vue'),
-  loadingComponent: () => import('@/components/ui/Loading.vue'),
-})
-const ElementRadarChart = defineAsyncComponent({
-  loader: () => import('@/components/charts/ElementRadarChart.vue'),
-  loadingComponent: () => import('@/components/ui/Loading.vue'),
-})
-const LunarCalendarCard = defineAsyncComponent({
-  loader: () => import('@/components/LunarCalendarCard.vue'),
-  loadingComponent: () => import('@/components/ui/Loading.vue'),
-})
-const FortuneCard = defineAsyncComponent({
-  loader: () => import('@/components/FortuneCard.vue'),
-  loadingComponent: () => import('@/components/ui/Loading.vue'),
-})
-const TenGodsCard = defineAsyncComponent({
-  loader: () => import('@/components/TenGodsCard.vue'),
-  loadingComponent: () => import('@/components/ui/Loading.vue'),
-})
-const ZiWeiCard = defineAsyncComponent({
-  loader: () => import('@/components/ZiWeiCard.vue'),
-  loadingComponent: () => import('@/components/ui/Loading.vue'),
-})
-const FengShuiCard = defineAsyncComponent({
-  loader: () => import('@/components/FengShuiCard.vue'),
-  loadingComponent: () => import('@/components/ui/Loading.vue'),
-})
-
-// ── Store 實例 ──
 const userStore = useUserStore()
 const dashboardStore = useDashboardStore()
-const { isDark } = useTheme()
 
-// ── 計算屬性 ──
+// ── 資料來源 ──
+
 const userProfileCompat = computed((): UserProfileCompat | null => {
-  if (!userStore.profile) return null
-
+  if (!userStore.isProfileComplete) return null
+  const p = userStore.profile
   return {
-    name: userStore.profile.name,
-    birthDate: userStore.profile.birthDate,
-    birthTime: userStore.profile.birthTime || '12:00',
-    zodiac: userStore.profile.zodiac,
-    element: userStore.profile.element,
-    nameElement: userStore.profile.nameElement,
-    nameStrokes: userStore.profile.nameStrokes,
-    luckyColors: [...userStore.profile.luckyColors],
-    luckyNumbers: [...userStore.profile.luckyNumbers],
+    name: p.name,
+    birthDate: p.birthDate,
+    birthTime: p.birthTime,
+    zodiac: p.zodiac,
+    element: p.element,
+    nameElement: p.nameElement,
+    nameStrokes: p.nameStrokes,
+    luckyColors: [...p.luckyColors],
+    luckyNumbers: [...p.luckyNumbers],
   }
 })
 
-// ── 方法與函式 ──
-const retryIntegratedFortune = () => {
-  return dashboardStore.retryIntegratedFortune(userProfileCompat.value)
-}
+const fortune = toRef(dashboardStore, 'integratedFortune')
+const lunar = computed(() => fortune.value?.lunarData ?? dashboardStore.lunarData)
 
-// ── 監聽器 ──
-// userProfileCompat 是 computed，資料變動時會回傳全新物件參照，不需要 deep 追蹤
-watch(userProfileCompat, newProfile => {
-  if (newProfile) {
-    dashboardStore.refreshData(newProfile)
-  }
+/** 今天是否開盤；休市則改看下一個交易日（由交易日曆判斷，不依賴個人資料） */
+const tradingDay = computed(() => {
+  const date = dashboardStore.currentDate
+  const isToday = TaiwanStockService.isTradingDay(date)
+  return { isToday, date: isToday ? date : TaiwanStockService.getNextTradingDay(date) }
+})
+
+/** 時辰輪看的是「下一次開盤」那一天 */
+const wheelLunar = computed(() =>
+  tradingDay.value.isToday ? lunar.value : lunarService.getLunarData(tradingDay.value.date)
+)
+
+const { hourSlots, strengths, ownElement, elementReading, chartPoints, luckyDaySummary, lotSeed } =
+  useDashboardAlmanac(
+    lunar,
+    wheelLunar,
+    computed(() => (userStore.isProfileComplete ? userStore.profile : null)),
+    toRef(dashboardStore, 'etfData'),
+    toRef(dashboardStore, 'currentDate')
+  )
+
+// ── 畫面文字 ──
+
+const fullDate = computed(() => formatFullDate(dashboardStore.currentDate))
+
+const nextOpenLabel = computed(() => formatMonthDayWeekday(tradingDay.value.date))
+
+const marketNote = computed(() =>
+  tradingDay.value.isToday
+    ? {
+        text: TaiwanStockService.getTradingStatus(dashboardStore.currentDate).message,
+        emphasis: '',
+      }
+    : { text: '今天休市，', emphasis: `${nextOpenLabel.value} 再開盤` }
+)
+
+/** 籤上寫的「最順時段」：只有開盤時段真的有吉時才寫 */
+const bestHour = computed(() => {
+  const slot = hourSlots.value[primaryMarketSlotIndex(hourSlots.value)]
+  return slot?.omen === 'good' ? `${slot.branch}時 ${slot.range}` : null
+})
+
+const wheelTitle = computed(() =>
+  tradingDay.value.isToday ? '今天的時辰' : `${nextOpenLabel.value}的時辰`
+)
+
+const chartCaption = computed(
+  () =>
+    `近 ${chartPoints.value.length} 個交易日 · 紅印為${userProfileCompat.value ? '你的吉日' : '宜交易的日子'}`
+)
+
+const latestClose = computed(() => dashboardStore.latestPrice?.close.toFixed(2) ?? null)
+const changePercent = computed(() => {
+  const value = dashboardStore.priceChangePercent
+  return `${value >= 0 ? '+' : ''}${value.toFixed(2)}%`
+})
+
+// ── 資料載入 ──
+
+const retryFortune = () => dashboardStore.retryIntegratedFortune(userProfileCompat.value)
+
+watch(userProfileCompat, profile => {
+  if (profile) dashboardStore.refreshData(profile)
 })
 
 // 命理引擎設定變更：使運勢查詢失效並重新載入
@@ -78,7 +115,6 @@ const onSettingsChanged = () => {
   }
 }
 
-// ── 生命週期 ──
 onMounted(() => {
   dashboardStore.loadAllData(userProfileCompat.value)
   window.addEventListener('engine-settings-changed', onSettingsChanged)
@@ -91,331 +127,208 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="min-h-screen py-6 sm:py-8 lg:py-12">
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-      <!-- Header -->
-      <div class="mb-6 sm:mb-8">
-        <h1 class="text-xl sm:text-2xl lg:text-3xl font-bold text-white mb-1 sm:mb-2">
-          投資儀表板
-        </h1>
-        <p class="text-xs sm:text-sm lg:text-base text-gray-400">
-          今日是 {{ dashboardStore.formattedCurrentDate }}，
-          <span
-            v-if="dashboardStore.integratedFortune"
-            :class="
-              dashboardStore.integratedFortune.investmentScore >= 70
-                ? 'text-green-400'
-                : dashboardStore.integratedFortune.investmentScore >= 40
-                  ? 'text-yellow-400'
-                  : 'text-red-400'
-            "
+  <div class="flex flex-col gap-6">
+    <!-- 頁首：日期與開盤狀態 -->
+    <header class="flex flex-wrap items-end justify-between gap-6">
+      <div class="flex items-center gap-5">
+        <div
+          v-if="lunar"
+          class="seal-stamp h-[52px] w-[52px] -rotate-[4deg] text-lg"
+          :aria-label="`${lunar.dayGanZhi}日`"
+        >
+          {{ lunar.dayGanZhi }}
+        </div>
+        <div>
+          <h1
+            class="font-serif text-[32px] font-black leading-none tracking-[0.02em] sm:text-[44px]"
           >
-            投資運勢: {{ dashboardStore.integratedFortune.investmentScore }}/100
-          </span>
-          <span
-            v-if="dashboardStore.integratedFortune && dashboardStore.integratedFortune.lunarData"
-            class="text-gray-400 ml-2"
-          >
-            • {{ dashboardStore.integratedFortune.lunarData.ganZhi }}年 農曆{{
-              dashboardStore.integratedFortune.lunarData.lunarMonth
-            }}月{{ dashboardStore.integratedFortune.lunarData.lunarDay }}日 ({{
-              dashboardStore.integratedFortune.lunarData.zodiac
-            }}年)
-          </span>
+            {{ lunar ? `${lunar.lunarMonth}月${lunar.lunarDay}` : '投資儀表板' }}
+          </h1>
+          <p class="mt-1.5 text-sm text-ink-2">
+            {{ fullDate }}<template v-if="lunar">
+              · {{ lunar.ganZhi }}年
+            </template><template v-if="lunar?.jieQi">
+              · {{ lunar.jieQi }}
+            </template>
+          </p>
+        </div>
+      </div>
+      <p
+        v-if="marketNote"
+        class="inline-flex items-center rounded-full border border-dashed border-line-strong px-3.5 py-2 text-[13px] text-ink-2"
+      >
+        {{ marketNote.text
+        }}<b
+          v-if="marketNote.emphasis"
+          class="font-medium text-ink"
+        >{{ marketNote.emphasis }}</b>
+      </p>
+    </header>
+
+    <!-- 亮點：今日籤 -->
+    <FortuneLot
+      v-if="fortune && userProfileCompat"
+      :score="fortune.investmentScore"
+      :seed="lotSeed"
+      :recommendation="fortune.recommendation"
+      :best-hour="bestHour"
+      :lucky-direction="fortune.luckyDirection"
+    />
+    <section
+      v-else-if="!userProfileCompat"
+      class="flex flex-col items-start gap-4 rounded-[20px] bg-seal px-6 py-8 text-seal-on sm:px-10"
+    >
+      <h2 class="font-serif text-2xl font-bold sm:text-3xl">
+        先留下生辰，才能抽今日籤
+      </h2>
+      <p class="max-w-[32rem] opacity-90">
+        籤詩、時辰吉凶和五行解讀都依你的出生年月日與時辰推算。農民曆宜忌與 0050 走勢不需要設定也能看
+      </p>
+      <RouterLink
+        to="/profile"
+        class="btn-primary bg-seal-on text-seal hover:bg-seal-on/90"
+      >
+        設定生辰
+      </RouterLink>
+    </section>
+    <section
+      v-else-if="dashboardStore.fortuneError"
+      class="card items-start"
+    >
+      <p class="text-danger">
+        今日籤沒有算出來：{{ dashboardStore.fortuneError }}
+      </p>
+      <button
+        type="button"
+        class="btn-secondary btn-sm"
+        @click="retryFortune"
+      >
+        重新計算
+      </button>
+    </section>
+    <div
+      v-else
+      class="h-[300px] animate-pulse rounded-[20px] bg-raised"
+      aria-label="正在計算今日籤"
+    />
+
+    <!-- 走勢 + 時辰輪 -->
+    <div class="grid gap-5 lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
+      <section class="card">
+        <div class="flex flex-wrap items-baseline justify-between gap-3">
+          <h2 class="card-title">
+            0050 走勢
+          </h2>
+          <span class="card-meta">{{ chartCaption }}</span>
+        </div>
+        <InkPriceChart
+          v-if="chartPoints.length > 1"
+          :points="chartPoints"
+        />
+        <p
+          v-else
+          class="grid h-[260px] place-items-center text-ink-3"
+        >
+          {{ dashboardStore.etfLoading ? '正在載入行情' : '目前沒有行情資料' }}
         </p>
         <div
-          v-if="
-            dashboardStore.integratedFortune && dashboardStore.integratedFortune.lunarData.jieQi
-          "
-          class="mt-2"
+          v-if="latestClose"
+          class="flex flex-wrap justify-between gap-4 text-[13px] text-ink-2"
         >
-          <span class="text-gold-400 text-sm">
-            🌿 {{ dashboardStore.integratedFortune.lunarData.jieQi }}
+          <span class="inline-flex items-baseline gap-2">
+            最新收盤
+            <span class="font-mono text-ink">{{ latestClose }}</span>
+            <span
+              class="font-mono"
+              :class="dashboardStore.priceChangeColor"
+            >{{
+              changePercent
+            }}</span>
+          </span>
+          <span
+            v-if="userProfileCompat && luckyDaySummary.lucky > 0"
+            class="inline-flex items-center gap-1.5"
+          >
+            <i
+              class="grid h-4 w-4 -rotate-6 place-items-center rounded-[3px] bg-seal font-kai text-[11px] not-italic text-seal-on"
+            >吉</i>
+            這段期間有 {{ luckyDaySummary.lucky }} 個吉日，其中 {{ luckyDaySummary.luckyUp }} 天收紅
           </span>
         </div>
-      </div>
+      </section>
 
-      <!-- 運勢卡片區域 -->
-      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-        <!-- 今日運勢 -->
-        <FortuneCard
-          :fortune-data="dashboardStore.integratedFortune"
-          :loading="dashboardStore.fortuneLoading"
-          :error-message="dashboardStore.fortuneError || ''"
-          title="今日投資運勢"
-          icon="🔮"
-          :show-wealth-score="true"
-          :show-time-advice="false"
-          :show-direction-advice="false"
-          :show-lucky-info="false"
-          @retry="retryIntegratedFortune"
+      <section class="card">
+        <div class="flex flex-wrap items-baseline justify-between gap-3">
+          <h2 class="card-title">
+            {{ wheelTitle }}
+          </h2>
+          <span class="card-meta">點一下看建議</span>
+        </div>
+        <HourWheel
+          v-if="hourSlots.length"
+          :slots="hourSlots"
         />
+        <p
+          v-else
+          class="text-ink-3"
+        >
+          設定生辰後，會依你的生肖推算每個時辰的吉凶
+        </p>
+      </section>
+    </div>
 
-        <!-- 0050 即時資訊 -->
-        <div class="card">
-          <h2 class="text-base sm:text-lg font-semibold text-white mb-4">
-            元大台灣50 (0050)
+    <!-- 宜忌 + 五行 -->
+    <div class="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)]">
+      <section
+        v-if="lunar"
+        class="card"
+      >
+        <div class="flex flex-wrap items-baseline justify-between gap-3">
+          <h2 class="card-title">
+            今日宜忌
           </h2>
-          <div
-            v-if="dashboardStore.latestPrice"
-            class="space-y-3 sm:space-y-4"
-          >
-            <div
-              class="flex flex-col sm:flex-row sm:items-baseline space-y-1 sm:space-y-0 sm:space-x-2"
-            >
-              <span class="text-2xl sm:text-3xl font-bold text-white">${{ dashboardStore.latestPrice.close }}</span>
-              <span
-                :class="dashboardStore.priceChangeColor"
-                class="text-base sm:text-lg font-medium"
-              >
-                {{ dashboardStore.priceChange >= 0 ? '+' : ''
-                }}{{ dashboardStore.priceChange.toFixed(2) }} ({{
-                  dashboardStore.priceChangePercent >= 0 ? '+' : ''
-                }}{{ dashboardStore.priceChangePercent.toFixed(2) }}%)
-              </span>
-            </div>
-
-            <div class="grid grid-cols-2 gap-3 sm:gap-4 pt-3 sm:pt-4 border-t border-white/10">
-              <div>
-                <span class="text-gray-400 text-xs sm:text-sm">開盤</span>
-                <div class="text-white font-medium text-sm sm:text-base">
-                  ${{ dashboardStore.latestPrice.open }}
-                </div>
-              </div>
-              <div>
-                <span class="text-gray-400 text-xs sm:text-sm">最高</span>
-                <div class="text-white font-medium text-sm sm:text-base">
-                  ${{ dashboardStore.latestPrice.high }}
-                </div>
-              </div>
-              <div>
-                <span class="text-gray-400 text-xs sm:text-sm">最低</span>
-                <div class="text-white font-medium text-sm sm:text-base">
-                  ${{ dashboardStore.latestPrice.low }}
-                </div>
-              </div>
-              <div>
-                <span class="text-gray-400 text-xs sm:text-sm">成交量</span>
-                <div class="text-white font-medium text-sm sm:text-base">
-                  {{ dashboardStore.formatVolume(dashboardStore.latestPrice.volume) }}
-                </div>
-              </div>
-            </div>
-          </div>
-          <div
-            v-else-if="dashboardStore.loading || dashboardStore.etfLoading"
-            class="text-center py-8"
-          >
-            <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-gold-500 mx-auto" />
-            <p class="text-gray-400 mt-2">
-              載入中...
-            </p>
-          </div>
-          <div
-            v-else
-            class="text-center py-8"
-          >
-            <p class="text-gray-400">
-              無法載入股價資料
-            </p>
-          </div>
+          <span class="card-meta">
+            {{ lunar.dayGanZhi }}日<template v-if="lunar.tianShen">
+              · {{ lunar.tianShen }}{{ lunar.tianShenLuck === '吉' ? '黃道' : '黑道' }}
+            </template>
+          </span>
         </div>
+        <AlmanacYiJi :lunar="lunar" />
+      </section>
 
-        <!-- 交易時段建議 -->
-        <div class="card">
-          <h2 class="text-base sm:text-lg font-semibold text-white mb-4">
-            交易時段建議
+      <section
+        v-if="strengths && elementReading"
+        class="card"
+      >
+        <div class="flex flex-wrap items-baseline justify-between gap-3">
+          <h2 class="card-title">
+            五行
           </h2>
-          <div
-            v-if="dashboardStore.integratedFortune"
-            class="space-y-4"
-          >
-            <!-- 推薦交易時段 -->
-            <div
-              v-if="dashboardStore.integratedFortune.bestTradingHours.length > 0"
-              class="bg-green-500/20 p-3 rounded-lg border border-green-500/30"
-            >
-              <h3 class="text-green-400 font-medium mb-2">
-                推薦交易時段 (今日)
-              </h3>
-              <div class="space-y-1">
-                <div
-                  v-for="period in dashboardStore.integratedFortune.bestTradingHours"
-                  :key="period.time"
-                  class="flex justify-between items-center text-sm"
-                >
-                  <span class="text-white">{{ period.time }}</span>
-                  <span class="text-green-300">{{ period.reason }}</span>
-                </div>
-              </div>
-              <p class="text-sm text-gray-300 mt-2">
-                今日適合買入或加碼的時段
-              </p>
-            </div>
-
-            <!-- 避免交易時段 -->
-            <div
-              v-if="dashboardStore.integratedFortune.avoidTradingHours.length > 0"
-              class="bg-red-500/20 p-3 rounded-lg border border-red-500/30"
-            >
-              <h3 class="text-red-400 font-medium mb-2">
-                避免交易時段 (今日)
-              </h3>
-              <div class="space-y-1">
-                <div
-                  v-for="period in dashboardStore.integratedFortune.avoidTradingHours"
-                  :key="period.time"
-                  class="flex justify-between items-center text-sm"
-                >
-                  <span class="text-white">{{ period.time }}</span>
-                  <span class="text-red-300">{{ period.reason }}</span>
-                </div>
-              </div>
-              <p class="text-sm text-gray-300 mt-2">
-                今日不宜進場操作的時段
-              </p>
-            </div>
-
-            <!-- 如果當天沒有特別推薦時段，顯示傳統吉時參考 -->
-            <div
-              v-if="
-                dashboardStore.integratedFortune.bestTradingHours.length === 0 &&
-                  dashboardStore.integratedFortune.stockTradingStatus.isOpen
-              "
-              class="bg-blue-500/20 p-3 rounded-lg border border-blue-500/30"
-            >
-              <h3 class="text-blue-400 font-medium mb-1">
-                傳統吉時參考
-              </h3>
-              <p class="text-white">
-                {{ dashboardStore.integratedFortune.luckyTime }}
-              </p>
-              <p class="text-sm text-gray-300">
-                可參考的吉時，但需注意個人運勢狀況
-              </p>
-            </div>
-
-            <!-- 交易日提醒 (只在非交易日或假日顯示) -->
-            <div
-              v-if="!dashboardStore.integratedFortune.tradingDayInfo.isToday"
-              class="bg-yellow-500/20 p-3 rounded-lg border border-yellow-500/30"
-            >
-              <h3 class="text-yellow-400 font-medium mb-1">
-                📅 下個交易日
-              </h3>
-              <p class="text-white text-sm">
-                {{
-                  dashboardStore.formatDate(
-                    dashboardStore.integratedFortune.tradingDayInfo.tradingDay
-                  )
-                }}
-              </p>
-              <p class="text-sm text-gray-300">
-                今日為假日或國定假日，股市休市
-              </p>
-            </div>
-          </div>
-          <div
-            v-else
-            class="text-center py-8"
-          >
-            <p class="text-gray-400">
-              請先設定個人資料
-            </p>
-          </div>
+          <span class="card-meta">
+            {{ lunar?.monthGanZhi }}月<template v-if="ownElement">
+              · 本命{{ ELEMENT_LABEL[ownElement] }}
+            </template>
+          </span>
         </div>
-      </div>
+        <FiveElementsCycle
+          :strengths="strengths"
+          :own-element="ownElement"
+          :reading="elementReading"
+        />
+      </section>
+    </div>
 
-      <!-- 農民曆區域 -->
-      <div class="mb-8">
-        <LunarCalendarCard :fortune-data="dashboardStore.integratedFortune" />
-      </div>
-
-      <!-- 圖表區域 -->
-      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <!-- 價格走勢圖 -->
-        <div class="card">
-          <h2 class="text-base sm:text-lg font-semibold text-white mb-4">
-            價格走勢
-          </h2>
-          <div
-            v-if="dashboardStore.etfData.length === 0"
-            class="h-64 bg-gray-800/50 rounded-lg flex items-center justify-center"
-          >
-            <p class="text-gray-400">
-              {{
-                dashboardStore.loading || dashboardStore.etfLoading
-                  ? '載入圖表中...'
-                  : '無數據可顯示'
-              }}
-              <br>
-              <small class="text-xs">數據數量: {{ dashboardStore.etfData.length }}</small>
-            </p>
-          </div>
-          <PriceChart
-            v-else
-            :etf-data="dashboardStore.etfData"
-            :is-dark="isDark"
-          />
-        </div>
-
-        <!-- 五行能量圖 -->
-        <div class="card">
-          <h2 class="text-base sm:text-lg font-semibold text-white mb-4">
-            五行能量分析
-          </h2>
-          <ElementRadarChart
-            v-if="dashboardStore.integratedFortune && dashboardStore.integratedFortune.elements"
-            :elements="dashboardStore.integratedFortune.elements"
-            :user-element="userStore.profile?.element"
-            :is-dark="isDark"
-          />
-          <div
-            v-else
-            class="h-64 bg-gray-800/50 rounded-lg flex items-center justify-center"
-          >
-            <p class="text-gray-400">
-              請先設定個人資料
-            </p>
-          </div>
-
-          <!-- 個人五行屬性說明 -->
-          <div
-            v-if="userStore.profile?.element"
-            class="mt-4 p-3 bg-gold-500/10 rounded-lg border border-gold-500/20"
-          >
-            <div class="flex items-center gap-2">
-              <span class="text-gold-400 text-sm font-medium">★ 您的本命五行</span>
-              <span class="text-white font-bold">{{ userStore.profile.element }}</span>
-            </div>
-            <p class="text-gray-300 text-sm mt-1">
-              圖中標有 ★ 的是您的本命五行，能量值會根據個人八字和當日運勢動態調整
-            </p>
-          </div>
-
-          <!-- 姓名學五行說明 -->
-          <div
-            v-if="userStore.profile?.nameElement && userStore.profile?.nameStrokes"
-            class="mt-2 p-3 bg-purple-500/10 rounded-lg border border-purple-500/20"
-          >
-            <div class="flex items-center gap-2">
-              <span class="text-purple-400 text-sm font-medium">✦ 姓名學五行</span>
-              <span class="text-white font-bold">{{ userStore.profile.nameElement }}</span>
-              <span class="text-gray-400 text-sm">（{{ userStore.profile.nameStrokes }}劃）</span>
-            </div>
-            <p class="text-gray-300 text-sm mt-1">
-              姓名學五行對運勢有輔助影響，與本命五行相互配合
-            </p>
-          </div>
-        </div>
-      </div>
-
-      <!-- 命理分析區域 -->
-      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-6">
-        <TenGodsCard :profile="userProfileCompat" />
-        <ZiWeiCard :profile="userProfileCompat" />
-        <FengShuiCard :profile="userProfileCompat" />
-      </div>
+    <!-- 三種推算 -->
+    <div class="grid gap-5 lg:grid-cols-3">
+      <TenGodsCard :profile="userProfileCompat" />
+      <ZiWeiCard
+        :profile="userProfileCompat"
+        :date="dashboardStore.currentDate"
+      />
+      <FengShuiCard
+        :profile="userProfileCompat"
+        :date="dashboardStore.currentDate"
+      />
     </div>
   </div>
 </template>

@@ -1,7 +1,14 @@
 <script setup lang="ts">
 import { ref, onUnmounted, watch, computed, nextTick } from 'vue'
 import * as THREE from 'three'
-import { ThreeJSScene, createThemeGlowMaterial, getThemeColor, disposeObject3D } from '@/utils/three-scene'
+import { ChartBarIcon, XMarkIcon } from '@heroicons/vue/24/outline'
+import {
+  ThreeJSScene,
+  createSceneMaterial,
+  tokenColor,
+  tokenHex,
+  disposeObject3D,
+} from '@/utils/three-scene'
 import { useVisibleOnce } from '@/composables/useVisibleOnce'
 import { useTheme } from '@/composables/useTheme'
 import { useDashboardStore } from '@/stores/dashboard'
@@ -88,9 +95,9 @@ const lunarDate = computed(() => {
 // 計算屬性
 const fortuneScoreColor = computed(() => {
   const score = fortuneScore.value
-  if (score >= 80) return 'text-success-text'
-  if (score >= 60) return 'text-warning-text'
-  return 'text-error-text'
+  if (score >= 80) return 'text-good'
+  if (score >= 60) return 'text-warn'
+  return 'text-bad'
 })
 
 const investmentAdvice = computed(() => {
@@ -102,9 +109,9 @@ const investmentAdvice = computed(() => {
 
 const investmentAdviceColor = computed(() => {
   const advice = investmentAdvice.value
-  if (advice === '積極投資') return 'text-success-text'
-  if (advice === '謹慎投資') return 'text-warning-text'
-  return 'text-error-text'
+  if (advice === '積極投資') return 'text-good'
+  if (advice === '謹慎投資') return 'text-warn'
+  return 'text-bad'
 })
 
 // ── 方法與函式 ──
@@ -145,20 +152,6 @@ const handleElementLeave = () => {
   hoveredElement.value = null
 }
 
-// 獲取五行對應的顏色
-const getElementColor = (element: string): number => {
-  const elementColors = {
-    木: getThemeColor('success', isDark.value), // 綠色
-    火: getThemeColor('danger', isDark.value), // 紅色
-    土: getThemeColor('warning', isDark.value), // 黃色
-    金: getThemeColor('info', isDark.value), // 藍色
-    水: getThemeColor('primary', isDark.value), // 深藍色
-  }
-  return (
-    elementColors[element as keyof typeof elementColors] || getThemeColor('secondary', isDark.value)
-  )
-}
-
 // 創建生肖能量球
 const createZodiacSphere = (): THREE.Mesh => {
   const { baseRadius, maxRadius, pulseScale, pulseSpeed, rotationSpeed } =
@@ -167,8 +160,8 @@ const createZodiacSphere = (): THREE.Mesh => {
 
   const radius = Math.max(baseRadius, Math.min(maxRadius, (score / 100) * 2.5))
   const geometry = new THREE.IcosahedronGeometry(radius, 2)
-  const color = getThemeColor('accent', isDark.value)
-  const material = createThemeGlowMaterial(color, score / 100, isDark.value)
+  // 生肖球是場景唯一的朱印紅重點
+  const material = createSceneMaterial(tokenHex('seal'), 0.95)
 
   const sphere = new THREE.Mesh(geometry, material)
   sphere.position.set(0, 1, 0)
@@ -191,16 +184,15 @@ const createElementRings = (): THREE.Mesh[] => {
   const rings: THREE.Mesh[] = []
   const { count, baseRadius, spacing, baseThickness, thicknessIncrement } =
     ANIMATION_CONFIG.elementRings
-  const currentElement = element.value
 
   for (let i = 0; i < count; i++) {
     const radius = baseRadius + i * spacing
     const thickness = baseThickness + i * thicknessIncrement
 
     const geometry = new THREE.TorusGeometry(radius, thickness, 16, 100)
-    const color = getElementColor(currentElement)
-    const opacity = 0.9 - i * 0.2
-    const material = createThemeGlowMaterial(color, opacity, isDark.value)
+    // 五行環以墨色階呈現，內圈較深、外圈漸淡
+    const opacity = 0.85 - i * 0.2
+    const material = createSceneMaterial(tokenHex(i === 0 ? 'ink-2' : 'ink-3'), opacity)
 
     const ring = new THREE.Mesh(geometry, material)
     ring.position.set(0, 0.5, 0)
@@ -228,13 +220,14 @@ const createInvestmentBars = (): THREE.Mesh[] => {
   for (let i = 0; i < count; i++) {
     const height = investmentHeight * (0.6 + Math.random() * 0.8)
     const geometry = new THREE.CylinderGeometry(0.15, 0.2, height, 8)
+    // 投資強度：偏多用漲紅、偏空用跌綠，中性用墨灰
     const color =
       currentScore >= 70
-        ? getThemeColor('success', isDark.value)
+        ? tokenHex('rise')
         : currentScore >= 50
-          ? getThemeColor('warning', isDark.value)
-          : getThemeColor('danger', isDark.value)
-    const material = createThemeGlowMaterial(color, 1.0, isDark.value)
+          ? tokenHex('ink-3')
+          : tokenHex('fall')
+    const material = createSceneMaterial(color, 0.92)
     const bar = new THREE.Mesh(geometry, material)
 
     const angle = (i / count) * Math.PI * 2
@@ -270,8 +263,8 @@ const createElementalParticles = (): THREE.Points => {
   const colors = new Float32Array(count * 3)
   const sizes = new Float32Array(count)
 
-  const elementColor = new THREE.Color(getElementColor(element.value))
-  const accentColor = new THREE.Color(getThemeColor('accent', isDark.value))
+  const baseColor = tokenColor('ink-3')
+  const accentColor = tokenColor('seal')
 
   for (let i = 0; i < count; i++) {
     const i3 = i * 3
@@ -285,9 +278,8 @@ const createElementalParticles = (): THREE.Points => {
     positions[i3 + 1] = radius * Math.cos(phi)
     positions[i3 + 2] = radius * Math.sin(phi) * Math.sin(theta)
 
-    // 混合五行色彩
-    const mixRatio = Math.random()
-    const finalColor = new THREE.Color().lerpColors(elementColor, accentColor, mixRatio)
+    // 以墨灰為主，少量朱印紅點綴
+    const finalColor = Math.random() < 0.12 ? accentColor : baseColor
     colors[i3] = finalColor.r
     colors[i3 + 1] = finalColor.g
     colors[i3 + 2] = finalColor.b
@@ -304,9 +296,8 @@ const createElementalParticles = (): THREE.Points => {
     size: 0.08,
     vertexColors: true,
     transparent: true,
-    opacity: isDark.value ? 0.8 : 0.6,
+    opacity: 0.55,
     sizeAttenuation: true,
-    blending: THREE.AdditiveBlending,
   })
 
   const particles = new THREE.Points(geometry, material)
@@ -364,7 +355,6 @@ const initScene = () => {
   if (!threeContainer.value || scene) return
 
   scene = new ThreeJSScene(threeContainer.value, {
-    backgroundColor: getThemeColor('background', isDark.value),
     alpha: true,
     antialias: true,
     isDark: isDark.value,
@@ -427,21 +417,21 @@ onUnmounted(() => {
 
 <template>
   <div
-    class="relative w-full h-full bg-gradient-to-br from-surface-bg/50 via-card-bg to-surface-bg rounded-lg overflow-hidden border border-border-light"
+    class="relative h-full w-full overflow-hidden rounded-card border border-line bg-surface"
     @mousemove="handleMouseMove"
   >
     <div
       ref="threeContainer"
-      class="w-full h-full"
+      class="h-full w-full"
     />
 
     <!-- 動態懸停說明 -->
     <div
       v-if="hoveredElement"
       :style="{ left: mousePosition.x + 10 + 'px', top: mousePosition.y - 10 + 'px' }"
-      class="absolute z-10 bg-card-bg/90 backdrop-blur-sm border border-border-light rounded-lg p-3 shadow-lg pointer-events-none max-w-xs"
+      class="pointer-events-none absolute z-10 max-w-xs rounded-[10px] border border-line bg-surface/95 p-3 shadow-card"
     >
-      <div class="text-sm font-medium text-primary-text mb-1">
+      <div class="mb-1 text-sm font-medium text-ink">
         {{
           hoveredElement === 'zodiacSphere'
             ? `${zodiac}生肖球`
@@ -454,7 +444,7 @@ onUnmounted(() => {
                   : '農曆資訊'
         }}
       </div>
-      <div class="text-xs text-secondary-text">
+      <div class="text-xs text-ink-2">
         {{ elementDescriptions[hoveredElement as ElementType] }}
       </div>
     </div>
@@ -462,30 +452,30 @@ onUnmounted(() => {
     <!-- 運勢分析圖例 -->
     <div
       v-if="showLegend"
-      class="absolute top-4 right-4 bg-card-bg/80 backdrop-blur-sm border border-border-light rounded-lg p-3 w-52"
+      class="absolute right-4 top-4 w-52 rounded-[10px] border border-line bg-surface/95 p-3 shadow-card"
     >
-      <div class="flex justify-between items-center mb-2">
-        <h4 class="text-sm font-semibold text-primary-text">
+      <div class="mb-2 flex items-center justify-between">
+        <h4 class="font-serif text-sm font-bold text-ink">
           運勢分析
         </h4>
         <button
-          class="text-xs text-secondary-text hover:text-primary-text"
+          type="button"
+          aria-label="關閉"
+          class="rounded text-ink-3 transition-colors hover:text-ink"
           @click="showLegend = false"
         >
-          ×
+          <XMarkIcon class="h-4 w-4" />
         </button>
       </div>
       <div class="space-y-2 text-xs">
         <div
-          class="flex items-center justify-between cursor-pointer hover:bg-surface-bg/50 p-1 rounded"
+          class="flex cursor-pointer items-center justify-between rounded p-1 transition-colors hover:bg-raised"
           @mouseenter="handleElementHover('zodiacSphere')"
           @mouseleave="handleElementLeave"
         >
           <div class="flex items-center space-x-2">
-            <div
-              class="w-3 h-3 bg-gradient-to-r from-purple-400 to-pink-400 rounded-full animate-pulse"
-            />
-            <span class="text-secondary-text">{{ zodiac }}生肖</span>
+            <div class="h-3 w-3 rounded-full bg-seal" />
+            <span class="text-ink-2">{{ zodiac }}生肖</span>
           </div>
           <span
             :class="fortuneScoreColor"
@@ -493,28 +483,28 @@ onUnmounted(() => {
           >{{ fortuneScore }}</span>
         </div>
         <div
-          class="flex items-center justify-between cursor-pointer hover:bg-surface-bg/50 p-1 rounded"
+          class="flex cursor-pointer items-center justify-between rounded p-1 transition-colors hover:bg-raised"
           @mouseenter="handleElementHover('elementRings')"
           @mouseleave="handleElementLeave"
         >
           <div class="flex items-center space-x-2">
-            <div class="w-3 h-0.5 bg-gradient-to-r from-green-400 to-blue-400 rounded" />
-            <span class="text-secondary-text">{{ element }}五行</span>
+            <div class="h-0.5 w-3 rounded bg-ink-3" />
+            <span class="text-ink-2">{{ element }}五行</span>
           </div>
-          <span class="text-info-text text-xs">強化</span>
+          <span class="text-xs text-ink-2">強化</span>
         </div>
         <div
-          class="flex items-center justify-between cursor-pointer hover:bg-surface-bg/50 p-1 rounded"
+          class="flex cursor-pointer items-center justify-between rounded p-1 transition-colors hover:bg-raised"
           @mouseenter="handleElementHover('investmentBars')"
           @mouseleave="handleElementLeave"
         >
           <div class="flex items-center space-x-2">
             <div class="flex space-x-0.5">
-              <div class="w-0.5 h-3 bg-green-400" />
-              <div class="w-0.5 h-2 bg-yellow-400" />
-              <div class="w-0.5 h-4 bg-green-400" />
+              <div class="h-3 w-0.5 bg-rise" />
+              <div class="h-2 w-0.5 bg-ink-3" />
+              <div class="h-4 w-0.5 bg-fall" />
             </div>
-            <span class="text-secondary-text">投資建議</span>
+            <span class="text-ink-2">投資建議</span>
           </div>
           <span
             :class="investmentAdviceColor"
@@ -522,13 +512,13 @@ onUnmounted(() => {
           >{{ investmentAdvice }}</span>
         </div>
         <div
-          class="flex items-center space-x-2 cursor-pointer hover:bg-surface-bg/50 p-1 rounded"
+          class="flex cursor-pointer items-center space-x-2 rounded p-1 transition-colors hover:bg-raised"
           @mouseenter="handleElementHover('lunarData')"
           @mouseleave="handleElementLeave"
         >
-          <div class="w-3 h-3 bg-yellow-300 rounded-full" />
-          <span class="text-secondary-text">農曆</span>
-          <span class="text-xs text-accent-text ml-auto">{{ lunarDate.slice(-4) }}</span>
+          <div class="h-3 w-3 rounded-full bg-ink-2" />
+          <span class="text-ink-2">農曆</span>
+          <span class="ml-auto text-xs text-seal-ink">{{ lunarDate.slice(-4) }}</span>
         </div>
       </div>
     </div>
@@ -536,39 +526,38 @@ onUnmounted(() => {
     <!-- 圖例開關 -->
     <button
       v-if="!showLegend"
-      class="absolute top-4 right-4 bg-card-bg/80 backdrop-blur-sm border border-border-light rounded-lg p-2 text-xs text-secondary-text hover:text-primary-text"
+      type="button"
+      class="absolute right-4 top-4 flex items-center gap-1 rounded-[10px] border border-line bg-surface/95 px-2 py-1.5 text-xs text-ink-2 shadow-card transition-colors hover:text-ink"
       @click="showLegend = true"
     >
-      🔮 運勢
+      <ChartBarIcon class="h-4 w-4 text-ink-3" />
+      運勢
     </button>
 
-    <div class="absolute top-4 left-4 text-primary-text">
-      <h3 class="text-lg font-semibold mb-2 text-primary-text">
+    <div class="absolute left-4 top-4">
+      <h3 class="mb-2 font-serif text-base font-bold text-ink">
         {{ title }}
       </h3>
-      <div class="text-sm space-y-1">
+      <div class="space-y-1 text-sm text-ink-2">
         <div>
-          生肖: <span class="text-accent-text">{{ zodiac }}</span>
+          生肖: <span class="text-seal-ink">{{ zodiac }}</span>
         </div>
         <div>
-          五行: <span class="text-info-text">{{ element }}</span>
+          五行: <span class="text-ink">{{ element }}</span>
         </div>
         <div>
-          運勢分數: <span :class="fortuneScoreColor">{{ fortuneScore }}</span>
+          運勢分數: <span
+            :class="fortuneScoreColor"
+            class="font-mono"
+          >{{ fortuneScore }}</span>
         </div>
         <div>
           投資建議: <span :class="investmentAdviceColor">{{ investmentAdvice }}</span>
         </div>
       </div>
     </div>
-    <div class="absolute bottom-4 right-4 text-secondary-text text-xs">
+    <div class="absolute bottom-4 right-4 text-xs text-ink-3">
       <div>農民曆: {{ lunarDate }}</div>
     </div>
   </div>
 </template>
-
-<style scoped>
-.relative {
-  position: relative;
-}
-</style>

@@ -5,6 +5,7 @@ import { TaiwanStockService } from './taiwanStock'
 import { fortuneHistoryStore } from '@/services/fortuneStore'
 import { toLocalDateString } from '@/utils/date'
 import { profileHash as hashProfile } from '@/utils/hash'
+import { EARTHLY_BRANCHES, ZODIAC_AVOID_BRANCHES, ZODIAC_LUCKY_BRANCHES } from '@/utils/almanac'
 import { metaphysicsRegistry } from './engines'
 import { ClassicFortuneEngine } from './engines/classic'
 import { BaziTenGodsEngine } from './engines/baziTenGods'
@@ -163,9 +164,6 @@ const ZODIAC_COMPATIBILITY = {
   狗: { best: ['虎', '馬'], good: ['兔'], avoid: ['龍', '雞'] },
   豬: { best: ['兔', '羊'], good: ['虎'], avoid: ['蛇', '猴'] },
 } as const
-
-// 時辰對照表
-const HOUR_ZHI = ['子', '丑', '寅', '卯', '辰', '巳', '午', '未', '申', '酉', '戌', '亥']
 
 export class IntegratedFortuneService {
   private static cache = new Map<string, IntegratedFortuneData>()
@@ -855,7 +853,7 @@ export class IntegratedFortuneService {
   private static calculateHourGanZhi(dayGanZhi: string, hour: number): string {
     // 計算時辰干支
     const zhiIndex = Math.floor((hour + 1) / 2) % 12
-    const zhi = HOUR_ZHI[zhiIndex]
+    const zhi = EARTHLY_BRANCHES[zhiIndex]
 
     // 根據日干推算時干
     const dayGan = dayGanZhi[0]
@@ -874,42 +872,12 @@ export class IntegratedFortuneService {
     return 0
   }
 
-  private static getLuckyZhiForZodiac(zodiac: string): string[] {
-    const zodiacToZhi: { [key: string]: string[] } = {
-      鼠: ['子', '申', '辰'],
-      牛: ['丑', '巳', '酉'],
-      虎: ['寅', '午', '戌'],
-      兔: ['卯', '亥', '未'],
-      龍: ['辰', '子', '申'],
-      蛇: ['巳', '酉', '丑'],
-      馬: ['午', '寅', '戌'],
-      羊: ['未', '卯', '亥'],
-      猴: ['申', '子', '辰'],
-      雞: ['酉', '巳', '丑'],
-      狗: ['戌', '寅', '午'],
-      豬: ['亥', '卯', '未'],
-    }
-
-    return zodiacToZhi[zodiac] || ['午']
+  private static getLuckyZhiForZodiac(zodiac: string): readonly string[] {
+    return ZODIAC_LUCKY_BRANCHES[zodiac] ?? ['午']
   }
 
-  private static getAvoidZhiForZodiac(zodiac: string): string[] {
-    const zodiacToAvoid: { [key: string]: string[] } = {
-      鼠: ['午', '未'],
-      牛: ['未', '午'],
-      虎: ['申', '巳'],
-      兔: ['酉', '辰'],
-      龍: ['戌', '卯'],
-      蛇: ['亥', '寅'],
-      馬: ['子', '丑'],
-      羊: ['丑', '子'],
-      猴: ['寅', '亥'],
-      雞: ['卯', '戌'],
-      狗: ['辰', '酉'],
-      豬: ['巳', '申'],
-    }
-
-    return zodiacToAvoid[zodiac] || ['子']
+  private static getAvoidZhiForZodiac(zodiac: string): readonly string[] {
+    return ZODIAC_AVOID_BRANCHES[zodiac] ?? ['子']
   }
 
   private static zhiToTimeRange(zhi: string): string {

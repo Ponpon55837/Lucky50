@@ -36,6 +36,22 @@ const props = withDefaults(defineProps<Props>(), {
   isDark: true,
 })
 
+// Chart.js 需要實際色值：渲染時從 CSS tokens（"r g b"）讀取，深淺主題自動跟著切換
+const FALLBACK_TOKENS: Record<string, string> = {
+  ink: '27 26 24',
+  'ink-2': '85 82 76',
+  'ink-3': '111 107 100',
+  surface: '255 255 255',
+  seal: '192 40 45',
+}
+const token = (name: string, alpha = 1): string => {
+  const raw =
+    typeof document === 'undefined'
+      ? ''
+      : getComputedStyle(document.documentElement).getPropertyValue(`--c-${name}`).trim()
+  return `rgb(${raw || FALLBACK_TOKENS[name] || '128 128 128'} / ${alpha})`
+}
+
 // 計算圖表數據
 const chartData = computed(() => {
   if (!props.etfData || props.etfData.length === 0) {
@@ -64,8 +80,9 @@ const chartData = computed(() => {
 
   const prices = sortedData.map(item => item.close)
 
-  // 創建背景色 - 使用簡單的字符串而不是漸變
-  const backgroundColor = props.isDark ? 'rgba(251, 191, 36, 0.1)' : 'rgba(59, 130, 246, 0.1)'
+  // isDark 只用來觸發重新計算；實際顏色由 tokens 決定
+  void props.isDark
+  const line = token('seal')
 
   const data = {
     labels,
@@ -73,15 +90,15 @@ const chartData = computed(() => {
       {
         label: '0050 收盤價',
         data: prices,
-        borderColor: props.isDark ? '#fbbf24' : '#3b82f6',
-        backgroundColor,
+        borderColor: line,
+        backgroundColor: token('seal', 0.08),
         borderWidth: 2,
         fill: true,
-        tension: 0.4,
-        pointRadius: 3,
-        pointHoverRadius: 6,
-        pointBackgroundColor: props.isDark ? '#fbbf24' : '#3b82f6',
-        pointBorderColor: props.isDark ? '#ffffff' : '#1f2937',
+        tension: 0.35,
+        pointRadius: 0,
+        pointHoverRadius: 4,
+        pointBackgroundColor: line,
+        pointBorderColor: token('surface'),
         pointBorderWidth: 2,
       },
     ],
@@ -92,8 +109,9 @@ const chartData = computed(() => {
 
 // 圖表選項
 const chartOptions = computed(() => {
-  const textColor = props.isDark ? '#e5e7eb' : '#374151'
-  const gridColor = props.isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)'
+  void props.isDark
+  const textColor = token('ink-3')
+  const gridColor = token('ink', 0.08)
 
   return {
     responsive: true,
@@ -107,12 +125,12 @@ const chartOptions = computed(() => {
         display: false,
       },
       tooltip: {
-        backgroundColor: props.isDark ? 'rgba(17, 24, 39, 0.9)' : 'rgba(255, 255, 255, 0.9)',
-        titleColor: textColor,
-        bodyColor: textColor,
-        borderColor: props.isDark ? '#fbbf24' : '#3b82f6',
+        backgroundColor: token('surface', 0.96),
+        titleColor: token('ink-3'),
+        bodyColor: token('ink'),
+        borderColor: token('ink', 0.18),
         borderWidth: 1,
-        cornerRadius: 8,
+        cornerRadius: 10,
         padding: 12,
         displayColors: false,
         callbacks: {
@@ -125,9 +143,9 @@ const chartOptions = computed(() => {
     scales: {
       x: {
         grid: {
-          display: true,
-          color: gridColor,
+          display: false,
         },
+        border: { color: gridColor },
         ticks: {
           color: textColor,
           font: {
@@ -140,6 +158,7 @@ const chartOptions = computed(() => {
           display: true,
           color: gridColor,
         },
+        border: { display: false },
         ticks: {
           color: textColor,
           font: {
@@ -153,7 +172,7 @@ const chartOptions = computed(() => {
     },
     elements: {
       point: {
-        hoverBackgroundColor: props.isDark ? '#fbbf24' : '#3b82f6',
+        hoverBackgroundColor: token('seal'),
       },
     },
   }
@@ -164,12 +183,12 @@ const chartOptions = computed(() => {
   <div class="h-64 w-full">
     <div
       v-if="!chartData"
-      class="h-full bg-gray-800/50 rounded-lg flex items-center justify-center"
+      class="flex h-full items-center justify-center rounded-[10px] bg-raised text-center"
     >
-      <p class="text-gray-400">
+      <p class="text-sm text-ink-3">
         {{ props.etfData?.length === 0 ? '無數據可顯示' : '載入圖表中...' }}
         <br>
-        <small class="text-xs">數據數量: {{ props.etfData?.length || 0 }}</small>
+        <small class="font-mono text-xs">數據數量: {{ props.etfData?.length || 0 }}</small>
       </p>
     </div>
     <Line

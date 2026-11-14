@@ -1,106 +1,7 @@
-<template>
-  <div class="card">
-    <h3 class="text-lg font-bold mb-4 flex items-center">
-      <span class="text-gold-400 mr-2">🔮</span>
-      <span class="text-white">八字十神分析</span>
-    </h3>
-
-    <div
-      v-if="loading"
-      class="text-center py-8 text-gray-400"
-    >
-      計算中...
-    </div>
-
-    <div
-      v-else-if="error"
-      class="text-center py-8 text-red-400"
-    >
-      {{ error }}
-    </div>
-
-    <template v-else-if="result">
-      <!-- 綜合分數 -->
-      <div class="text-center mb-6">
-        <div
-          class="text-4xl font-bold"
-          :class="scoreColor"
-        >
-          {{ result.score }}
-        </div>
-        <div class="text-sm text-gray-400 mt-1">
-          十神能量分數
-        </div>
-      </div>
-
-      <!-- 四柱十神 -->
-      <div
-        v-if="result.distribution"
-        class="grid grid-cols-4 gap-2 mb-6"
-      >
-        <div
-          v-for="(label, key) in pillarLabels"
-          :key="key"
-          class="text-center p-3 bg-white/5 rounded"
-        >
-          <div class="text-xs text-gray-400">
-            {{ label }}
-          </div>
-          <div class="font-bold text-sm text-white mt-1">
-            {{ result.distribution[key as keyof typeof result.distribution] }}
-          </div>
-          <div class="text-xs text-gray-500 mt-1">
-            {{ result.ganZhi[key as keyof typeof result.ganZhi] }}
-          </div>
-        </div>
-      </div>
-
-      <!-- 投資風格 -->
-      <div class="mb-4 p-4 bg-white/5 rounded-lg">
-        <div class="text-sm font-bold text-amber-400 mb-1">
-          投資風格
-        </div>
-        <div
-          class="text-sm text-gray-300"
-          :class="styleColor"
-        >
-          {{ result.personality }}
-        </div>
-      </div>
-
-      <!-- 十神統計 -->
-      <div
-        v-if="result.counts"
-        class="grid grid-cols-2 gap-2"
-      >
-        <div
-          v-for="(count, god) in result.counts"
-          :key="god"
-          class="flex justify-between items-center p-2 bg-white/5 rounded text-sm"
-        >
-          <span class="text-gray-300">{{ god }}</span>
-          <span
-            class="font-bold"
-            :class="count > 0 ? 'text-amber-400' : 'text-gray-500'"
-          >
-            {{ count }}
-          </span>
-        </div>
-      </div>
-    </template>
-
-    <div
-      v-else
-      class="text-center py-8 text-gray-500"
-    >
-      請先設定出生資料
-    </div>
-  </div>
-</template>
-
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue'
-import { lunarService } from '@/services/lunar'
+import { computed } from 'vue'
+import EngineCard from '@/components/engines/EngineCard.vue'
+import { buildBirthChart, energyWord } from '@/services/engines/birthChart'
 import {
   calculateFourPillarsTenGods,
   countTenGods,
@@ -110,89 +11,98 @@ import {
 } from '@/utils/tenGods'
 import type { UserProfileCompat } from '@/services/integratedFortune'
 
-interface TenGodsResult {
-  score: number
-  distribution: Record<string, string>
-  counts: Record<string, number>
-  ganZhi: Record<string, string>
-  personality: string
-}
-
 const props = defineProps<{
   profile: UserProfileCompat | null
 }>()
 
-const result = ref<TenGodsResult | null>(null)
-const loading = ref(false)
-const error = ref<string | null>(null)
+const PILLARS = [
+  { key: 'year', label: '年柱' },
+  { key: 'month', label: '月柱' },
+  { key: 'day', label: '日柱' },
+  { key: 'hour', label: '時柱' },
+] as const
 
-const pillarLabels: Record<string, string> = {
-  year: '年柱',
-  month: '月柱',
-  day: '日柱',
-  hour: '時柱',
-}
-
-const scoreColor = computed(() => {
-  const score = result.value?.score || 0
-  if (score >= 70) return 'text-green-600'
-  if (score >= 50) return 'text-blue-600'
-  return 'text-orange-600'
-})
-
-const styleColor = computed(() => {
-  const personality = result.value?.personality || ''
-  if (personality.includes('積極交易')) return 'text-red-600 dark:text-red-400'
-  if (personality.includes('研究分析')) return 'text-purple-600 dark:text-purple-400'
-  if (personality.includes('創意突破')) return 'text-amber-600 dark:text-amber-400'
-  return 'text-blue-600 dark:text-blue-400'
-})
-
-function calculate() {
-  if (!props.profile) {
-    result.value = null
-    return
-  }
-
-  loading.value = true
-  error.value = null
-
+/** 計算為同步純運算，直接用 computed，資料不變時不重算 */
+const state = computed(() => {
+  if (!props.profile) return { result: null, error: null }
   try {
-    const lunarData = lunarService.getLunarData(new Date(props.profile.birthDate))
+    const { baZi } = buildBirthChart(props.profile)
+    const ganZhi = {
+      year: baZi.yearGanZhi,
+      month: baZi.monthGanZhi,
+      day: baZi.dayGanZhi,
+      hour: baZi.hourGanZhi,
+    }
     const distribution = calculateFourPillarsTenGods(
-      lunarData.ganZhi,
-      lunarData.monthGanZhi,
-      lunarData.dayGanZhi,
-      lunarData.ganZhi // 使用年干支作為時柱近似值
+      ganZhi.year,
+      ganZhi.month,
+      ganZhi.day,
+      ganZhi.hour
     )
-
     const counts = countTenGods(distribution)
-    const dominantGods = findDominantTenGods(counts)
+    const dominant = findDominantTenGods(counts)
     const personality = inferInvestmentPersonality(distribution)
-
-    const maxCount = Math.max(...Object.values(counts))
-    const concentration = maxCount / 4
+    // 十神越集中，能量越強
+    const concentration = Math.max(...Object.values(counts)) / 4
     const score = Math.round(30 + concentration * 50)
 
-    result.value = {
-      score,
-      distribution: distribution as unknown as Record<string, string>,
-      counts: counts as unknown as Record<string, number>,
-      ganZhi: {
-        year: lunarData.ganZhi,
-        month: lunarData.monthGanZhi,
-        day: lunarData.dayGanZhi,
-        hour: lunarData.ganZhi,
+    return {
+      result: {
+        headline: dominant[0] ?? '十神均衡',
+        styleNote: dominant.map(god => `${god}${TEN_GODS_INVESTMENT_STYLE[god]}`).join('、'),
+        description: personality.description,
+        energy: energyWord(score),
+        pillars: PILLARS.map(({ key, label }) => ({
+          label,
+          god: distribution[key],
+          ganZhi: ganZhi[key],
+        })),
       },
-      personality: `${personality.description} 主要十神：${dominantGods.map(g => `${g}(${TEN_GODS_INVESTMENT_STYLE[g]})`).join('、')}`,
+      error: null,
     }
   } catch (e) {
-    error.value = e instanceof Error ? e.message : '計算失敗'
-  } finally {
-    loading.value = false
+    return { result: null, error: e instanceof Error ? e.message : '計算失敗' }
   }
-}
-
-onMounted(calculate)
-watch(() => props.profile, calculate)
+})
 </script>
+
+<template>
+  <EngineCard
+    tab="八字十神"
+    title="八字十神分析"
+    :error="state.error"
+    :empty="!profile"
+  >
+    <template v-if="state.result">
+      <p class="flex flex-wrap items-baseline gap-x-3">
+        <span class="font-kai text-[22px] font-bold">{{ state.result.headline }}</span>
+        <span class="text-[13px] text-ink-3">十神能量{{ state.result.energy }}</span>
+      </p>
+      <p class="text-[13px] text-ink-2">
+        <span class="text-ink">投資風格：</span>{{ state.result.description }}
+      </p>
+      <p
+        v-if="state.result.styleNote"
+        class="text-[13px] text-ink-3"
+      >
+        {{ state.result.styleNote }}
+      </p>
+      <dl class="grid grid-cols-4 gap-2 border-t border-line pt-3 text-center">
+        <div
+          v-for="pillar in state.result.pillars"
+          :key="pillar.label"
+        >
+          <dt class="text-xs text-ink-3">
+            {{ pillar.label }}
+          </dt>
+          <dd class="font-kai text-base">
+            {{ pillar.god }}
+          </dd>
+          <dd class="text-xs text-ink-3">
+            {{ pillar.ganZhi }}
+          </dd>
+        </div>
+      </dl>
+    </template>
+  </EngineCard>
+</template>

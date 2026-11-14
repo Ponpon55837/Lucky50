@@ -36,8 +36,8 @@ export default defineConfig({
         name: '農民曆智慧投資',
         short_name: 'Lucky50',
         description: '結合傳統農民曆智慧與現代金融科技的投資建議系統',
-        theme_color: '#3B82F6',
-        background_color: '#0f172a',
+        theme_color: '#f3f2ee',
+        background_color: '#f3f2ee',
         display: 'standalone',
         icons: [
           {

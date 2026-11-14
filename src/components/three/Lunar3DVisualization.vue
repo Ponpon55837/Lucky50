@@ -1,7 +1,15 @@
 <script setup lang="ts">
 import { ref, onUnmounted, watch, computed, nextTick } from 'vue'
 import * as THREE from 'three'
-import { ThreeJSScene, createThemeGlowMaterial, getThemeColor, disposeObject3D } from '@/utils/three-scene'
+import { ChartBarIcon, XMarkIcon } from '@heroicons/vue/24/outline'
+import {
+  ThreeJSScene,
+  createSceneMaterial,
+  tokenColor,
+  tokenHex,
+  disposeObject3D,
+  type SceneToken,
+} from '@/utils/three-scene'
 import { useVisibleOnce } from '@/composables/useVisibleOnce'
 import { useTheme } from '@/composables/useTheme'
 import { useDashboardStore } from '@/stores/dashboard'
@@ -33,8 +41,8 @@ const ANIMATION_CONFIG = {
     count: 800,
     minRadius: 12,
     maxRadius: 37,
-    minSize: 0.03,
-    maxSize: 0.15,
+    // PointsMaterial 只支援統一大小
+    size: 0.15,
   },
   bars: {
     suitable: { baseRadius: 4.0, maxCount: 6 },
@@ -69,10 +77,10 @@ type ElementType =
   | 'fortuneIndicator'
   | 'starField'
 const elementDescriptions: Record<ElementType, string> = {
-  moon: '月亮：農曆的核心，大小和光苒表示當日月相能量',
+  moon: '月亮：農曆的核心，大小和光芒表示當日月相能量',
   solarTermRings: '節氣環：二十四節氣的能量環，不同層級代表時節影響',
-  suitableBars: '宜事柱：綠色柱子代表當日適宜做的事情',
-  avoidBars: '忌事柱：紅色柱子代表當日需要送免的事情',
+  suitableBars: '宜事柱：紅色柱子代表當日適宜做的事情',
+  avoidBars: '忌事柱：綠色柱子代表當日需要避免的事情',
   celestialWheel: '天干地支：外圈地支和內圈天干，表示時空能量',
   fortuneIndicator: '運勢指示器：中心柱子代表綜合投資運勢分數',
   starField: '星空背景：閃爍的星星製造宇宙氛圍',
@@ -111,18 +119,17 @@ const fortuneLevel = computed((): FortuneLevel => {
 
 const fortuneColor = computed(() => {
   const score = fortuneScore.value
-  if (score >= 80) return 'text-emerald-400'
-  if (score >= 65) return 'text-green-400'
-  if (score >= 35) return 'text-yellow-400'
-  return 'text-red-400'
+  if (score >= 80) return 'text-good'
+  if (score >= 65) return 'text-good'
+  if (score >= 35) return 'text-warn'
+  return 'text-bad'
 })
 
-const fortuneThemeColor = computed(() => {
+const fortuneThemeColor = computed((): SceneToken => {
   const score = fortuneScore.value
-  if (score >= 80) return 'success'
-  if (score >= 65) return 'warning'
-  if (score >= 35) return 'info'
-  return 'danger'
+  if (score >= 65) return 'rise'
+  if (score >= 35) return 'ink-3'
+  return 'fall'
 })
 
 // ── 方法與函式 ──
@@ -150,8 +157,8 @@ const createMoon = (): THREE.Mesh => {
   const { radius, breathScale, breathSpeed, rotationSpeed } = ANIMATION_CONFIG.moon
 
   const geometry = new THREE.IcosahedronGeometry(radius, 3)
-  const color = getThemeColor('accent', isDark.value)
-  const material = createThemeGlowMaterial(color, 0.9, isDark.value)
+  // 月亮是場景唯一的朱印紅重點
+  const material = createSceneMaterial(tokenHex('seal'), 0.95)
   const moon = new THREE.Mesh(geometry, material)
   moon.position.set(0, 1.5, 0)
 
@@ -179,9 +186,8 @@ const createSolarTermRings = (): THREE.Mesh[] => {
     const thickness = baseThickness + layer * thicknessIncrement
 
     const geometry = new THREE.TorusGeometry(radius, thickness, 12, 80)
-    const colorType = layer === 0 ? 'success' : layer === 1 ? 'warning' : 'info'
-    const color = getThemeColor(colorType, isDark.value)
-    const material = createThemeGlowMaterial(color, 0.8 - layer * 0.1, isDark.value)
+    const tone: SceneToken = layer === 0 ? 'ink-2' : layer === 1 ? 'ink-3' : 'line'
+    const material = createSceneMaterial(tokenHex(tone), 0.8 - layer * 0.1)
 
     const ring = new THREE.Mesh(geometry, material)
     ring.position.set(0, 0, 0)
@@ -203,7 +209,7 @@ const createSolarTermRings = (): THREE.Mesh[] => {
 const createIndicatorBars = (
   items: string[],
   config: { baseRadius: number; maxCount: number },
-  colorType: 'success' | 'danger',
+  tone: 'rise' | 'fall',
   startAngle: number,
   yOffset: number,
   isUpward: boolean = true
@@ -219,8 +225,7 @@ const createIndicatorBars = (
       ? new THREE.CylinderGeometry(0.12, 0.18, height, 8)
       : new THREE.CylinderGeometry(0.18, 0.12, height, 8)
 
-    const color = getThemeColor(colorType, isDark.value)
-    const material = createThemeGlowMaterial(color, 0.9, isDark.value)
+    const material = createSceneMaterial(tokenHex(tone), 0.9)
     const bar = new THREE.Mesh(geometry, material)
 
     const angle = (i / count) * Math.PI + startAngle
@@ -259,10 +264,9 @@ const createIndicatorBars = (
 const createFortuneIndicator = (): THREE.Mesh => {
   const height = 2.5
   const geometry = new THREE.CylinderGeometry(0.4, 0.6, height, 12)
-  const color = getThemeColor(fortuneThemeColor.value, isDark.value)
   const score = fortuneScore.value
   const isExcellent = score >= 80
-  const material = createThemeGlowMaterial(color, isExcellent ? 1.0 : 0.7, isDark.value)
+  const material = createSceneMaterial(tokenHex(fortuneThemeColor.value), isExcellent ? 0.95 : 0.8)
 
   const indicator = new THREE.Mesh(geometry, material)
   indicator.position.set(0, -1.5, 2.0)
@@ -289,9 +293,8 @@ const createCelestialWheel = (): THREE.Mesh[] => {
     const angle = (i / branches.count) * Math.PI * 2
 
     const geometry = new THREE.OctahedronGeometry(0.2, 0)
-    const colorType = i % 3 === 0 ? 'primary' : i % 3 === 1 ? 'secondary' : 'accent'
-    const color = getThemeColor(colorType, isDark.value)
-    const material = createThemeGlowMaterial(color, 0.8, isDark.value)
+    const tone: SceneToken = i % 2 === 0 ? 'ink-2' : 'ink-3'
+    const material = createSceneMaterial(tokenHex(tone), 0.8)
     const branch = new THREE.Mesh(geometry, material)
 
     branch.position.set(
@@ -320,8 +323,7 @@ const createCelestialWheel = (): THREE.Mesh[] => {
     const angle = (i / stems.count) * Math.PI * 2
 
     const geometry = new THREE.TetrahedronGeometry(0.25, 1)
-    const color = getThemeColor('warning', isDark.value)
-    const material = createThemeGlowMaterial(color, 0.9, isDark.value)
+    const material = createSceneMaterial(tokenHex('ink-3'), 0.7)
     const stem = new THREE.Mesh(geometry, material)
 
     stem.position.set(
@@ -353,18 +355,13 @@ const createCelestialWheel = (): THREE.Mesh[] => {
 
 // 創建增強星空背景
 const createEnhancedStarField = (): THREE.Points => {
-  const { count, minRadius, maxRadius, minSize, maxSize } = ANIMATION_CONFIG.stars
+  const { count, minRadius, maxRadius, size } = ANIMATION_CONFIG.stars
 
   const positions = new Float32Array(count * 3)
   const colors = new Float32Array(count * 3)
-  const sizes = new Float32Array(count)
 
-  const starColors = [
-    new THREE.Color(0xffd700), // 金色
-    new THREE.Color(0xc0c0c0), // 銀色
-    new THREE.Color(getThemeColor('info', isDark.value)),
-    new THREE.Color(getThemeColor('accent', isDark.value)),
-  ]
+  // 星點只用墨色階，不做彩色
+  const starColors = [tokenColor('ink-3'), tokenColor('ink-2'), tokenColor('line')]
 
   for (let i = 0; i < count; i++) {
     const i3 = i * 3
@@ -383,25 +380,22 @@ const createEnhancedStarField = (): THREE.Points => {
     colors[i3] = starColor.r
     colors[i3 + 1] = starColor.g
     colors[i3 + 2] = starColor.b
-
-    sizes[i] = minSize + Math.random() * (maxSize - minSize)
   }
 
   const geometry = new THREE.BufferGeometry()
   geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3))
   geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3))
-  geometry.setAttribute('size', new THREE.BufferAttribute(sizes, 1))
 
   const material = new THREE.PointsMaterial({
-    size: 0.15,
+    size,
     vertexColors: true,
     transparent: true,
-    opacity: isDark.value ? 0.95 : 0.8,
+    opacity: 0.6,
     sizeAttenuation: true,
-    blending: THREE.AdditiveBlending,
   })
 
   const starField = new THREE.Points(geometry, material)
+  const baseColors = colors.slice()
 
   // 星空旋轉和閃爍動畫
   registerAnimation(() => {
@@ -409,27 +403,19 @@ const createEnhancedStarField = (): THREE.Points => {
     starField.rotation.x += 0.0001
     starField.rotation.z += 0.0002
 
-    // 星星閃爍效果
+    // 星星閃爍：每幀由原始顏色計算，避免原地相乘讓星星越來越暗
     const colorAttr = starField.geometry.attributes.color.array as Float32Array
-    const sizeAttr = starField.geometry.attributes.size.array as Float32Array
     const time = Date.now() * 0.001
 
     for (let i = 0; i < count; i++) {
       const i3 = i * 3
       const twinkle = ((Math.sin(time * 2 + i * 0.1) + 1) / 2) * 0.4 + 0.6
-      const pulse = ((Math.sin(time * 3 + i * 0.2) + 1) / 2) * 0.3 + 0.7
-
-      // 顏色閃爍
-      colorAttr[i3] *= twinkle
-      colorAttr[i3 + 1] *= twinkle
-      colorAttr[i3 + 2] *= twinkle
-
-      // 大小脈動
-      sizeAttr[i] *= pulse
+      colorAttr[i3] = baseColors[i3] * twinkle
+      colorAttr[i3 + 1] = baseColors[i3 + 1] * twinkle
+      colorAttr[i3 + 2] = baseColors[i3 + 2] * twinkle
     }
 
     starField.geometry.attributes.color.needsUpdate = true
-    starField.geometry.attributes.size.needsUpdate = true
   })
 
   return starField
@@ -450,7 +436,7 @@ const createLunarVisualization = () => {
   const suitableBars = createIndicatorBars(
     suitable.value,
     ANIMATION_CONFIG.bars.suitable,
-    'success',
+    'rise',
     Math.PI / 4,
     0,
     true
@@ -458,7 +444,7 @@ const createLunarVisualization = () => {
   const avoidBars = createIndicatorBars(
     avoid.value,
     ANIMATION_CONFIG.bars.avoid,
-    'danger',
+    'fall',
     (Math.PI * 5) / 4,
     0,
     false
@@ -484,7 +470,6 @@ const initScene = () => {
   if (!threeContainer.value || scene) return
 
   scene = new ThreeJSScene(threeContainer.value, {
-    backgroundColor: getThemeColor('background', isDark.value),
     alpha: true,
     antialias: true,
     isDark: isDark.value,
@@ -565,21 +550,21 @@ onUnmounted(() => {
 
 <template>
   <div
-    class="relative w-full h-full bg-gradient-to-br from-surface-bg/50 via-card-bg to-surface-bg rounded-lg overflow-hidden border border-border-light"
+    class="relative h-full w-full overflow-hidden rounded-card border border-line bg-surface"
     @mousemove="handleMouseMove"
   >
     <div
       ref="threeContainer"
-      class="w-full h-full"
+      class="h-full w-full"
     />
 
     <!-- 動態懸停說明 -->
     <div
       v-if="hoveredElement"
       :style="{ left: mousePosition.x + 10 + 'px', top: mousePosition.y - 10 + 'px' }"
-      class="absolute z-10 bg-card-bg/90 backdrop-blur-sm border border-border-light rounded-lg p-3 shadow-lg pointer-events-none max-w-xs"
+      class="pointer-events-none absolute z-10 max-w-xs rounded-[10px] border border-line bg-surface/95 p-3 shadow-card"
     >
-      <div class="text-sm font-medium text-primary-text mb-1">
+      <div class="mb-1 text-sm font-medium text-ink">
         {{
           hoveredElement === 'moon'
             ? '月亮能量球'
@@ -596,7 +581,7 @@ onUnmounted(() => {
                       : '星空背景'
         }}
       </div>
-      <div class="text-xs text-secondary-text">
+      <div class="text-xs text-ink-2">
         {{ elementDescriptions[hoveredElement as ElementType] }}
       </div>
     </div>
@@ -604,88 +589,88 @@ onUnmounted(() => {
     <!-- 農曆分析圖例 -->
     <div
       v-if="showLegend"
-      class="absolute top-4 right-4 bg-card-bg/80 backdrop-blur-sm border border-border-light rounded-lg p-3 w-56"
+      class="absolute right-4 top-4 w-56 rounded-[10px] border border-line bg-surface/95 p-3 shadow-card"
     >
-      <div class="flex justify-between items-center mb-2">
-        <h4 class="text-sm font-semibold text-primary-text">
+      <div class="mb-2 flex items-center justify-between">
+        <h4 class="font-serif text-sm font-bold text-ink">
           農曆分析
         </h4>
         <button
-          class="text-xs text-secondary-text hover:text-primary-text"
+          type="button"
+          aria-label="關閉"
+          class="rounded text-ink-3 transition-colors hover:text-ink"
           @click="showLegend = false"
         >
-          ×
+          <XMarkIcon class="h-4 w-4" />
         </button>
       </div>
       <div class="space-y-2 text-xs">
         <div
-          class="flex items-center justify-between cursor-pointer hover:bg-surface-bg/50 p-1 rounded"
+          class="flex cursor-pointer items-center justify-between rounded p-1 transition-colors hover:bg-raised"
           @mouseenter="handleElementHover('moon')"
           @mouseleave="handleElementLeave"
         >
           <div class="flex items-center space-x-2">
-            <div
-              class="w-3 h-3 bg-gradient-to-r from-yellow-300 to-orange-300 rounded-full animate-pulse"
-            />
-            <span class="text-secondary-text">月亮</span>
+            <div class="h-3 w-3 rounded-full bg-seal" />
+            <span class="text-ink-2">月亮</span>
           </div>
-          <span class="text-accent-text text-xs">中心能量</span>
+          <span class="text-xs text-seal-ink">中心能量</span>
         </div>
         <div
-          class="flex items-center justify-between cursor-pointer hover:bg-surface-bg/50 p-1 rounded"
+          class="flex cursor-pointer items-center justify-between rounded p-1 transition-colors hover:bg-raised"
           @mouseenter="handleElementHover('solarTermRings')"
           @mouseleave="handleElementLeave"
         >
           <div class="flex items-center space-x-2">
             <div class="flex space-x-0.5">
-              <div class="w-0.5 h-0.5 bg-green-400 rounded-full" />
-              <div class="w-0.5 h-0.5 bg-yellow-400 rounded-full" />
-              <div class="w-0.5 h-0.5 bg-blue-400 rounded-full" />
+              <div class="h-1 w-1 rounded-full bg-ink-2" />
+              <div class="h-1 w-1 rounded-full bg-ink-3" />
+              <div class="h-1 w-1 rounded-full bg-line-strong" />
             </div>
-            <span class="text-secondary-text">節氣</span>
+            <span class="text-ink-2">節氣</span>
           </div>
-          <span class="text-success-text text-xs">{{ solarTerm }}</span>
+          <span class="text-xs text-ink">{{ solarTerm }}</span>
         </div>
         <div
-          class="flex items-center justify-between cursor-pointer hover:bg-surface-bg/50 p-1 rounded"
+          class="flex cursor-pointer items-center justify-between rounded p-1 transition-colors hover:bg-raised"
           @mouseenter="handleElementHover('suitableBars')"
           @mouseleave="handleElementLeave"
         >
           <div class="flex items-center space-x-2">
             <div class="flex space-x-0.5">
-              <div class="w-0.5 h-3 bg-green-400" />
-              <div class="w-0.5 h-2 bg-green-400" />
-              <div class="w-0.5 h-4 bg-green-400" />
+              <div class="h-3 w-0.5 bg-good" />
+              <div class="h-2 w-0.5 bg-good" />
+              <div class="h-4 w-0.5 bg-good" />
             </div>
-            <span class="text-secondary-text">宜</span>
+            <span class="text-ink-2">宜</span>
           </div>
-          <span class="text-success-text text-xs">{{ suitable?.slice(0, 2).join(', ') }}</span>
+          <span class="text-xs text-good">{{ suitable?.slice(0, 2).join(', ') }}</span>
         </div>
         <div
-          class="flex items-center justify-between cursor-pointer hover:bg-surface-bg/50 p-1 rounded"
+          class="flex cursor-pointer items-center justify-between rounded p-1 transition-colors hover:bg-raised"
           @mouseenter="handleElementHover('avoidBars')"
           @mouseleave="handleElementLeave"
         >
           <div class="flex items-center space-x-2">
             <div class="flex space-x-0.5">
-              <div class="w-0.5 h-2 bg-red-400" />
-              <div class="w-0.5 h-3 bg-red-400" />
-              <div class="w-0.5 h-2 bg-red-400" />
+              <div class="h-2 w-0.5 bg-bad" />
+              <div class="h-3 w-0.5 bg-bad" />
+              <div class="h-2 w-0.5 bg-bad" />
             </div>
-            <span class="text-secondary-text">忌</span>
+            <span class="text-ink-2">忌</span>
           </div>
-          <span class="text-error-text text-xs">{{ avoid?.slice(0, 2).join(', ') }}</span>
+          <span class="text-xs text-bad">{{ avoid?.slice(0, 2).join(', ') }}</span>
         </div>
         <div
-          class="flex items-center justify-between cursor-pointer hover:bg-surface-bg/50 p-1 rounded"
+          class="flex cursor-pointer items-center justify-between rounded p-1 transition-colors hover:bg-raised"
           @mouseenter="handleElementHover('celestialWheel')"
           @mouseleave="handleElementLeave"
         >
           <div class="flex items-center space-x-2">
-            <div class="w-3 h-3 bg-gradient-to-r from-purple-400 to-blue-400 rounded" />
-            <span class="text-secondary-text">天干地支</span>
+            <div class="h-3 w-3 rounded bg-ink-3" />
+            <span class="text-ink-2">天干地支</span>
           </div>
-          <span class="text-info-text text-xs">新轉</span>
+          <span class="text-xs text-ink-2">新轉</span>
         </div>
       </div>
     </div>
@@ -693,51 +678,47 @@ onUnmounted(() => {
     <!-- 圖例開關 -->
     <button
       v-if="!showLegend"
-      class="absolute top-4 right-4 bg-card-bg/80 backdrop-blur-sm border border-border-light rounded-lg p-2 text-xs text-secondary-text hover:text-primary-text"
+      type="button"
+      class="absolute right-4 top-4 flex items-center gap-1 rounded-[10px] border border-line bg-surface/95 px-2 py-1.5 text-xs text-ink-2 shadow-card transition-colors hover:text-ink"
       @click="showLegend = true"
     >
-      🌙 農曆
+      <ChartBarIcon class="h-4 w-4 text-ink-3" />
+      農曆
     </button>
-    <div class="absolute top-4 left-4 text-primary-text">
-      <h3 class="text-lg font-semibold mb-2 text-primary-text">
+    <div class="absolute left-4 top-4">
+      <h3 class="mb-2 font-serif text-base font-bold text-ink">
         {{ title }}
       </h3>
-      <div class="text-sm space-y-1">
+      <div class="space-y-1 text-sm text-ink-2">
         <div>
-          農曆: <span class="text-accent-text">{{ lunarDate }}</span>
+          農曆: <span class="text-seal-ink">{{ lunarDate }}</span>
         </div>
         <div>
-          節氣: <span class="text-success-text">{{ solarTerm }}</span>
+          節氣: <span class="text-ink">{{ solarTerm }}</span>
         </div>
         <div>
-          宜: <span class="text-success-text">{{ suitable?.slice(0, 2).join(', ') }}</span>
+          宜: <span class="text-good">{{ suitable?.slice(0, 2).join(', ') }}</span>
         </div>
         <div>
-          忌: <span class="text-error-text">{{ avoid?.slice(0, 2).join(', ') }}</span>
+          忌: <span class="text-bad">{{ avoid?.slice(0, 2).join(', ') }}</span>
         </div>
       </div>
     </div>
-    <div class="absolute bottom-4 right-4 text-primary-text text-xs">
+    <div class="absolute bottom-4 right-4 text-xs">
       <div class="text-center">
         <div
-          class="text-2xl font-bold mb-1"
+          class="mb-1 font-serif text-2xl font-bold"
           :class="fortuneColor"
         >
           {{ fortuneLevel }}
         </div>
-        <div class="text-lg font-semibold text-gold-400 mb-1">
+        <div class="mb-1 font-mono text-lg font-semibold text-seal-ink">
           {{ fortuneScore }}
         </div>
-        <div class="text-sm text-secondary-text">
+        <div class="text-sm text-ink-3">
           投資運勢
         </div>
       </div>
     </div>
   </div>
 </template>
-
-<style scoped>
-.relative {
-  position: relative;
-}
-</style>

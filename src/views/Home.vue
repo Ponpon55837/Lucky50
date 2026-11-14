@@ -1,206 +1,129 @@
 <script setup lang="ts">
-import { defineAsyncComponent } from 'vue'
+import { computed } from 'vue'
 import { RouterLink } from 'vue-router'
+import { lunarService } from '@/services/lunar'
+import { useDashboardStore } from '@/stores/dashboard'
+import { gradeFromScore } from '@/utils/almanac'
 
-// ── 元件 ──
-const FortuneOrb = defineAsyncComponent({
-  loader: () => import('@/components/FortuneOrb.vue'),
-  loadingComponent: () => import('@/components/ui/Loading.vue'),
+const dashboardStore = useDashboardStore()
+
+// 農民曆為同步計算且有快取，首頁直接取今天的資料
+const today = lunarService.getLunarData(new Date())
+
+/** 已在儀表板算過今日運勢時，封面帶上籤等 */
+const grade = computed(() => {
+  const score = dashboardStore.integratedFortune?.investmentScore
+  return score == null ? null : gradeFromScore(score)
 })
+
+const STEPS = [
+  { mark: '一', title: '留下生辰', text: '出生年月日、時辰和姓名，算出你的本命五行' },
+  { mark: '二', title: '每天抽一支籤', text: '結合當日宜忌、沖煞與節氣，寫成一首看得懂的籤詩' },
+  { mark: '三', title: '照時辰下單', text: '開盤時段哪個時辰吉、哪個凶，和 0050 走勢擺在一起看' },
+] as const
 </script>
 
 <template>
-  <div class="min-h-screen">
-    <!-- Hero Section -->
-    <section class="relative overflow-hidden">
-      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
-        <div class="text-center">
-          <h1 class="text-4xl md:text-6xl font-bold text-white mb-6">
-            農民曆智慧投資
+  <div class="flex flex-col gap-16 lg:gap-20">
+    <section
+      class="grid items-center gap-12 pt-4 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)] lg:pt-12"
+    >
+      <div class="flex items-start gap-4 sm:gap-8">
+        <p
+          class="shrink-0 border-l border-line-strong pl-3.5 font-kai text-lg tracking-[0.3em] text-seal-ink [writing-mode:vertical-rl]"
+        >
+          翻開今天的農民曆
+        </p>
+        <div>
+          <h1
+            class="isolate mb-6 font-serif text-[40px] font-black leading-[1.12] sm:text-[56px] xl:text-[68px]"
+          >
+            今天，<em class="hero-em">宜</em>買 0050 嗎？
           </h1>
-          <p class="text-xl md:text-2xl text-gray-300 mb-8 max-w-3xl mx-auto">
-            結合傳統農民曆智慧與現代金融科技<br>
-            為您的 0050 ETF 投資提供個人化建議
+          <p class="mb-8 max-w-[30rem] text-base leading-relaxed text-ink-2 sm:text-lg">
+            輸入生辰，每天幫你對照農民曆、八字和紫微，抽一支專屬的投資籤，告訴你哪個時辰下單最順
           </p>
-          <div class="flex flex-col sm:flex-row gap-4 justify-center">
+          <div class="flex flex-wrap gap-3">
             <RouterLink
               to="/dashboard"
-              class="btn-primary text-lg px-8 py-3"
+              class="btn-primary h-12 px-6"
             >
-              開始投資分析
+              抽今日籤
             </RouterLink>
             <RouterLink
               to="/profile"
-              class="btn-secondary text-lg px-8 py-3"
+              class="btn-secondary h-12 px-6"
             >
-              設定個人資料
+              先設定生辰
             </RouterLink>
           </div>
         </div>
-
-        <!-- 3D Fortune Orb -->
-        <div class="mt-12 sm:mt-16 flex justify-center">
-          <div class="w-48 h-48 sm:w-64 sm:h-64 relative">
-            <Suspense>
-              <FortuneOrb
-                :fortune-score="75"
-                :elements="{
-                  metal: 85,
-                  wood: 60,
-                  water: 70,
-                  fire: 90,
-                  earth: 55,
-                }"
-              />
-              <template #fallback>
-                <div class="w-full h-full flex items-center justify-center">
-                  <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500" />
-                </div>
-              </template>
-            </Suspense>
-          </div>
-        </div>
       </div>
+
+      <figure
+        class="cover"
+        aria-label="今日農民曆封面"
+      >
+        <div class="flex items-start justify-between">
+          <b class="font-kai text-[15px] tracking-[0.2em] text-gold">{{ today.ganZhi }}年</b>
+          <span class="font-mono text-xs opacity-80">0050</span>
+        </div>
+        <div class="flex flex-row-reverse items-start gap-4 self-center justify-self-center">
+          <small class="pt-2 font-kai text-lg tracking-[0.3em] [writing-mode:vertical-rl]">投資專用</small>
+          <span
+            class="font-serif text-[40px] font-black leading-[1.1] tracking-[0.25em] text-gold [writing-mode:vertical-rl] sm:text-[54px]"
+          >農民曆</span>
+        </div>
+        <figcaption class="flex items-end justify-between gap-3 text-[13px]">
+          <span>
+            {{ today.lunarMonth }}月{{ today.lunarDay }}<br>
+            {{ grade ? `今日${grade}` : `宜${today.yi[0] ?? '靜候'}` }}
+          </span>
+          <span class="seal-stamp seal-stamp-inverse h-[52px] w-[52px] rotate-[-4deg] text-lg">
+            {{ today.dayGanZhi }}
+          </span>
+        </figcaption>
+      </figure>
     </section>
 
-    <!-- Features Section -->
-    <section class="py-20">
-      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div class="text-center mb-16">
-          <h2 class="text-3xl md:text-4xl font-bold text-white mb-6">
-            專案特色
-          </h2>
-          <p class="text-xl text-gray-300 max-w-2xl mx-auto">
-            創新結合東方智慧與西方科技，為現代投資者提供全新視角
-          </p>
-        </div>
-
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 sm:gap-8">
-          <div class="card text-center">
-            <div
-              class="w-12 h-12 sm:w-16 sm:h-16 mx-auto mb-4 rounded-full bg-gradient-to-r from-gold-500 to-yellow-600 flex items-center justify-center"
-            >
-              <svg
-                class="w-6 h-6 sm:w-8 sm:h-8 text-white"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width="2"
-                  d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
-                />
-              </svg>
-            </div>
-            <h3 class="text-lg sm:text-xl font-semibold text-white mb-2">
-              個人化分析
-            </h3>
-            <p class="text-sm sm:text-base text-gray-300">
-              根據出生年月日、時辰與生肖計算個人投資運勢
-            </p>
-          </div>
-
-          <div class="card text-center">
-            <div
-              class="w-12 h-12 sm:w-16 sm:h-16 mx-auto mb-4 rounded-full bg-gradient-to-r from-jade-500 to-green-600 flex items-center justify-center"
-            >
-              <svg
-                class="w-6 h-6 sm:w-8 sm:h-8 text-white"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width="2"
-                  d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
-                />
-              </svg>
-            </div>
-            <h3 class="text-lg sm:text-xl font-semibold text-white mb-2">
-              農民曆整合
-            </h3>
-            <p class="text-sm sm:text-base text-gray-300">
-              結合傳統農民曆的吉凶宜忌判斷投資時機
-            </p>
-          </div>
-
-          <div class="card text-center">
-            <div
-              class="w-12 h-12 sm:w-16 sm:h-16 mx-auto mb-4 rounded-full bg-gradient-to-r from-purple-500 to-pink-600 flex items-center justify-center"
-            >
-              <svg
-                class="w-6 h-6 sm:w-8 sm:h-8 text-white"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width="2"
-                  d="M7 4V2a1 1 0 011-1h4a1 1 0 011 1v2M7 4h10M7 4l.01 16h9.98L17 4M12 8v8"
-                />
-              </svg>
-            </div>
-            <h3 class="text-lg sm:text-xl font-semibold text-white mb-2">
-              3D 視覺化
-            </h3>
-            <p class="text-sm sm:text-base text-gray-300">
-              使用 Three.js 打造沉浸式 3D 投資運勢球體
-            </p>
-          </div>
-
-          <div class="card text-center">
-            <div
-              class="w-12 h-12 sm:w-16 sm:h-16 mx-auto mb-4 rounded-full bg-gradient-to-r from-blue-500 to-cyan-600 flex items-center justify-center"
-            >
-              <svg
-                class="w-6 h-6 sm:w-8 sm:h-8 text-white"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width="2"
-                  d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
-                />
-              </svg>
-            </div>
-            <h3 class="text-lg sm:text-xl font-semibold text-white mb-2">
-              0050 專注
-            </h3>
-            <p class="text-sm sm:text-base text-gray-300">
-              專門針對台灣最具代表性的 ETF 提供精準分析
-            </p>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- CTA Section -->
-    <section class="py-20">
-      <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-        <div class="card">
-          <h2 class="text-3xl font-bold text-white mb-6">
-            立即開始您的智慧投資之旅
-          </h2>
-          <p class="text-xl text-gray-300 mb-8">
-            設定您的個人資料，獲取專屬的投資運勢分析
-          </p>
-          <RouterLink
-            to="/profile"
-            class="btn-primary text-lg px-8 py-4 inline-block"
-          >
-            建立個人檔案
-          </RouterLink>
-        </div>
+    <section class="grid gap-6 border-t border-line pt-12 md:grid-cols-3 md:gap-10">
+      <div
+        v-for="step in STEPS"
+        :key="step.mark"
+        class="grid grid-cols-[48px_minmax(0,1fr)] gap-x-4 gap-y-1"
+      >
+        <span
+          class="row-span-2 grid h-12 w-12 place-items-center rounded-full border-[1.5px] border-seal font-kai text-[22px] text-seal-ink"
+        >{{ step.mark }}</span>
+        <h2 class="self-end font-serif text-[17px] font-bold">
+          {{ step.title }}
+        </h2>
+        <p class="text-sm text-ink-2">
+          {{ step.text }}
+        </p>
       </div>
     </section>
   </div>
 </template>
+
+<style scoped>
+.hero-em {
+  @apply relative not-italic text-seal-ink;
+}
+
+/* 黃色螢光筆底線，像在農民曆上圈重點 */
+.hero-em::after {
+  content: '';
+  @apply absolute bottom-1 left-0 right-0 -z-10 h-2.5 bg-gold/55;
+}
+
+.cover {
+  @apply relative isolate grid aspect-[4/5] max-h-[520px] w-full max-w-[420px] grid-rows-[auto_1fr_auto] justify-self-center overflow-hidden rounded-3xl bg-seal p-6 text-seal-on sm:p-8;
+}
+
+/* 封面內框金線 */
+.cover::before {
+  content: '';
+  @apply absolute inset-3.5 -z-10 rounded-[14px] border-2 border-gold/70;
+}
+</style>

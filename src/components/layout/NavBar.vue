@@ -1,335 +1,136 @@
 <script setup lang="ts">
-import { ref } from 'vue'
-import { RouterLink } from 'vue-router'
+import { ref, watch } from 'vue'
+import { RouterLink, useRoute } from 'vue-router'
+import { Bars3Icon, XMarkIcon } from '@heroicons/vue/24/outline'
 import ThemeToggle from '@/components/ThemeToggle.vue'
+import { useEscapeKey } from '@/composables/useEscapeKey'
 
+const NAV_ITEMS = [
+  { to: '/', label: '首頁' },
+  { to: '/dashboard', label: '儀表板' },
+  { to: '/history', label: '運勢歷史' },
+  { to: '/analytics', label: '數據分析' },
+  { to: '/profile', label: '個人設定' },
+] as const
+
+const route = useRoute()
 const mobileOpen = ref(false)
 
-const toggleMobile = () => {
-  mobileOpen.value = !mobileOpen.value
-}
+useEscapeKey(mobileOpen, () => (mobileOpen.value = false))
 
-const closeMobile = () => {
-  mobileOpen.value = false
-}
+// 換頁時自動收起手機選單
+watch(
+  () => route.fullPath,
+  () => (mobileOpen.value = false)
+)
 </script>
 
 <template>
-  <nav class="navbar">
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-      <div class="flex justify-between items-center h-16">
-        <!-- Logo -->
+  <!-- 桌面：直排書脊導覽 -->
+  <nav
+    class="fixed inset-y-0 left-0 z-40 hidden w-[88px] flex-col items-center gap-5 border-r border-line bg-surface py-5 lg:flex"
+    aria-label="主選單"
+  >
+    <RouterLink
+      to="/"
+      class="brand-mark h-11 w-11 text-2xl"
+      aria-label="Lucky50 首頁"
+    >
+      福
+    </RouterLink>
+    <ul class="flex flex-col gap-1">
+      <li
+        v-for="item in NAV_ITEMS"
+        :key="item.to"
+      >
         <RouterLink
-          to="/"
-          class="logo-link"
+          :to="item.to"
+          class="spine-link"
+          exact-active-class="is-active"
         >
-          <div class="logo-icon" />
-          <span class="logo-text">Lucky50</span>
+          {{ item.label }}
         </RouterLink>
+      </li>
+    </ul>
+    <div class="mt-auto">
+      <ThemeToggle />
+    </div>
+  </nav>
 
-        <!-- 桌面版導航：768–1023px（平板）空間不足以放下 5 個連結，改在 lg 斷點才切換 -->
-        <div class="hidden lg:flex items-center space-x-4 xl:space-x-6">
-          <RouterLink
-            to="/"
-            class="nav-link"
-            :class="{ active: $route.name === 'home' }"
-            :aria-current="$route.name === 'home' ? 'page' : undefined"
-          >
-            首頁
-          </RouterLink>
-          <RouterLink
-            to="/dashboard"
-            class="nav-link"
-            :class="{ active: $route.name === 'dashboard' }"
-            :aria-current="$route.name === 'dashboard' ? 'page' : undefined"
-          >
-            投資儀表板
-          </RouterLink>
-          <RouterLink
-            to="/history"
-            class="nav-link"
-            :class="{ active: $route.name === 'history' }"
-            :aria-current="$route.name === 'history' ? 'page' : undefined"
-          >
-            運勢歷史
-          </RouterLink>
-          <RouterLink
-            to="/analytics"
-            class="nav-link"
-            :class="{ active: $route.name === 'analytics' }"
-            :aria-current="$route.name === 'analytics' ? 'page' : undefined"
-          >
-            數據分析
-          </RouterLink>
-          <RouterLink
-            to="/profile"
-            class="nav-link"
-            :class="{ active: $route.name === 'profile' }"
-            :aria-current="$route.name === 'profile' ? 'page' : undefined"
-          >
-            個人設定
-          </RouterLink>
-
-          <!-- 主題切換按鈕 -->
-          <ThemeToggle />
-        </div>
-
-        <!-- 移動版選單按鈕 -->
-        <div class="lg:hidden flex items-center space-x-2 flex-shrink-0">
-          <ThemeToggle />
-          <button
-            type="button"
-            class="mobile-menu-btn"
-            aria-label="開啟導覽選單"
-            :aria-expanded="mobileOpen"
-            aria-controls="mobile-navigation"
-            @click="toggleMobile"
-          >
-            <svg
-              class="w-6 h-6"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                v-if="!mobileOpen"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M4 6h16M4 12h16M4 18h16"
-              />
-              <path
-                v-else
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M6 18L18 6M6 6l12 12"
-              />
-            </svg>
-          </button>
-        </div>
+  <!-- 手機與平板：頂部列 + 下拉選單 -->
+  <header class="sticky top-0 z-40 border-b border-line bg-surface lg:hidden">
+    <div class="flex h-14 items-center justify-between px-4">
+      <RouterLink
+        to="/"
+        class="flex items-center gap-2.5 font-semibold"
+      >
+        <span class="brand-mark h-8 w-8 text-lg">福</span>
+        Lucky50
+      </RouterLink>
+      <div class="flex items-center gap-2">
+        <ThemeToggle />
+        <button
+          type="button"
+          class="grid h-10 w-10 place-items-center rounded-[10px] text-ink-2 transition-colors hover:bg-raised"
+          :aria-label="mobileOpen ? '關閉導覽選單' : '開啟導覽選單'"
+          :aria-expanded="mobileOpen"
+          aria-controls="mobile-navigation"
+          @click="mobileOpen = !mobileOpen"
+        >
+          <XMarkIcon
+            v-if="mobileOpen"
+            class="h-5 w-5"
+          />
+          <Bars3Icon
+            v-else
+            class="h-5 w-5"
+          />
+        </button>
       </div>
     </div>
-
-    <!-- 移動版選單 -->
     <Transition
-      enter-active-class="menu-enter-active"
-      enter-from-class="menu-enter-from"
-      enter-to-class="menu-enter-to"
-      leave-active-class="menu-leave-active"
-      leave-from-class="menu-leave-from"
-      leave-to-class="menu-leave-to"
+      enter-from-class="opacity-0 -translate-y-1"
+      enter-active-class="transition-[opacity,transform] duration-200 ease-out"
+      leave-to-class="opacity-0 -translate-y-1"
+      leave-active-class="transition-[opacity,transform] duration-150 ease-out"
     >
-      <div
-        v-if="mobileOpen"
+      <nav
+        v-show="mobileOpen"
         id="mobile-navigation"
-        class="mobile-menu"
+        class="border-t border-line px-2 py-2"
+        aria-label="主選單"
       >
-        <div class="px-4 pt-2 pb-3 space-y-1">
-          <RouterLink
-            to="/"
-            class="mobile-nav-link"
-            :aria-current="$route.name === 'home' ? 'page' : undefined"
-            @click="closeMobile"
-          >
-            首頁
-          </RouterLink>
-          <RouterLink
-            to="/dashboard"
-            class="mobile-nav-link"
-            :aria-current="$route.name === 'dashboard' ? 'page' : undefined"
-            @click="closeMobile"
-          >
-            投資儀表板
-          </RouterLink>
-          <RouterLink
-            to="/history"
-            class="mobile-nav-link"
-            :aria-current="$route.name === 'history' ? 'page' : undefined"
-            @click="closeMobile"
-          >
-            運勢歷史
-          </RouterLink>
-          <RouterLink
-            to="/analytics"
-            class="mobile-nav-link"
-            :aria-current="$route.name === 'analytics' ? 'page' : undefined"
-            @click="closeMobile"
-          >
-            數據分析
-          </RouterLink>
-          <RouterLink
-            to="/profile"
-            class="mobile-nav-link"
-            :aria-current="$route.name === 'profile' ? 'page' : undefined"
-            @click="closeMobile"
-          >
-            個人設定
-          </RouterLink>
-        </div>
-      </div>
+        <RouterLink
+          v-for="item in NAV_ITEMS"
+          :key="item.to"
+          :to="item.to"
+          class="flex h-11 items-center rounded-[10px] px-3 font-serif text-[15px] text-ink-2 transition-colors hover:bg-raised"
+          exact-active-class="bg-raised font-bold text-ink"
+        >
+          {{ item.label }}
+        </RouterLink>
+      </nav>
     </Transition>
-  </nav>
+  </header>
 </template>
 
 <style scoped>
-.navbar {
-  background: var(--card-bg);
-  backdrop-filter: blur(20px);
-  border-bottom: 1px solid var(--border-light);
-  position: sticky;
-  top: 0;
-  z-index: 50;
-  overflow: hidden;
-  transition: background 0.3s ease;
+.brand-mark {
+  @apply grid place-items-center rounded-[10px] bg-seal font-kai font-bold text-gold;
 }
 
-.logo-link {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  text-decoration: none;
-  color: var(--primary-text);
-  font-weight: 600;
-  flex-shrink: 0;
-  transition: color 0.2s ease;
+.spine-link {
+  @apply relative block rounded-[10px] px-2.5 py-3.5 font-serif text-[15px] tracking-[0.25em] text-ink-2 transition-colors duration-150 hover:bg-raised hover:text-ink;
+  writing-mode: vertical-rl;
 }
 
-.logo-link:hover {
-  color: var(--accent-text);
+.spine-link.is-active {
+  @apply bg-raised font-bold text-ink;
 }
 
-.logo-icon {
-  width: 2rem;
-  height: 2rem;
-  border-radius: 50%;
-  background: linear-gradient(135deg, #f59e0b 0%, #fbbf24 100%);
-  box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3);
-}
-
-.logo-text {
-  font-size: 1.5rem;
-  font-weight: 700;
-  background: linear-gradient(135deg, var(--accent-text) 0%, #fbbf24 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-}
-
-/* 手機版 Logo 文字縮小，避免擠壓右側按鈕 */
-@media (max-width: 640px) {
-  .logo-text {
-    font-size: 1.25rem;
-  }
-}
-
-.nav-link {
-  color: var(--secondary-text);
-  text-decoration: none;
-  padding: 0.5rem 1rem;
-  border-radius: 0.5rem;
-  font-size: 0.875rem;
-  font-weight: 500;
-  transition: all 0.2s ease;
-  position: relative;
-}
-
-.nav-link:hover {
-  color: var(--primary-text);
-  background: var(--surface-bg);
-}
-
-.nav-link:focus-visible,
-.mobile-nav-link:focus-visible,
-.logo-link:focus-visible,
-.mobile-menu-btn:focus-visible {
-  outline: none;
-  box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.4);
-}
-
-.nav-link.active {
-  color: var(--accent-text);
-  background: rgba(245, 158, 11, 0.1);
-}
-
-.mobile-menu-btn {
-  color: var(--secondary-text);
-  padding: 0.5rem;
-  border-radius: 0.5rem;
-  transition: all 0.2s ease;
-  outline: none;
-  border: none;
-  background: transparent;
-  cursor: pointer;
-}
-
-.mobile-menu-btn:hover {
-  color: var(--accent-text);
-  background: var(--surface-bg);
-}
-
-.mobile-menu {
-  background: var(--card-bg);
-  backdrop-filter: blur(20px);
-  border-bottom: 1px solid var(--border-light);
-}
-
-.mobile-nav-link {
-  display: block;
-  color: var(--secondary-text);
-  text-decoration: none;
-  padding: 0.75rem 1rem;
-  border-radius: 0.5rem;
-  font-size: 1rem;
-  font-weight: 500;
-  transition: all 0.2s ease;
-}
-
-.mobile-nav-link:hover {
-  color: var(--primary-text);
-  background: var(--surface-bg);
-}
-
-/* 移動版選單過渡動畫 */
-.menu-enter-active,
-.menu-leave-active {
-  transition:
-    opacity 0.2s ease,
-    transform 0.2s ease;
-  transform-origin: top;
-}
-
-.menu-enter-from,
-.menu-leave-to {
-  opacity: 0;
-  transform: translateY(-8px);
-}
-
-.menu-enter-to,
-.menu-leave-from {
-  opacity: 1;
-  transform: translateY(0);
-}
-
-/* 淺色模式導航欄優化 */
-:root.light .navbar {
-  background: rgba(255, 255, 255, 0.98);
-  border-bottom-color: var(--border-medium);
-  box-shadow: 0 1px 8px var(--shadow-light);
-}
-
-:root.light .nav-link.active {
-  color: #1d4ed8;
-  background: rgba(59, 130, 246, 0.1);
-}
-
-:root.light .nav-link:hover {
-  color: var(--primary-text);
-  background: rgba(59, 130, 246, 0.05);
-}
-
-:root.light .mobile-nav-link:hover {
-  color: var(--primary-text);
-  background: rgba(59, 130, 246, 0.05);
+/* 目前頁面：左側朱紅書籤線 */
+.spine-link.is-active::before {
+  content: '';
+  @apply absolute -left-2.5 bottom-3 top-3 w-[3px] rounded-sm bg-seal;
 }
 </style>

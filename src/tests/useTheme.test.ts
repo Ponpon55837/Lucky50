@@ -59,6 +59,7 @@ describe('useTheme', () => {
   describe('document class', () => {
     it('設定主題時更新 document class', () => {
       const theme = useTheme()
+      theme.setTheme('dark')
       theme.setTheme('light')
       expect(document.documentElement.classList.contains('light')).toBe(true)
       expect(document.documentElement.classList.contains('dark')).toBe(false)

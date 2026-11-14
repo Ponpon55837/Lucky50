@@ -1,5 +1,37 @@
 # Changelog
 
+## [1.0.1] - 2026-11-14 農民曆風格 UI/UX 改版
+
+### 設計系統 (`tailwind.config.js`, `src/assets/style.css`)
+
+- Tailwind 色彩改綁 CSS 變數 tokens（紙／墨中性色、朱紅與金黃亮點色），深淺色主題自動切換，移除 `:root.light` 覆寫與 `isDark` class 三元式
+- 語意色依台股慣例：漲／吉為紅、跌／凶為綠
+- 字型：Noto Sans TC、Noto Serif TC、霞鶩文楷、IBM Plex Mono
+
+### 儀表板與首頁
+
+- 今日籤（籤等由投資分數決定、可再搖一次）、十二時辰吉凶輪（休市改看下一個交易日）、五行相生圖（月令旺衰）、SVG 走勢圖標示吉日、宜忌表與沖煞／財神／喜神
+- 桌面直排書脊導覽、手機下拉選單；首頁以農民曆封面取代 3D 運勢球
+- 新 favicon 與 PWA 圖示（朱紅印章「福」）
+
+### 程式碼
+
+- 純函式 `src/utils/almanac.ts`、`src/utils/chart.ts`（單趟 O(n) 計算、Set／Map 查表）
+- `LunarData` 新增沖煞、煞方、財神、喜神、值日天神；`lunar.ts` 合併重複的建構與重試邏輯，生肖轉繁體
+- 十神／紫微／風水卡片共用 `EngineCard` 與 `buildBirthChart`，並跟隨儀表板日期
+- 移除未使用的 `FortuneCard`、`LunarCalendarCard`、`ElementRadarChart`、`FortuneOrb`、`critical.css`、`preloader.ts`
+
+### Bug Fix
+
+- 生肖為簡體字導致風水六合／三合查表失效
+- `ErrorBoundary` 全域監聽未移除；月亮 3D 星星閃爍原地相乘逐漸變暗
+- `index.html` 與 `preloader.ts` 錯誤的 preload 造成 console 警告
+- 條款彈窗、手機選單、時辰輪的鍵盤與 Esc 操作
+
+### Tests
+
+- 新增 `almanac.test.ts`、`chart.test.ts`；29 個測試檔、416 個測試全數通過
+
 ## [2026-09-27] 性能優化：Pinia Colada 查詢快取 + O(n) 演算法
 
 ### Pinia Colada (`src/queries/index.ts`, `src/stores/dashboard.ts`, `src/main.ts`)

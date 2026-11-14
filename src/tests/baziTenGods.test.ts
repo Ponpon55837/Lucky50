@@ -36,6 +36,12 @@ describe('BaziTenGodsEngine', () => {
     pengZu: '',
     naYinDay: '',
     jiuXing: '',
+    chongDesc: '',
+    sha: '',
+    caiShen: '',
+    xiShen: '',
+    tianShen: '',
+    tianShenLuck: '',
   }
 
   const mockBaZi: PersonalBaZi = {

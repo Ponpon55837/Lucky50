@@ -1,6 +1,6 @@
 {
   "name": "lucky50-investment",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "type": "module",
   "description": "農民曆智慧投資 - 0050 ETF 投資建議系統",
   "scripts": {
@@ -53,7 +53,7 @@
     "jsdom": "^27.4.0",
     "postcss": "^8.5.16",
     "prettier": "^3.0.3",
-    "tailwindcss": "^3.3.5",
+    "tailwindcss": "^3.4.17",
     "terser": "^5.49.0",
     "typescript": "^5.9.2",
     "vite": "^8.1.4",

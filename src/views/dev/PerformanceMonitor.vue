@@ -70,78 +70,74 @@ if (typeof window !== 'undefined') {
 </script>
 
 <template>
-  <div class="min-h-screen py-8">
-    <div class="max-w-4xl mx-auto px-4">
-      <div class="mb-6">
-        <h1 class="text-2xl font-bold text-white">
-          效能監控面板
-        </h1>
-        <p class="text-gray-400 text-sm mt-1">
-          開發者工具 — 記錄元件渲染與 API 回應耗時
-        </p>
-      </div>
+  <div class="flex flex-col gap-6">
+    <header>
+      <h1 class="font-serif text-[28px] font-bold leading-tight text-ink">
+        效能監控面板
+      </h1>
+      <p class="mt-1.5 text-sm text-ink-2">
+        開發者工具 — 記錄元件渲染與 API 回應耗時
+      </p>
+    </header>
 
-      <div class="flex gap-3 mb-6">
-        <button
-          class="px-4 py-2 rounded-lg font-medium transition-colors"
-          :class="
-            isRecording
-              ? 'bg-red-600 hover:bg-red-700 text-white'
-              : 'bg-green-600 hover:bg-green-700 text-white'
-          "
-          @click="toggleRecording"
-        >
-          {{ isRecording ? '停止錄製' : '開始錄製' }}
-        </button>
-        <button
-          class="px-4 py-2 rounded-lg bg-gray-700 hover:bg-gray-600 text-white font-medium transition-colors"
-          @click="clearLogs"
-        >
-          清除紀錄
-        </button>
-      </div>
-
-      <div
-        v-if="entries.length === 0"
-        class="text-center py-12 text-gray-500"
+    <div class="flex gap-3">
+      <button
+        class="btn-sm"
+        :class="isRecording ? 'btn-secondary' : 'btn-primary'"
+        :aria-pressed="isRecording"
+        @click="toggleRecording"
       >
-        尚無效能紀錄，點擊「開始錄製」進行監控
-      </div>
-
-      <div
-        v-else
-        class="space-y-2"
+        <span
+          v-if="isRecording"
+          class="dot animate-pulse bg-danger"
+          aria-hidden="true"
+        />
+        {{ isRecording ? '停止錄製' : '開始錄製' }}
+      </button>
+      <button
+        class="btn-secondary btn-sm"
+        @click="clearLogs"
       >
-        <div
-          v-for="(entry, i) in entries.slice().reverse()"
-          :key="i"
-          class="flex items-center justify-between px-4 py-3 rounded-lg bg-gray-800/50 border border-gray-700/50"
-        >
-          <div>
-            <span class="text-white font-medium">{{ entry.label }}</span>
-            <span class="text-gray-500 text-sm ml-2">{{ entry.timestamp }}</span>
-          </div>
-          <span
-            class="font-mono font-medium"
-            :class="
-              entry.duration > 3
-                ? 'text-red-400'
-                : entry.duration > 1
-                  ? 'text-yellow-400'
-                  : 'text-green-400'
-            "
-          >
-            {{ entry.duration }}ms
-          </span>
+        清除紀錄
+      </button>
+    </div>
+
+    <div
+      v-if="entries.length === 0"
+      class="py-12 text-center text-ink-3"
+    >
+      尚無效能紀錄，點擊「開始錄製」進行監控
+    </div>
+
+    <ul
+      v-else
+      class="divide-y divide-line overflow-hidden rounded-card border border-line bg-surface"
+    >
+      <li
+        v-for="(entry, i) in entries.slice().reverse()"
+        :key="i"
+        class="flex items-center justify-between gap-3 px-4 py-3"
+      >
+        <div>
+          <span class="font-medium text-ink">{{ entry.label }}</span>
+          <span class="ml-2 text-sm text-ink-3">{{ entry.timestamp }}</span>
         </div>
-      </div>
+        <span
+          class="font-mono font-medium"
+          :class="
+            entry.duration > 3 ? 'text-danger' : entry.duration > 1 ? 'text-warn' : 'text-ink-2'
+          "
+        >
+          {{ entry.duration }}ms
+        </span>
+      </li>
+    </ul>
 
-      <div
-        v-if="entries.length > 0"
-        class="mt-4 text-sm text-gray-500 text-right"
-      >
-        共 {{ entries.length }} 筆紀錄
-      </div>
+    <div
+      v-if="entries.length > 0"
+      class="text-right text-sm text-ink-3"
+    >
+      共 {{ entries.length }} 筆紀錄
     </div>
   </div>
 </template>

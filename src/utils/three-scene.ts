@@ -1,32 +1,71 @@
 import * as THREE from 'three'
 import * as TWEEN from '@tweenjs/tween.js'
 
-// 主題色彩配置
-export const ThemeColors = {
-  dark: {
-    background: 0x0f172a,
-    primary: 0x1e3a8a,
-    secondary: 0x1e293b,
-    accent: 0xf59e0b,
-    success: 0x10b981,
-    danger: 0xef4444,
-    warning: 0xf59e0b,
-    info: 0x3b82f6,
-    surface: 0x334155,
-    text: 0xffffff,
-  },
-  light: {
-    background: 0xf8fafc,
-    primary: 0x1e3a8a,
-    secondary: 0x475569,
-    accent: 0xf97316,
-    success: 0x059669,
-    danger: 0xdc2626,
-    warning: 0xd97706,
-    info: 0x2563eb,
-    surface: 0xe2e8f0,
-    text: 0x1e293b,
-  },
+/**
+ * 場景可用的設計 token 名稱，對應 style.css 的 `--c-*` CSS 變數。
+ * `line` 不是獨立變數，會以 ink 疊在 surface 上 18% 的混色近似髮絲線。
+ */
+export type SceneToken =
+  | 'paper'
+  | 'surface'
+  | 'raised'
+  | 'ink'
+  | 'ink-2'
+  | 'ink-3'
+  | 'line'
+  | 'seal'
+  | 'seal-deep'
+  | 'seal-ink'
+  | 'gold'
+  | 'rise'
+  | 'fall'
+  | 'warn'
+  | 'danger'
+
+// SSR / jsdom 讀不到 CSS 變數時的後備值（淺色主題）
+const TOKEN_FALLBACK: Record<Exclude<SceneToken, 'line'>, number> = {
+  paper: 0xf3f2ee,
+  surface: 0xffffff,
+  raised: 0xebe9e3,
+  ink: 0x1b1a18,
+  'ink-2': 0x55524c,
+  'ink-3': 0x6f6b64,
+  seal: 0xc0282d,
+  'seal-deep': 0x9e1d22,
+  'seal-ink': 0xb02227,
+  gold: 0xf0c43c,
+  rise: 0xb02227,
+  fall: 0x167854,
+  warn: 0x96620a,
+  danger: 0xbe4614,
+}
+
+const readChannels = (name: string): [number, number, number] | null => {
+  if (typeof window === 'undefined' || typeof document === 'undefined') return null
+  const raw = getComputedStyle(document.documentElement).getPropertyValue(`--c-${name}`).trim()
+  if (!raw) return null
+  const parts = raw.split(/[\s,/]+/).map(Number)
+  if (parts.length < 3 || parts.slice(0, 3).some(n => Number.isNaN(n))) return null
+  return [parts[0], parts[1], parts[2]]
+}
+
+/**
+ * 於渲染當下讀取設計 token 並轉為 THREE.Color（sRGB）。
+ * 深淺主題切換後重新呼叫即可取得新顏色。
+ */
+export function tokenColor(name: SceneToken): THREE.Color {
+  if (name === 'line') {
+    return tokenColor('surface').lerp(tokenColor('ink'), 0.18)
+  }
+  const channels = readChannels(name)
+  if (!channels) return new THREE.Color(TOKEN_FALLBACK[name])
+  const [r, g, b] = channels
+  return new THREE.Color().setRGB(r / 255, g / 255, b / 255, THREE.SRGBColorSpace)
+}
+
+/** 同 tokenColor，回傳 sRGB 十六進位數值，方便傳給 Three.js 材質參數 */
+export function tokenHex(name: SceneToken): number {
+  return tokenColor(name).getHex()
 }
 
 // 遞迴釋放 mesh 的幾何體與材質，避免記憶體/GPU 資源累積
@@ -34,7 +73,11 @@ export const ThemeColors = {
 // 幾何體/材質會持續累積在 GPU 記憶體中，是長時間使用後越來越卡頓的常見成因
 export function disposeObject3D(obj: THREE.Object3D) {
   obj.traverse(child => {
-    if (child instanceof THREE.Mesh || child instanceof THREE.Points || child instanceof THREE.Line) {
+    if (
+      child instanceof THREE.Mesh ||
+      child instanceof THREE.Points ||
+      child instanceof THREE.Line
+    ) {
       child.geometry?.dispose()
       const material = child.material
       if (Array.isArray(material)) {
@@ -53,12 +96,14 @@ export class ThreeJSScene {
   private container: HTMLElement
   private animationId: number | null = null
   private isDark: boolean = true
+  private backgroundToken: SceneToken | null
   private boundHandleResize = this.handleResize.bind(this)
 
   constructor(
     container: HTMLElement,
     options: {
-      backgroundColor?: number
+      /** 指定場景背景 token；省略時背景透明，透出容器的 bg-surface */
+      background?: SceneToken
       alpha?: boolean
       antialias?: boolean
       isDark?: boolean
@@ -66,13 +111,11 @@ export class ThreeJSScene {
   ) {
     this.container = container
     this.isDark = options.isDark ?? true
+    this.backgroundToken = options.background ?? null
 
     // 創建場景
     this.scene = new THREE.Scene()
-    const bgColor =
-      options.backgroundColor ??
-      (this.isDark ? ThemeColors.dark.background : ThemeColors.light.background)
-    this.scene.background = new THREE.Color(bgColor)
+    this.applyBackground()
 
     // 創建相機
     const width = container.clientWidth
@@ -85,6 +128,7 @@ export class ThreeJSScene {
       alpha: options.alpha ?? true,
       antialias: options.antialias ?? true,
     })
+    this.renderer.setClearColor(0x000000, 0)
     this.renderer.setSize(width, height)
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
 
@@ -101,22 +145,18 @@ export class ThreeJSScene {
     window.addEventListener('resize', this.boundHandleResize)
   }
 
-  private setupLights() {
-    const colors = this.isDark ? ThemeColors.dark : ThemeColors.light
+  private applyBackground() {
+    this.scene.background = this.backgroundToken ? tokenColor(this.backgroundToken) : null
+  }
 
-    // 環境光
-    const ambientLight = new THREE.AmbientLight(colors.surface, this.isDark ? 0.6 : 0.8)
+  // 中性白光：只負責塑形，不替物件染色
+  private setupLights() {
+    const ambientLight = new THREE.AmbientLight(0xffffff, this.isDark ? 0.75 : 0.9)
     this.scene.add(ambientLight)
 
-    // 方向光
-    const directionalLight = new THREE.DirectionalLight(colors.text, this.isDark ? 0.8 : 0.6)
+    const directionalLight = new THREE.DirectionalLight(0xffffff, this.isDark ? 0.7 : 0.6)
     directionalLight.position.set(10, 10, 5)
     this.scene.add(directionalLight)
-
-    // 點光源
-    const pointLight = new THREE.PointLight(colors.accent, this.isDark ? 0.5 : 0.3, 100)
-    pointLight.position.set(0, 10, 10)
-    this.scene.add(pointLight)
   }
 
   private animate() {
@@ -178,18 +218,11 @@ export class ThreeJSScene {
     return this.scene
   }
 
-  // 獲取主題配色
-  getThemeColors() {
-    return this.isDark ? ThemeColors.dark : ThemeColors.light
-  }
-
-  // 更新主題
+  // 更新主題：重新讀取 token 背景並重設光照強度
   updateTheme(isDark: boolean) {
     this.isDark = isDark
-    const colors = this.getThemeColors()
-    this.scene.background = new THREE.Color(colors.background)
+    this.applyBackground()
 
-    // 重新設置光照
     this.scene.remove(...this.scene.children.filter(child => child instanceof THREE.Light))
     this.setupLights()
   }
@@ -211,33 +244,20 @@ export class ThreeJSScene {
   }
 }
 
-// 創建主題感知的發光材質
-export function createThemeGlowMaterial(
-  baseColor: number,
-  intensity: number = 1,
-  isDark: boolean = true
-) {
+/** 霧面材質：不發光、低光澤，顏色由 token 決定 */
+export function createSceneMaterial(color: number | THREE.Color, opacity: number = 0.92) {
   return new THREE.MeshPhongMaterial({
-    color: baseColor,
-    transparent: true,
-    opacity: isDark ? 0.8 : 0.9,
-    emissive: baseColor,
-    emissiveIntensity: intensity * (isDark ? 0.2 : 0.1),
+    color,
+    transparent: opacity < 1,
+    opacity,
+    emissive: 0x000000,
+    shininess: 12,
+    specular: 0x111111,
   })
 }
 
-// 獲取主題感知的顏色
-export function getThemeColor(colorKey: keyof typeof ThemeColors.dark, isDark: boolean = true) {
-  const colors = isDark ? ThemeColors.dark : ThemeColors.light
-  return colors[colorKey]
-}
-
 // 創建粒子系統
-export function createParticleSystem(
-  count: number,
-  color: number = 0xffd700,
-  isDark: boolean = true
-) {
+export function createParticleSystem(count: number, color: number = tokenHex('ink-3')) {
   const geometry = new THREE.BufferGeometry()
   const positions = new Float32Array(count * 3)
   const velocities = new Float32Array(count * 3)
@@ -257,10 +277,10 @@ export function createParticleSystem(
   geometry.setAttribute('velocity', new THREE.BufferAttribute(velocities, 3))
 
   const material = new THREE.PointsMaterial({
-    color: color,
-    size: isDark ? 0.1 : 0.08,
+    color,
+    size: 0.08,
     transparent: true,
-    opacity: isDark ? 0.6 : 0.4,
+    opacity: 0.45,
   })
 
   return new THREE.Points(geometry, material)

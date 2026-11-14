@@ -25,7 +25,6 @@ const imgRef = ref<HTMLElement>()
 
 const placeholderStyle = computed(() => ({
   minHeight: '200px',
-  backgroundColor: '#f3f4f6',
 }))
 
 let observer: IntersectionObserver | null = null
@@ -83,6 +82,6 @@ const onError = () => {
     :class="placeholderClass"
     :style="placeholderStyle"
   >
-    <div class="animate-pulse bg-gray-300 dark:bg-gray-700 w-full h-full rounded" />
+    <div class="h-full w-full animate-pulse rounded-[10px] bg-raised" />
   </div>
 </template>

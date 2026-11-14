@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { ref, onUnmounted, watch, computed, nextTick } from 'vue'
 import * as THREE from 'three'
-import { ThreeJSScene, createThemeGlowMaterial, getThemeColor } from '@/utils/three-scene'
+import { ChartBarIcon, XMarkIcon } from '@heroicons/vue/24/outline'
+import { ThreeJSScene, createSceneMaterial, tokenColor, tokenHex } from '@/utils/three-scene'
 import { useTheme } from '@/composables/useTheme'
 import { useVisibleOnce } from '@/composables/useVisibleOnce'
 import { useDashboardStore } from '@/stores/dashboard'
@@ -89,15 +90,15 @@ const priceChangePercent = computed(() => {
 
 const priceChangeColor = computed(() => {
   const change = priceChange.value
-  return change > 0 ? 'text-green-400' : change < 0 ? 'text-red-400' : 'text-gray-400'
+  return change > 0 ? 'text-rise' : change < 0 ? 'text-fall' : 'text-ink-3'
 })
 
 const fortuneEffect = computed(() => {
   const score = fortuneScore.value
-  if (score >= 80) return '極佳 ✨'
-  if (score >= 60) return '良好 ⭐'
-  if (score >= 40) return '普通 ➖'
-  return '不佳 ❌'
+  if (score >= 80) return '極佳'
+  if (score >= 60) return '良好'
+  if (score >= 40) return '普通'
+  return '不佳'
 })
 
 // ── 方法與函式 ──
@@ -150,10 +151,8 @@ const createPriceSphere = (
 
   const geometry = new THREE.SphereGeometry(radius, 16, 16)
   const isPositive = index > 0 ? price > etfData.value[index - 1].close : true
-  const color = isPositive
-    ? getThemeColor('success', isDark.value)
-    : getThemeColor('danger', isDark.value)
-  const material = createThemeGlowMaterial(color, 1.0, isDark.value)
+  const color = isPositive ? tokenHex('rise') : tokenHex('fall')
+  const material = createSceneMaterial(color, 0.95)
 
   const sphere = new THREE.Mesh(geometry, material)
   sphere.position.set(x, y, z)
@@ -167,8 +166,7 @@ const createVolumeBar = (x: number, data: ETFData, index: number): THREE.Mesh =>
   const volumeHeight = (data.volume / maxVolume) * 1.2
 
   const geometry = new THREE.CylinderGeometry(0.02, 0.04, volumeHeight, 8)
-  const color = getThemeColor('info', isDark.value)
-  const material = createThemeGlowMaterial(color, 0.7, isDark.value)
+  const material = createSceneMaterial(tokenHex('ink-3'), 0.55)
   const bar = new THREE.Mesh(geometry, material)
   bar.position.set(x, -2 + volumeHeight / 2, -0.8)
 
@@ -191,7 +189,7 @@ const createParticleBackground = (): THREE.Points => {
   const positions = new Float32Array(count * 3)
   const colors = new Float32Array(count * 3)
 
-  const baseColor = new THREE.Color(getThemeColor('accent', isDark.value))
+  const baseColor = tokenColor('ink-3')
 
   for (let i = 0; i < count; i++) {
     const i3 = i * 3
@@ -199,9 +197,11 @@ const createParticleBackground = (): THREE.Points => {
     positions[i3 + 1] = (Math.random() - 0.5) * bounds.y
     positions[i3 + 2] = (Math.random() - 0.5) * bounds.z
 
-    colors[i3] = baseColor.r + (Math.random() - 0.5) * 0.3
-    colors[i3 + 1] = baseColor.g + (Math.random() - 0.5) * 0.3
-    colors[i3 + 2] = baseColor.b + (Math.random() - 0.5) * 0.3
+    // 墨灰明度微調，不做色相偏移
+    const shade = 1 + (Math.random() - 0.5) * 0.2
+    colors[i3] = baseColor.r * shade
+    colors[i3 + 1] = baseColor.g * shade
+    colors[i3 + 2] = baseColor.b * shade
   }
 
   const geometry = new THREE.BufferGeometry()
@@ -212,7 +212,7 @@ const createParticleBackground = (): THREE.Points => {
     size: 0.03,
     vertexColors: true,
     transparent: true,
-    opacity: isDark.value ? 0.6 : 0.4,
+    opacity: 0.4,
   })
 
   const particles = new THREE.Points(geometry, material)
@@ -238,14 +238,11 @@ const createFortuneOrb = (): THREE.Mesh => {
 
   const geometry = new THREE.SphereGeometry(radius, 24, 24)
   const score = fortuneScore.value
-  const color =
-    score >= 60
-      ? getThemeColor('success', isDark.value)
-      : score >= 40
-        ? getThemeColor('warning', isDark.value)
-        : getThemeColor('danger', isDark.value)
-
-  const material = createThemeGlowMaterial(color, score / 100, isDark.value)
+  // 運勢球是場景唯一的朱印紅重點，分數越低越淡
+  const material = createSceneMaterial(
+    tokenHex('seal'),
+    score >= 60 ? 0.95 : score >= 40 ? 0.75 : 0.55
+  )
   const orb = new THREE.Mesh(geometry, material)
   orb.position.set(position.x, position.y, position.z)
 
@@ -310,21 +307,19 @@ const createPriceLine = () => {
   if (points.length > 1) {
     const curve = new THREE.CatmullRomCurve3(points)
     const tubeGeometry = new THREE.TubeGeometry(curve, 100, 0.02, 8, false)
-    const lineColor =
-      priceChange.value >= 0
-        ? getThemeColor('success', isDark.value)
-        : getThemeColor('danger', isDark.value)
-    const tubeMaterial = createThemeGlowMaterial(lineColor, 0.9, isDark.value)
+    // 主序列以墨色呈現，漲跌由價格點的紅綠表達
+    const lineColor = tokenHex('ink-2')
+    const tubeMaterial = createSceneMaterial(lineColor, 0.9)
     const tube = new THREE.Mesh(tubeGeometry, tubeMaterial)
     priceLineGroup!.add(tube)
 
-    // 添加發光軌跡
+    // 添加細線軌跡
     const lineGeometry = new THREE.BufferGeometry().setFromPoints(points)
     const lineMaterial = new THREE.LineBasicMaterial({
       color: lineColor,
       transparent: true,
-      opacity: isDark.value ? 0.8 : 0.6,
-      linewidth: 3,
+      opacity: 0.5,
+      linewidth: 1,
     })
     const line = new THREE.Line(lineGeometry, lineMaterial)
     priceLineGroup!.add(line)
@@ -422,24 +417,24 @@ onUnmounted(() => {
 
 <template>
   <div
-    class="relative w-full h-full bg-gradient-to-br from-surface-bg/50 via-card-bg to-surface-bg rounded-lg overflow-hidden border border-border-light"
+    class="relative h-full w-full overflow-hidden rounded-card border border-line bg-surface"
     @mousemove="handleMouseMove"
   >
     <div
       ref="threeContainer"
-      class="w-full h-full"
+      class="h-full w-full"
     />
 
     <!-- 動態懸停說明 -->
     <div
       v-if="hoveredElement"
       :style="{ left: mousePosition.x + 10 + 'px', top: mousePosition.y - 10 + 'px' }"
-      class="absolute z-10 bg-card-bg/90 backdrop-blur-sm border border-border-light rounded-lg p-3 shadow-lg pointer-events-none max-w-xs"
+      class="pointer-events-none absolute z-10 max-w-xs rounded-[10px] border border-line bg-surface/95 p-3 shadow-card"
     >
-      <div class="text-sm font-medium text-primary-text mb-1">
+      <div class="mb-1 text-sm font-medium text-ink">
         {{ hoveredElement }}
       </div>
-      <div class="text-xs text-secondary-text">
+      <div class="text-xs text-ink-2">
         {{ (hoveredElement && elementDescriptions[hoveredElement as ElementType]) || '未知元素' }}
       </div>
     </div>
@@ -447,63 +442,68 @@ onUnmounted(() => {
     <!-- 圖例面板 -->
     <div
       v-if="showLegend"
-      class="absolute top-4 right-4 bg-card-bg/80 backdrop-blur-sm border border-border-light rounded-lg p-3 w-48"
+      class="absolute right-4 top-4 w-48 rounded-[10px] border border-line bg-surface/95 p-3 shadow-card"
     >
-      <div class="flex justify-between items-center mb-2">
-        <h4 class="text-sm font-semibold text-primary-text">
+      <div class="mb-2 flex items-center justify-between">
+        <h4 class="font-serif text-sm font-bold text-ink">
           元素說明
         </h4>
         <button
-          class="text-xs text-secondary-text hover:text-primary-text"
+          type="button"
+          aria-label="關閉"
+          class="rounded text-ink-3 transition-colors hover:text-ink"
           @click="showLegend = false"
         >
-          ×
+          <XMarkIcon class="h-4 w-4" />
         </button>
       </div>
       <div class="space-y-2 text-xs">
         <div
-          class="flex items-center space-x-2 cursor-pointer hover:bg-surface-bg/50 p-1 rounded"
+          class="flex cursor-pointer items-center space-x-2 rounded p-1 transition-colors hover:bg-raised"
           @mouseenter="handleElementHover('priceSphere')"
           @mouseleave="handleElementLeave"
         >
-          <div class="w-3 h-3 bg-green-400 rounded-full" />
-          <span class="text-secondary-text">價格點</span>
+          <div class="flex space-x-0.5">
+            <div class="h-3 w-1.5 rounded-l-full bg-rise" />
+            <div class="h-3 w-1.5 rounded-r-full bg-fall" />
+          </div>
+          <span class="text-ink-2">價格點（漲 / 跌）</span>
         </div>
         <div
-          class="flex items-center space-x-2 cursor-pointer hover:bg-surface-bg/50 p-1 rounded"
+          class="flex cursor-pointer items-center space-x-2 rounded p-1 transition-colors hover:bg-raised"
           @mouseenter="handleElementHover('volumeBar')"
           @mouseleave="handleElementLeave"
         >
-          <div class="w-3 h-2 bg-blue-400" />
-          <span class="text-secondary-text">成交量</span>
+          <div class="h-2 w-3 bg-ink-3" />
+          <span class="text-ink-2">成交量</span>
         </div>
         <div
-          class="flex items-center space-x-2 cursor-pointer hover:bg-surface-bg/50 p-1 rounded"
+          class="flex cursor-pointer items-center space-x-2 rounded p-1 transition-colors hover:bg-raised"
           @mouseenter="handleElementHover('priceLine')"
           @mouseleave="handleElementLeave"
         >
-          <div class="w-6 h-0.5 bg-accent-text" />
-          <span class="text-secondary-text">趨勢線</span>
+          <div class="h-0.5 w-6 bg-ink-2" />
+          <span class="text-ink-2">趨勢線</span>
         </div>
         <div
-          class="flex items-center space-x-2 cursor-pointer hover:bg-surface-bg/50 p-1 rounded"
+          class="flex cursor-pointer items-center space-x-2 rounded p-1 transition-colors hover:bg-raised"
           @mouseenter="handleElementHover('fortuneOrb')"
           @mouseleave="handleElementLeave"
         >
-          <div class="w-3 h-3 bg-yellow-400 rounded-full animate-pulse" />
-          <span class="text-secondary-text">運勢球</span>
+          <div class="h-3 w-3 rounded-full bg-seal" />
+          <span class="text-ink-2">運勢球</span>
         </div>
         <div
-          class="flex items-center space-x-2 cursor-pointer hover:bg-surface-bg/50 p-1 rounded"
+          class="flex cursor-pointer items-center space-x-2 rounded p-1 transition-colors hover:bg-raised"
           @mouseenter="handleElementHover('particles')"
           @mouseleave="handleElementLeave"
         >
           <div class="flex space-x-1">
-            <div class="w-1 h-1 bg-accent-text rounded-full" />
-            <div class="w-1 h-1 bg-accent-text rounded-full" />
-            <div class="w-1 h-1 bg-accent-text rounded-full" />
+            <div class="h-1 w-1 rounded-full bg-ink-3" />
+            <div class="h-1 w-1 rounded-full bg-ink-3" />
+            <div class="h-1 w-1 rounded-full bg-ink-3" />
           </div>
-          <span class="text-secondary-text">市場粒子</span>
+          <span class="text-ink-2">市場粒子</span>
         </div>
       </div>
     </div>
@@ -511,31 +511,43 @@ onUnmounted(() => {
     <!-- 圖例開關按鈕 -->
     <button
       v-if="!showLegend"
-      class="absolute top-4 right-4 bg-card-bg/80 backdrop-blur-sm border border-border-light rounded-lg p-2 text-xs text-secondary-text hover:text-primary-text"
+      type="button"
+      class="absolute right-4 top-4 flex items-center gap-1 rounded-[10px] border border-line bg-surface/95 px-2 py-1.5 text-xs text-ink-2 shadow-card transition-colors hover:text-ink"
       @click="showLegend = true"
     >
-      📊 圖例
+      <ChartBarIcon class="h-4 w-4 text-ink-3" />
+      圖例
     </button>
 
-    <div class="absolute top-4 left-4 text-primary-text">
-      <h3 class="text-lg font-semibold mb-2 text-primary-text">
+    <div class="absolute left-4 top-4">
+      <h3 class="mb-2 font-serif text-base font-bold text-ink">
         {{ title }}
       </h3>
-      <div class="text-sm space-y-1">
+      <div class="space-y-1 text-sm text-ink-2">
         <div>
-          最新價格: <span :class="priceChangeColor">{{ latestPrice?.toFixed(2) }}</span>
+          最新價格:
+          <span
+            :class="priceChangeColor"
+            class="font-mono"
+          >{{ latestPrice?.toFixed(2) }}</span>
         </div>
         <div>
           漲跌:
-          <span :class="priceChangeColor">{{ priceChange >= 0 ? '+' : '' }}{{ priceChange?.toFixed(2) }}</span>
+          <span
+            :class="priceChangeColor"
+            class="font-mono"
+          >{{ priceChange >= 0 ? '+' : '' }}{{ priceChange?.toFixed(2) }}</span>
         </div>
         <div>
           漲跌幅:
-          <span :class="priceChangeColor">{{ priceChange >= 0 ? '+' : '' }}{{ priceChangePercent?.toFixed(2) }}%</span>
+          <span
+            :class="priceChangeColor"
+            class="font-mono"
+          >{{ priceChange >= 0 ? '+' : '' }}{{ priceChangePercent?.toFixed(2) }}%</span>
         </div>
       </div>
     </div>
-    <div class="absolute bottom-4 right-4 text-secondary-text text-xs">
+    <div class="absolute bottom-4 right-4 text-xs text-ink-3">
       <div>運勢影響: {{ fortuneEffect }}</div>
     </div>
   </div>
