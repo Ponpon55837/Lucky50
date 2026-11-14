@@ -109,7 +109,7 @@ importers:
         specifier: ^3.0.3
         version: 3.6.2
       tailwindcss:
-        specifier: ^3.3.5
+        specifier: ^3.4.17
         version: 3.4.17
       terser:
         specifier: ^5.49.0
