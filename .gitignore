@@ -43,3 +43,6 @@ opencode.json
 .mcp.json
 .mcp.json
 opencode.json
+
+# TypeScript 增量建置快取
+*.tsbuildinfo
