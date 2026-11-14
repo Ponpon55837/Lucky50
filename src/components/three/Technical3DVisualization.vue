@@ -1,640 +1,396 @@
 <script setup lang="ts">
-import { ref, onUnmounted, watch, computed, nextTick } from 'vue'
+import { computed, ref } from 'vue'
 import * as THREE from 'three'
-import { ChartBarIcon, XMarkIcon } from '@heroicons/vue/24/outline'
-import { ThreeJSScene, createSceneMaterial, tokenHex, disposeObject3D } from '@/utils/three-scene'
-import { useVisibleOnce } from '@/composables/useVisibleOnce'
-import { useTheme } from '@/composables/useTheme'
+import SceneCard, { type SceneTooltip } from '@/components/three/SceneCard.vue'
+import { useSceneStage } from '@/composables/useSceneStage'
 import { useDashboardStore } from '@/stores/dashboard'
 import { useAnalyticsStore } from '@/stores/analytics'
+import {
+  BOLLINGER_ZONE_TEXT,
+  bollingerZone,
+  macdRatio,
+  oscillatorState,
+  overallSignal,
+  type BollingerZone,
+} from '@/utils/sceneLayout'
+import {
+  createBase,
+  createColumns,
+  easeOutCubic,
+  lineMaterial,
+  matteMaterial,
+  placeColumn,
+} from '@/utils/three-scene'
 
-interface Props {
-  title?: string
-}
+const { title = '技術指標' } = defineProps<{ title?: string }>()
 
-// 配置常量
-const ANIMATION_CONFIG = {
-  rsi: {
-    baseRadius: 0.4,
-    maxRadius: 1.2,
-    pulseScale: 0.3,
-    pulseSpeed: 0.003,
-    position: { x: -2, y: 1, z: 0 },
-  },
-  macd: {
-    baseHeight: 0.8,
-    heightMultiplier: 3,
-    radius: { top: 0.25, bottom: 0.35 },
-    oscillateScale: 0.1,
-    rotationSpeed: 0.005,
-  },
-  bollinger: {
-    radius: 1.2,
-    thickness: 0.18,
-    position: { x: 2, y: 0, z: 0 },
-    rotationSpeed: { x: 0, y: 0.008, z: 0.02 },
-  },
-  kd: {
-    baseHeight: 2,
-    heightMultiplier: 1.5,
-    radius: 0.08,
-    spacing: 0.8,
-    swingAmplitude: 0.3,
-    position: { x: 0, y: -1.5, z: 0 },
-  },
-  particles: {
-    count: 50,
-    waveAmplitude: 0.5,
-    waveFrequency: { x: 1, y: 2 },
-    flowSpeed: 0.01,
-  },
-} as const
+/** 量規高度：0–100 對應 0–GAUGE_HEIGHT 場景單位；MACD 的零軸在中線 */
+const GAUGE_HEIGHT = 3
+const GAUGE_X = [-3.3, -1.1, 1.1, 3.3] as const
+const SLAB_WIDTH = 1.6
+const SLAB_Z = -0.25
+const RSI_LIMITS = { low: 30, high: 70 }
+const KD_LIMITS = { low: 20, high: 80 }
 
-const { title = '技術指標 3D' } = defineProps<Props>()
-
-const { isDark } = useTheme()
 const dashboardStore = useDashboardStore()
 const analyticsStore = useAnalyticsStore()
 
-// 動畫管理
-const threeContainer = ref<HTMLElement>()
-let scene: ThreeJSScene | null = null
-let indicatorGroup: THREE.Group | null = null
+const indicators = computed(() =>
+  analyticsStore.calculateTechnicalIndicators(dashboardStore.etfData)
+)
+const close = computed(
+  () => analyticsStore.getAdjustedEtfData(dashboardStore.etfData).at(-1)?.close ?? 0
+)
 
-// 互動狀態管理
-const hoveredElement = ref<string | null>(null)
-const mousePosition = ref({ x: 0, y: 0 })
-const showLegend = ref(false)
+const signal = computed(() => overallSignal(indicators.value))
+const rsiState = computed(() =>
+  oscillatorState(indicators.value.rsi, RSI_LIMITS.low, RSI_LIMITS.high)
+)
+const kState = computed(() => oscillatorState(indicators.value.kd.k, KD_LIMITS.low, KD_LIMITS.high))
+const zone = computed(() => bollingerZone(indicators.value.bollingerBand))
+const ratio = computed(() => macdRatio(indicators.value.macd, close.value))
 
-// 元素說明數據
-type ElementType = 'rsiSphere' | 'macdBar' | 'bollingerRing' | 'kdOscillator' | 'particles'
-const elementDescriptions: Record<ElementType, string> = {
-  rsiSphere: 'RSI球體：相對強弱指標，球體大小反映超買超賣狀態',
-  macdBar: 'MACD柱：移動平均線收散，高度和顏色表示趨勢強度',
-  bollingerRing: '布林帶環：價格通道上下軌，旋轉這度表示波動率',
-  kdOscillator: 'KD振盪器：两根柱子代表K值和D值，交叉信號重要',
-  particles: '連接粒子：流動粒子連接各指標，表示市場相關性',
-}
-
-// ── 計算屬性 ──
-// 圖例色塊以 text-→bg- 轉換，列出完整 class 讓 Tailwind 掃描得到：bg-good bg-bad bg-ink bg-rise bg-fall
-const indicators = computed(() => {
-  return analyticsStore.calculateTechnicalIndicators(dashboardStore.etfData)
-})
-
-const rsiColor = computed(() => {
-  const rsi = indicators.value.rsi
-  if (rsi > 70) return 'text-bad'
-  if (rsi < 30) return 'text-good'
+const signalClass = computed(() => {
+  if (signal.value === '買入') return 'text-rise'
+  if (signal.value === '賣出') return 'text-fall'
   return 'text-ink'
 })
 
-const macdColor = computed(() => {
-  const macd = indicators.value.macd
-  return macd > 0 ? 'text-rise' : 'text-fall'
-})
+type Tone = 'rise' | 'fall' | 'ink'
+const TONE_CLASS: Readonly<Record<Tone, string>> = {
+  rise: 'text-rise',
+  fall: 'text-fall',
+  ink: 'text-ink',
+}
+const oscillatorTone = (state: '超買' | '超賣' | '中性'): Tone =>
+  state === '超買' ? 'rise' : state === '超賣' ? 'fall' : 'ink'
+const macdTone = computed<Tone>(() =>
+  indicators.value.macd > 0 ? 'rise' : indicators.value.macd < 0 ? 'fall' : 'ink'
+)
+const macdSide = computed(() =>
+  indicators.value.macd > 0 ? '多方' : indicators.value.macd < 0 ? '空方' : '持平'
+)
+const zoneTone = (value: BollingerZone): Tone =>
+  value === 'upper' ? 'rise' : value === 'lower' ? 'fall' : 'ink'
 
-const bollColor = computed(() => {
-  return indicators.value.bollingerBand === 'upper'
-    ? 'text-bad'
-    : indicators.value.bollingerBand === 'lower'
-      ? 'text-good'
-      : 'text-ink'
-})
+const signed = (value: number, digits = 2) => `${value > 0 ? '+' : ''}${value.toFixed(digits)}`
 
-const overallSignal = computed(() => {
+const GAUGE_NAMES = ['RSI', 'KD', 'MACD', '布林'] as const
+
+/** 各量規頂部的數值文字與色調 */
+const readouts = computed<{ text: string; tone: Tone }[]>(() => {
   const { rsi, macd, kd } = indicators.value
-
-  let signals = 0
-  if (rsi < 30) signals++
-  if (rsi > 70) signals--
-  if (macd > 0) signals++
-  if (macd < 0) signals--
-  if (kd.k > kd.d) signals++
-  if (kd.k < kd.d) signals--
-
-  if (signals > 0) return '買入'
-  if (signals < 0) return '賣出'
-  return '持有'
+  return [
+    { text: rsi.toFixed(1), tone: oscillatorTone(rsiState.value) },
+    { text: `${Math.round(kd.k)}／${Math.round(kd.d)}`, tone: oscillatorTone(kState.value) },
+    { text: signed(macd), tone: macdTone.value },
+    { text: BOLLINGER_ZONE_TEXT[zone.value], tone: 'ink' },
+  ]
 })
 
-const overallSignalColor = computed(() => {
-  const signal = overallSignal.value
-  if (signal === '買入') return 'text-good'
-  if (signal === '賣出') return 'text-bad'
-  return 'text-ink'
-})
+const hasData = computed(() => dashboardStore.etfData.length > 0)
+const threeContainer = ref<HTMLElement>()
 
-// ── 方法與函式 ──
-// 每次重建可視化內容時遞增世代編號，讓上一輪註冊的動畫迴圈在下一幀自動停止，
-// 避免舊物件的 requestAnimationFrame 迴圈永久殘留（過去卡頓會隨使用時間變嚴重的主因）
-let animationGeneration = 0
+const { unsupported, hover } = useSceneStage(threeContainer, {
+  view: [0, 0.6, 2.4],
+  sources: [indicators, close],
+  build: (stage, root, palette) => {
+    if (!hasData.value) return
 
-const cleanupAnimations = () => {
-  animationGeneration++
-}
+    const { rsi, kd } = indicators.value
+    const heightOf = (value: number) => (Math.min(100, Math.max(0, value)) / 100) * GAUGE_HEIGHT
+    const mid = GAUGE_HEIGHT / 2
+    const seg = GAUGE_HEIGHT / 3
+    const [rsiX, kdX, macdX, bollX] = GAUGE_X
 
-// 註冊一個每幀執行的更新函式；回傳 false 可提前結束該迴圈（例如一次性動畫完成後）
-const registerAnimation = (update: () => boolean | void) => {
-  const generation = animationGeneration
-  const loop = () => {
-    if (generation !== animationGeneration) return
-    if (update() === false) return
-    requestAnimationFrame(loop)
-  }
-  loop()
-}
+    root.add(createBase(palette, { width: 9.6, depth: 1.8 }))
 
-// 創建 RSI 球體
-const createRSISphere = (): THREE.Mesh => {
-  const { baseRadius, maxRadius, pulseScale, pulseSpeed, position } = ANIMATION_CONFIG.rsi
-  const { rsi } = indicators.value
-
-  const radius = Math.max(baseRadius, Math.min(maxRadius, (rsi / 100) * 1.5))
-  const geometry = new THREE.SphereGeometry(radius, 32, 32)
-  // 超買偏空用跌綠、超賣偏多用漲紅，中性時以朱印紅作為場景重點
-  const color = rsi > 70 ? tokenHex('fall') : rsi < 30 ? tokenHex('rise') : tokenHex('seal')
-  const material = createSceneMaterial(color, 0.95)
-
-  const sphere = new THREE.Mesh(geometry, material)
-  sphere.position.set(position.x, position.y, position.z)
-
-  // RSI 脈動動畫
-  registerAnimation(() => {
-    const time = Date.now() * pulseSpeed
-    const scale = 1 + Math.sin(time) * pulseScale
-    const intensity = Math.abs(rsi - 50) / 50
-    sphere.scale.setScalar(scale * (1 + intensity * 0.2))
-    sphere.rotation.y += 0.01
-  })
-
-  return sphere
-}
-
-// 創建 MACD 柱狀圖
-const createMACDBar = (): THREE.Mesh => {
-  const { baseHeight, heightMultiplier, radius, oscillateScale, rotationSpeed } =
-    ANIMATION_CONFIG.macd
-  const { macd } = indicators.value
-
-  const height = Math.abs(macd) * heightMultiplier + baseHeight
-  const geometry = new THREE.CylinderGeometry(radius.top, radius.bottom, height, 12)
-  const color = macd > 0 ? tokenHex('rise') : tokenHex('fall')
-  const material = createSceneMaterial(color, 0.92)
-
-  const bar = new THREE.Mesh(geometry, material)
-  bar.position.set(0, height / 2, 0)
-
-  // MACD 上升動畫，完成後接續振盪動畫
-  bar.scale.y = 0
-  registerAnimation(() => {
-    bar.scale.y += (1 - bar.scale.y) * 0.08
-    if (Math.abs(1 - bar.scale.y) <= 0.01) {
-      registerAnimation(() => {
-        const time = Date.now() * 0.002
-        const offset = Math.sin(time) * oscillateScale
-        bar.scale.y = 1 + offset * Math.abs(macd)
-        bar.rotation.y += rotationSpeed
-      })
-      return false
-    }
-  })
-
-  return bar
-}
-
-// 創建布林帶環
-const createBollingerRing = (): THREE.Mesh => {
-  const { radius, thickness, position, rotationSpeed } = ANIMATION_CONFIG.bollinger
-  const { bollingerBand } = indicators.value
-
-  const geometry = new THREE.TorusGeometry(radius, thickness, 16, 100)
-  const color =
-    bollingerBand === 'upper'
-      ? tokenHex('fall')
-      : bollingerBand === 'lower'
-        ? tokenHex('rise')
-        : tokenHex('ink-3')
-  const material = createSceneMaterial(color, 0.85)
-
-  const ring = new THREE.Mesh(geometry, material)
-  ring.position.set(position.x, position.y, position.z)
-  ring.rotation.x = Math.PI / 4
-
-  // 布林帶旋轉動畫
-  registerAnimation(() => {
-    ring.rotation.x += rotationSpeed.x
-    ring.rotation.y += rotationSpeed.y
-    ring.rotation.z += rotationSpeed.z
-
-    const time = Date.now() * 0.001
-    ring.position.y = Math.sin(time) * 0.3
-  })
-
-  return ring
-}
-
-// 創建 KD 振盪器
-const createKDOscillator = (): THREE.Group => {
-  const { baseHeight, heightMultiplier, radius, spacing, swingAmplitude, position } =
-    ANIMATION_CONFIG.kd
-  const { kd } = indicators.value
-
-  const group = new THREE.Group()
-
-  // K 線
-  const kHeight = baseHeight + (kd.k / 100) * heightMultiplier
-  const kGeometry = new THREE.CylinderGeometry(radius, radius, kHeight, 12)
-  const kColor = tokenHex('ink-2')
-  const kMaterial = createSceneMaterial(kColor, 0.9)
-  const kLine = new THREE.Mesh(kGeometry, kMaterial)
-  kLine.position.set(-spacing / 2, kHeight / 2, 0)
-
-  // D 線
-  const dHeight = baseHeight + (kd.d / 100) * heightMultiplier
-  const dGeometry = new THREE.CylinderGeometry(radius, radius, dHeight, 12)
-  const dColor = tokenHex('ink-3')
-  const dMaterial = createSceneMaterial(dColor, 0.7)
-  const dLine = new THREE.Mesh(dGeometry, dMaterial)
-  dLine.position.set(spacing / 2, dHeight / 2, 0)
-
-  // 創建連接粒子
-  const particles = createKDParticles(kColor, dColor)
-
-  group.add(kLine, dLine, particles)
-  group.position.set(position.x, position.y, position.z)
-
-  // KD 線條擺動動畫
-  registerAnimation(() => {
-    const time = Date.now() * 0.002
-    kLine.rotation.z = Math.sin(time) * swingAmplitude + (kd.k / 100 - 0.5) * 0.5
-    dLine.rotation.z = Math.sin(time + 0.5) * swingAmplitude + (kd.d / 100 - 0.5) * 0.5
-    group.rotation.y += 0.005
-  })
-
-  return group
-}
-
-// 創建 KD 連接粒子
-const createKDParticles = (kColor: number, dColor: number): THREE.Points => {
-  const { count, waveAmplitude, waveFrequency, flowSpeed } = ANIMATION_CONFIG.particles
-
-  const positions = new Float32Array(count * 3)
-  const colors = new Float32Array(count * 3)
-
-  for (let i = 0; i < count; i++) {
-    const i3 = i * 3
-    const t = i / count
-    positions[i3] = THREE.MathUtils.lerp(-0.4, 0.4, t)
-    positions[i3 + 1] = Math.sin(t * Math.PI * waveFrequency.x) * waveAmplitude + 1
-    positions[i3 + 2] = Math.cos(t * Math.PI * waveFrequency.y) * 0.2
-
-    const color = new THREE.Color().lerpColors(new THREE.Color(kColor), new THREE.Color(dColor), t)
-    colors[i3] = color.r
-    colors[i3 + 1] = color.g
-    colors[i3 + 2] = color.b
-  }
-
-  const geometry = new THREE.BufferGeometry()
-  geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3))
-  geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3))
-
-  const material = new THREE.PointsMaterial({
-    size: 0.05,
-    vertexColors: true,
-    transparent: true,
-    opacity: 0.5,
-  })
-
-  const particles = new THREE.Points(geometry, material)
-
-  // 粒子流動動畫
-  registerAnimation(() => {
-    const positions = particles.geometry.attributes.position.array as Float32Array
-    const time = Date.now() * 0.001
-
-    for (let i = 0; i < count; i++) {
-      const i3 = i * 3
-      positions[i3 + 1] += Math.sin(time + i * 0.1) * flowSpeed
-      positions[i3 + 2] += Math.cos(time + i * 0.15) * flowSpeed * 0.5
-    }
-    particles.geometry.attributes.position.needsUpdate = true
-  })
-
-  return particles
-}
-
-// 創建所有技術指標的 3D 可視化 - 重構後更清晰
-const createIndicators = () => {
-  if (!scene || !indicatorGroup) return
-
-  // 清空現有內容前先釋放 GPU 資源，避免每次重建都累積記憶體
-  disposeObject3D(indicatorGroup)
-  indicatorGroup.clear()
-  cleanupAnimations()
-
-  // 創建各個組件
-  const rsiSphere = createRSISphere()
-  const macdBar = createMACDBar()
-  const bollingerRing = createBollingerRing()
-  const kdGroup = createKDOscillator()
-
-  // 添加所有對象到場景
-  indicatorGroup.add(rsiSphere, macdBar, bollingerRing, kdGroup)
-}
-
-// 初始化場景
-const initScene = () => {
-  if (!threeContainer.value || scene) return
-
-  scene = new ThreeJSScene(threeContainer.value, {
-    alpha: true,
-    antialias: true,
-    isDark: isDark.value,
-  })
-
-  // 創建指標組
-  indicatorGroup = new THREE.Group()
-  scene.addToScene(indicatorGroup)
-
-  // 創建指標可視化
-  createIndicators()
-
-  // 設置相機位置
-  scene.getCamera().position.set(0, 2, 5)
-  scene.getCamera().lookAt(0, 0, 0)
-}
-
-// 清理資源
-const cleanup = () => {
-  cleanupAnimations()
-  scene?.destroy()
-  scene = null
-  indicatorGroup = null
-}
-
-const handleMouseMove = (event: MouseEvent) => {
-  const rect = threeContainer.value?.getBoundingClientRect()
-  if (!rect) return
-
-  mousePosition.value = {
-    x: event.clientX - rect.left,
-    y: event.clientY - rect.top,
-  }
-}
-
-const handleElementHover = (elementType: ElementType) => {
-  hoveredElement.value = elementType
-}
-
-const handleElementLeave = () => {
-  hoveredElement.value = null
-}
-
-// ── 監聽器 ──
-watch(isDark, newTheme => {
-  if (!scene) return
-
-  scene.updateTheme(newTheme)
-  nextTick(() => {
-    createIndicators()
-  })
-})
-
-watch(
-  indicators,
-  () => {
-    nextTick(() => {
-      createIndicators()
+    // 軌道：RSI、KD、MACD 各一根，布林切成下／中／上三段（目前所在段加寬、深色）
+    const activeSegment = zone.value === 'upper' ? 2 : zone.value === 'lower' ? 0 : 1
+    const trackColumns: { x: number; bottom: number; height: number; width: number }[] = [
+      { x: rsiX, bottom: 0, height: GAUGE_HEIGHT, width: 0.1 },
+      { x: kdX, bottom: 0, height: GAUGE_HEIGHT, width: 0.1 },
+      { x: macdX, bottom: 0, height: GAUGE_HEIGHT, width: 0.1 },
+      ...[0, 1, 2].map(index => ({
+        x: bollX,
+        bottom: index * seg + 0.02,
+        height: seg - 0.04,
+        width: index === activeSegment ? 0.42 : 0.14,
+      })),
+    ]
+    const tracks = createColumns(trackColumns.length, matteMaterial(0xffffff))
+    trackColumns.forEach((track, i) => {
+      const active = i >= 3 && i - 3 === activeSegment
+      tracks.setColorAt(i, active ? palette['ink-2'] : palette.line)
+      placeColumn(tracks, i, [track.x, track.bottom, 0], [track.width, track.height, 0.1])
     })
-  },
-  { deep: true }
-)
+    root.add(tracks)
 
-// ── 生命週期 ──
-// 只在元件捲動進入可視範圍時才初始化 WebGL 場景，避免同頁多個 3D 卡片一次全部搶佔資源
-const { isVisible } = useVisibleOnce(threeContainer)
-watch(
-  isVisible,
-  visible => {
-    if (visible) {
-      nextTick(() => initScene())
+    // 區間色帶：貼在量規後方的半透明薄板（RSI 超買／超賣、KD 80／20、MACD 多空兩側）
+    const bandBoxes: { x: number; from: number; to: number; tone: 'rise' | 'fall' }[] = [
+      { x: rsiX, from: RSI_LIMITS.high, to: 100, tone: 'rise' },
+      { x: rsiX, from: 0, to: RSI_LIMITS.low, tone: 'fall' },
+      { x: kdX, from: KD_LIMITS.high, to: 100, tone: 'rise' },
+      { x: kdX, from: 0, to: KD_LIMITS.low, tone: 'fall' },
+    ]
+    const bands = createColumns(bandBoxes.length + 2, matteMaterial(0xffffff, { opacity: 0.2 }))
+    bandBoxes.forEach((band, i) => {
+      bands.setColorAt(i, palette[band.tone])
+      placeColumn(
+        bands,
+        i,
+        [band.x, heightOf(band.from), SLAB_Z],
+        [SLAB_WIDTH, heightOf(band.to) - heightOf(band.from), 0.04]
+      )
+    })
+    // MACD：零軸以上為多方（紅）、以下為空方（綠），比 RSI 色帶更淡
+    bands.setColorAt(bandBoxes.length, palette.rise)
+    placeColumn(bands, bandBoxes.length, [macdX, mid, SLAB_Z], [SLAB_WIDTH, mid, 0.04])
+    bands.setColorAt(bandBoxes.length + 1, palette.fall)
+    placeColumn(bands, bandBoxes.length + 1, [macdX, 0, SLAB_Z], [SLAB_WIDTH, mid, 0.04])
+    root.add(bands)
+
+    // 刻度線：RSI 30／70、KD 20／80、MACD 零軸
+    const tickPoints: THREE.Vector3[] = []
+    const addTick = (x: number, y: number) =>
+      tickPoints.push(
+        new THREE.Vector3(x - SLAB_WIDTH / 2, y, SLAB_Z + 0.03),
+        new THREE.Vector3(x + SLAB_WIDTH / 2, y, SLAB_Z + 0.03)
+      )
+    for (const value of [RSI_LIMITS.low, RSI_LIMITS.high]) addTick(rsiX, heightOf(value))
+    for (const value of [KD_LIMITS.low, KD_LIMITS.high]) addTick(kdX, heightOf(value))
+    addTick(macdX, mid)
+    root.add(
+      new THREE.LineSegments(
+        new THREE.BufferGeometry().setFromPoints(tickPoints),
+        lineMaterial(palette['ink-3'], 0.7)
+      )
+    )
+
+    const tickLabelX = SLAB_WIDTH / 2 + 0.06
+    const addTickLabel = (text: string, x: number, y: number) =>
+      stage.addLabel(text, [x + tickLabelX, y, 0], { variant: 'value', align: 'left' })
+    addTickLabel(String(RSI_LIMITS.high), rsiX, heightOf(RSI_LIMITS.high))
+    addTickLabel(String(RSI_LIMITS.low), rsiX, heightOf(RSI_LIMITS.low))
+    addTickLabel(String(KD_LIMITS.high), kdX, heightOf(KD_LIMITS.high))
+    addTickLabel(String(KD_LIMITS.low), kdX, heightOf(KD_LIMITS.low))
+    addTickLabel('0', macdX, mid)
+    // 超買／超賣名稱放在色帶左外側，避開中央數值柱
+    stage.addLabel('超買', [rsiX - SLAB_WIDTH / 2 - 0.06, heightOf(85), 0], {
+      align: 'right',
+      tone: 'rise',
+    })
+    stage.addLabel('超賣', [rsiX - SLAB_WIDTH / 2 - 0.06, heightOf(15), 0], {
+      align: 'right',
+      tone: 'fall',
+    })
+    stage.addLabel('上軌', [bollX + 0.32, seg * 2, 0], { align: 'left' })
+    stage.addLabel('下軌', [bollX + 0.32, seg, 0], { align: 'left' })
+
+    // 數值柱：RSI、K、D、MACD；先放最終位置，入場動畫再縮放
+    const macdHeight = Math.abs(ratio.value) * mid
+    const macdUp = ratio.value >= 0
+    const bars = createColumns(4, matteMaterial(0xffffff))
+    bars.setColorAt(0, palette['ink-2'])
+    bars.setColorAt(1, palette['ink-2'])
+    bars.setColorAt(2, palette['ink-3'])
+    bars.setColorAt(3, macdUp ? palette.rise : palette.fall)
+    const placeBars = (scale: number) => {
+      placeColumn(bars, 0, [rsiX, 0, 0], [0.34, heightOf(rsi) * scale, 0.3])
+      placeColumn(bars, 1, [kdX - 0.17, 0, 0], [0.22, heightOf(kd.k) * scale, 0.3])
+      placeColumn(bars, 2, [kdX + 0.17, 0, 0], [0.22, heightOf(kd.d) * scale, 0.3])
+      const grown = macdHeight * scale
+      placeColumn(bars, 3, [macdX, macdUp ? mid : mid - grown, 0], [0.34, grown, 0.3])
     }
-  },
-  { immediate: true }
-)
+    placeBars(1)
+    root.add(bars)
 
-onUnmounted(() => {
-  cleanup()
+    // 名稱（底部前方）與數值（頂部上方）
+    GAUGE_X.forEach((x, i) => {
+      stage.addLabel(GAUGE_NAMES[i], [x, -0.12, 0.6], {
+        variant: 'title',
+        anchor: 'below',
+        tone: 'ink',
+      })
+      stage.addLabel(readouts.value[i].text, [x, GAUGE_HEIGHT + 0.14, 0], {
+        variant: 'value',
+        anchor: 'above',
+        tone: readouts.value[i].tone,
+      })
+    })
+
+    // 透明點選區：每座量規一個，涵蓋整根量規
+    const hits = createColumns(4, new THREE.MeshBasicMaterial({ visible: false }))
+    GAUGE_X.forEach((x, i) =>
+      placeColumn(hits, i, [x, 0, 0], [SLAB_WIDTH, GAUGE_HEIGHT + 0.2, 0.8])
+    )
+    root.add(hits)
+
+    stage.animate(800, progress => placeBars(easeOutCubic(progress)))
+    return [hits]
+  },
+})
+
+const tooltip = computed<SceneTooltip | null>(() => {
+  const hit = hover.value
+  if (!hit || hit.instanceId === undefined || !hasData.value) return null
+  const { rsi, macd, kd } = indicators.value
+  const base = { x: hit.x, y: hit.y }
+  switch (hit.instanceId) {
+    case 0:
+      return {
+        ...base,
+        title: 'RSI 相對強弱指標',
+        lines: [
+          { label: '數值', value: rsi.toFixed(1) },
+          {
+            label: '狀態',
+            value: rsiState.value,
+            tone: TONE_CLASS[oscillatorTone(rsiState.value)],
+          },
+          {
+            label: '判讀',
+            value:
+              rsiState.value === '超買'
+                ? `RSI 高於 ${RSI_LIMITS.high}，短線偏熱`
+                : rsiState.value === '超賣'
+                  ? `RSI 低於 ${RSI_LIMITS.low}，短線偏冷`
+                  : `RSI 介於 ${RSI_LIMITS.low}–${RSI_LIMITS.high}，中性`,
+          },
+        ],
+      }
+    case 1:
+      return {
+        ...base,
+        title: 'KD 隨機指標',
+        lines: [
+          { label: 'K 值', value: kd.k.toFixed(1) },
+          { label: 'D 值', value: kd.d.toFixed(1) },
+          { label: '狀態', value: kState.value, tone: TONE_CLASS[oscillatorTone(kState.value)] },
+          {
+            label: '判讀',
+            value:
+              kd.k > kd.d
+                ? 'K 在 D 之上，短線偏多'
+                : kd.k < kd.d
+                  ? 'K 在 D 之下，短線偏空'
+                  : 'K 與 D 相等',
+          },
+        ],
+      }
+    case 2:
+      return {
+        ...base,
+        title: 'MACD 指數平滑異同',
+        lines: [
+          { label: '數值', value: signed(macd), tone: TONE_CLASS[macdTone.value] },
+          { label: '狀態', value: macdSide.value, tone: TONE_CLASS[macdTone.value] },
+          {
+            label: '判讀',
+            value:
+              macd > 0
+                ? 'MACD 在零軸之上，動能偏多'
+                : macd < 0
+                  ? 'MACD 在零軸之下，動能偏空'
+                  : 'MACD 在零軸',
+          },
+        ],
+      }
+    case 3:
+      return {
+        ...base,
+        title: '布林通道',
+        lines: [
+          {
+            label: '位置',
+            value: BOLLINGER_ZONE_TEXT[zone.value],
+            tone: TONE_CLASS[zoneTone(zone.value)],
+          },
+          {
+            label: '判讀',
+            value:
+              zone.value === 'upper'
+                ? '收盤價在上軌之外，短線偏熱'
+                : zone.value === 'lower'
+                  ? '收盤價在下軌之外，短線偏冷'
+                  : '收盤價在通道內，波動正常',
+          },
+        ],
+      }
+    default:
+      return null
+  }
 })
 </script>
 
 <template>
-  <div
-    class="relative h-full w-full overflow-hidden rounded-card border border-line bg-surface"
-    @mousemove="handleMouseMove"
+  <SceneCard
+    :title="title"
+    subtitle="依目前區間收盤價計算"
+    :unsupported="unsupported"
+    :empty="hasData ? '' : '尚無股價資料，無法計算技術指標'"
+    :tooltip="tooltip"
   >
+    <template #stats>
+      <div>
+        <dt class="text-ink-3">
+          綜合訊號
+        </dt>
+        <dd :class="['font-serif text-base font-bold', signalClass]">
+          {{ signal }}
+        </dd>
+      </div>
+      <div>
+        <dt class="text-ink-3">
+          RSI
+        </dt>
+        <dd :class="['font-mono text-base', TONE_CLASS[oscillatorTone(rsiState)]]">
+          {{ indicators.rsi.toFixed(1) }}
+        </dd>
+      </div>
+      <div>
+        <dt class="text-ink-3">
+          MACD
+        </dt>
+        <dd :class="['font-mono text-base', TONE_CLASS[macdTone]]">
+          {{ signed(indicators.macd) }}
+        </dd>
+      </div>
+    </template>
+
     <div
       ref="threeContainer"
-      class="h-full w-full"
+      class="absolute inset-0"
     />
 
-    <!-- 動態懸停說明 -->
-    <div
-      v-if="hoveredElement"
-      :style="{ left: mousePosition.x + 10 + 'px', top: mousePosition.y - 10 + 'px' }"
-      class="pointer-events-none absolute z-10 max-w-xs rounded-[10px] border border-line bg-surface/95 p-3 shadow-card"
-    >
-      <div class="mb-1 text-sm font-medium text-ink">
-        {{
-          hoveredElement === 'rsiSphere'
-            ? 'RSI 相對強弱指標'
-            : hoveredElement === 'macdBar'
-              ? 'MACD 線'
-              : hoveredElement === 'bollingerRing'
-                ? '布林帶'
-                : hoveredElement === 'kdOscillator'
-                  ? 'KD 振盪器'
-                  : '連接粒子'
-        }}
-      </div>
-      <div class="text-xs text-ink-2">
-        {{ elementDescriptions[hoveredElement as ElementType] }}
-      </div>
-    </div>
+    <template #legend>
+      <span class="inline-flex items-center gap-1.5"><i class="h-2.5 w-2.5 rounded-sm bg-rise/30" />紅帶＝超買區</span>
+      <span class="inline-flex items-center gap-1.5"><i class="h-2.5 w-2.5 rounded-sm bg-fall/30" />綠帶＝超賣區</span>
+      <span class="inline-flex items-center gap-1.5"><i class="h-2.5 w-2.5 rounded-sm bg-rise" />MACD 紅柱＝多方</span>
+      <span class="inline-flex items-center gap-1.5"><i class="h-2.5 w-2.5 rounded-sm bg-fall" />綠柱＝空方</span>
+    </template>
 
-    <!-- 技術指標圖例 -->
-    <div
-      v-if="showLegend"
-      class="absolute right-4 top-4 w-56 rounded-[10px] border border-line bg-surface/95 p-3 shadow-card"
-    >
-      <div class="mb-2 flex items-center justify-between">
-        <h4 class="font-serif text-sm font-bold text-ink">
-          技術分析
-        </h4>
-        <button
-          type="button"
-          aria-label="關閉"
-          class="rounded text-ink-3 transition-colors hover:text-ink"
-          @click="showLegend = false"
-        >
-          <XMarkIcon class="h-4 w-4" />
-        </button>
-      </div>
-      <div class="space-y-2 text-xs">
-        <div
-          class="flex cursor-pointer items-center justify-between rounded p-1 transition-colors hover:bg-raised"
-          @mouseenter="handleElementHover('rsiSphere')"
-          @mouseleave="handleElementLeave"
-        >
-          <div class="flex items-center space-x-2">
-            <div
-              class="h-3 w-3 rounded-full"
-              :class="rsiColor.replace('text-', 'bg-')"
-            />
-            <span class="text-ink-2">RSI</span>
-          </div>
-          <span
-            :class="rsiColor"
-            class="font-mono text-xs"
-          >{{ indicators.rsi.toFixed(1) }}</span>
-        </div>
-        <div
-          class="flex cursor-pointer items-center justify-between rounded p-1 transition-colors hover:bg-raised"
-          @mouseenter="handleElementHover('macdBar')"
-          @mouseleave="handleElementLeave"
-        >
-          <div class="flex items-center space-x-2">
-            <div
-              class="h-4 w-2"
-              :class="macdColor.replace('text-', 'bg-')"
-            />
-            <span class="text-ink-2">MACD</span>
-          </div>
-          <span
-            :class="macdColor"
-            class="font-mono text-xs"
-          >{{ indicators.macd.toFixed(2) }}</span>
-        </div>
-        <div
-          class="flex cursor-pointer items-center justify-between rounded p-1 transition-colors hover:bg-raised"
-          @mouseenter="handleElementHover('bollingerRing')"
-          @mouseleave="handleElementLeave"
-        >
-          <div class="flex items-center space-x-2">
-            <div
-              class="h-0.5 w-3 rounded-full"
-              :class="bollColor.replace('text-', 'bg-')"
-            />
-            <span class="text-ink-2">布林帶</span>
-          </div>
-          <span
-            :class="bollColor"
-            class="text-xs"
-          >{{ indicators.bollingerBand }}</span>
-        </div>
-        <div
-          class="flex cursor-pointer items-center justify-between rounded p-1 transition-colors hover:bg-raised"
-          @mouseenter="handleElementHover('kdOscillator')"
-          @mouseleave="handleElementLeave"
-        >
-          <div class="flex items-center space-x-2">
-            <div class="flex space-x-0.5">
-              <div class="h-3 w-0.5 bg-ink-2" />
-              <div class="h-3 w-0.5 bg-ink-3" />
-            </div>
-            <span class="text-ink-2">KD</span>
-          </div>
-          <span class="font-mono text-xs text-ink">
-            {{ indicators.kd.k.toFixed(1) }}/{{ indicators.kd.d.toFixed(1) }}
-          </span>
-        </div>
-      </div>
-      <div class="mt-3 border-t border-line pt-2 text-center">
-        <div
-          class="font-serif text-lg font-bold"
-          :class="overallSignalColor"
-        >
-          {{ overallSignal }}
-        </div>
-        <div class="text-xs text-ink-3">
-          總合信號
-        </div>
-      </div>
-    </div>
-
-    <!-- 圖例開關 -->
-    <button
-      v-if="!showLegend"
-      type="button"
-      class="absolute right-4 top-4 flex items-center gap-1 rounded-[10px] border border-line bg-surface/95 px-2 py-1.5 text-xs text-ink-2 shadow-card transition-colors hover:text-ink"
-      @click="showLegend = true"
-    >
-      <ChartBarIcon class="h-4 w-4 text-ink-3" />
-      指標
-    </button>
-    <div class="absolute left-4 top-4">
-      <h3 class="mb-2 font-serif text-base font-bold text-ink">
-        {{ title }}
-      </h3>
-      <div class="space-y-1 text-sm text-ink-2">
-        <div class="grid grid-cols-2 gap-4">
-          <div>
-            <div class="text-xs text-ink-3">
-              RSI
-            </div>
-            <div
-              :class="rsiColor"
-              class="font-mono"
-            >
-              {{ indicators.rsi.toFixed(1) }}
-            </div>
-          </div>
-          <div>
-            <div class="text-xs text-ink-3">
-              MACD
-            </div>
-            <div
-              :class="macdColor"
-              class="font-mono"
-            >
-              {{ indicators.macd.toFixed(2) }}
-            </div>
-          </div>
-          <div>
-            <div class="text-xs text-ink-3">
-              布林帶
-            </div>
-            <div
-              :class="bollColor"
-              class="font-mono"
-            >
-              {{ indicators.bollingerBand }}
-            </div>
-          </div>
-          <div>
-            <div class="text-xs text-ink-3">
-              KD
-            </div>
-            <div class="font-mono text-ink">
-              {{ indicators.kd.k.toFixed(1) }}/{{ indicators.kd.d.toFixed(1) }}
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-    <div class="absolute bottom-4 right-4 text-xs">
-      <div class="text-center">
-        <div
-          class="font-serif text-lg font-bold"
-          :class="overallSignalColor"
-        >
-          {{ overallSignal }}
-        </div>
-        <div class="text-sm text-ink-3">
-          技術信號
-        </div>
-      </div>
-    </div>
-  </div>
+    <template #fallback>
+      <dl class="grid grid-cols-2 gap-x-6 gap-y-1">
+        <dt>綜合訊號</dt>
+        <dd :class="['font-serif font-bold', signalClass]">
+          {{ signal }}
+        </dd>
+        <dt>RSI</dt>
+        <dd :class="['font-mono', TONE_CLASS[oscillatorTone(rsiState)]]">
+          {{ indicators.rsi.toFixed(1) }}（{{ rsiState }}）
+        </dd>
+        <dt>KD</dt>
+        <dd class="font-mono">
+          K {{ indicators.kd.k.toFixed(1) }}／D {{ indicators.kd.d.toFixed(1) }}（{{ kState }}）
+        </dd>
+        <dt>MACD</dt>
+        <dd :class="['font-mono', TONE_CLASS[macdTone]]">
+          {{ signed(indicators.macd) }}（{{ macdSide }}）
+        </dd>
+        <dt>布林通道</dt>
+        <dd>{{ BOLLINGER_ZONE_TEXT[zone] }}</dd>
+      </dl>
+    </template>
+  </SceneCard>
 </template>

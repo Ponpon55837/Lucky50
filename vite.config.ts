@@ -76,7 +76,7 @@ export default defineConfig({
           if (id.includes('node_modules/vue') || id.includes('node_modules/vue-router') || id.includes('node_modules/pinia') || id.includes('node_modules/@pinia/colada')) {
             return 'vue-vendor'
           }
-          if (id.includes('node_modules/three') || id.includes('node_modules/@tweenjs')) {
+          if (id.includes('node_modules/three')) {
             return 'three-vendor'
           }
           if (id.includes('node_modules/chart.js') || id.includes('node_modules/vue-chartjs')) {
@@ -121,6 +121,6 @@ export default defineConfig({
   },
   // 優化相依性
   optimizeDeps: {
-    include: ['vue', 'vue-router', 'pinia', 'axios', 'three', '@tweenjs/tween.js', 'chinese-s2t'],
+    include: ['vue', 'vue-router', 'pinia', 'axios', 'three', 'chinese-s2t'],
   },
 })

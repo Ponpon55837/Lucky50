@@ -1,554 +1,257 @@
 <script setup lang="ts">
-import { ref, onUnmounted, watch, computed, nextTick } from 'vue'
+import { computed, ref } from 'vue'
 import * as THREE from 'three'
-import { ChartBarIcon, XMarkIcon } from '@heroicons/vue/24/outline'
-import { ThreeJSScene, createSceneMaterial, tokenColor, tokenHex } from '@/utils/three-scene'
-import { useTheme } from '@/composables/useTheme'
-import { useVisibleOnce } from '@/composables/useVisibleOnce'
+import SceneCard, { type SceneTooltip } from '@/components/three/SceneCard.vue'
+import { useSceneStage } from '@/composables/useSceneStage'
 import { useDashboardStore } from '@/stores/dashboard'
 import { useAnalyticsStore } from '@/stores/analytics'
-import type { ETFData } from '@/types'
+import { evenIndices } from '@/utils/chart'
+import { candleLayout, movingAverage, toneOf, type SceneTone } from '@/utils/sceneLayout'
+import {
+  createBase,
+  createColumns,
+  easeOutCubic,
+  lineMaterial,
+  matteMaterial,
+  placeColumn,
+  type ScenePalette,
+} from '@/utils/three-scene'
 
-interface Props {
-  title?: string
-}
+const { title = '股價走勢' } = defineProps<{ title?: string }>()
 
-// 配置常量
-const ANIMATION_CONFIG = {
-  priceSphere: {
-    radius: 0.06,
-    pulseScale: 0.2,
-    pulseSpeed: 0.002,
-  },
-  fortuneOrb: {
-    radius: 0.3,
-    position: { x: 4, y: 1.5, z: 0 },
-    rotationSpeed: 0.01,
-  },
-  particles: {
-    count: 150,
-    bounds: { x: 12, y: 8, z: 6 },
-    floatSpeed: 0.002,
-  },
-  priceRange: {
-    width: 8,
-    height: 3,
-  },
-} as const
+/** 顯示的交易日數：再多 K 棒會細到看不清 */
+const VISIBLE_DAYS = 60
+const MA_PERIOD = 20
+const CHART = { width: 10, height: 3.2, lift: 0.9, volumeHeight: 0.65, depth: 0.42 }
 
-const { title = '股價 3D 動態' } = defineProps<Props>()
-
-// 使用 stores
 const dashboardStore = useDashboardStore()
 const analyticsStore = useAnalyticsStore()
-const { isDark } = useTheme()
 
-// 動畫管理
-const threeContainer = ref<HTMLElement>()
-let scene: ThreeJSScene | null = null
-let priceLineGroup: THREE.Group | null = null
-let fortuneOrb: THREE.Mesh | null = null
-
-// 互動狀態管理
-const hoveredElement = ref<string | null>(null)
-const mousePosition = ref({ x: 0, y: 0 })
-const showLegend = ref(false)
-
-// 元素說明數據
-type ElementType = 'priceSphere' | 'volumeBar' | 'priceLine' | 'fortuneOrb' | 'particles'
-const elementDescriptions: Record<ElementType, string> = {
-  priceSphere: '價格點：每個球體代表一個時間點的股價',
-  volumeBar: '成交量：柱狀圖高度表示交易量大小',
-  priceLine: '價格趨勢線：連接價格點形成趨勢軌跡',
-  fortuneOrb: '運勢球：大小和顏色反映當前投資運勢',
-  particles: '市場氛圍：粒子流動表示市場活躍度',
-}
-
-// ── 計算屬性 ──
-const etfData = computed(() => analyticsStore.getAdjustedEtfData(dashboardStore.etfData))
-const fortuneScore = computed(() => dashboardStore.unifiedInvestmentScore)
-
-// 計算最新價格和變化
-const latestPrice = computed(() => {
-  if (etfData.value.length === 0) return 0
-  return etfData.value[etfData.value.length - 1]?.close || 0
-})
-
-const priceChange = computed(() => {
-  if (etfData.value.length < 2) return 0
-  const current = etfData.value[etfData.value.length - 1]
-  const previous = etfData.value[etfData.value.length - 2]
-  return current.close - previous.close
-})
-
-const priceChangePercent = computed(() => {
-  if (etfData.value.length < 2) return 0
-  const current = etfData.value[etfData.value.length - 1]
-  const previous = etfData.value[etfData.value.length - 2]
-  return ((current.close - previous.close) / previous.close) * 100
-})
-
-const priceChangeColor = computed(() => {
-  const change = priceChange.value
-  return change > 0 ? 'text-rise' : change < 0 ? 'text-fall' : 'text-ink-3'
-})
-
-const fortuneEffect = computed(() => {
-  const score = fortuneScore.value
-  if (score >= 80) return '極佳'
-  if (score >= 60) return '良好'
-  if (score >= 40) return '普通'
-  return '不佳'
-})
-
-// ── 方法與函式 ──
-// 每次重建可視化內容時遞增世代編號，讓上一輪註冊的動畫迴圈在下一幀自動停止，
-// 避免舊物件的 requestAnimationFrame 迴圈永久殘留（過去卡頓會隨使用時間變嚴重的主因）
-let animationGeneration = 0
-
-const cleanupAnimations = () => {
-  animationGeneration++
-}
-
-// 註冊一個每幀執行的更新函式；回傳 false 可提前結束該迴圈（例如一次性動畫完成後）
-const registerAnimation = (update: () => boolean | void) => {
-  const generation = animationGeneration
-  const loop = () => {
-    if (generation !== animationGeneration) return
-    if (update() === false) return
-    requestAnimationFrame(loop)
-  }
-  loop()
-}
-
-const handleMouseMove = (event: MouseEvent) => {
-  const rect = threeContainer.value?.getBoundingClientRect()
-  if (!rect) return
-
-  mousePosition.value = {
-    x: event.clientX - rect.left,
-    y: event.clientY - rect.top,
-  }
-}
-
-const handleElementHover = (elementType: ElementType) => {
-  hoveredElement.value = elementType
-}
-
-const handleElementLeave = () => {
-  hoveredElement.value = null
-}
-
-// 創建價格球體
-const createPriceSphere = (
-  x: number,
-  y: number,
-  z: number,
-  price: number,
-  index: number
-): THREE.Mesh => {
-  const { radius } = ANIMATION_CONFIG.priceSphere
-
-  const geometry = new THREE.SphereGeometry(radius, 16, 16)
-  const isPositive = index > 0 ? price > etfData.value[index - 1].close : true
-  const color = isPositive ? tokenHex('rise') : tokenHex('fall')
-  const material = createSceneMaterial(color, 0.95)
-
-  const sphere = new THREE.Mesh(geometry, material)
-  sphere.position.set(x, y, z)
-
-  return sphere
-}
-
-// 創建成交量柱狀圖
-const createVolumeBar = (x: number, data: ETFData, index: number): THREE.Mesh => {
-  const maxVolume = Math.max(...etfData.value.map((d: ETFData) => d.volume))
-  const volumeHeight = (data.volume / maxVolume) * 1.2
-
-  const geometry = new THREE.CylinderGeometry(0.02, 0.04, volumeHeight, 8)
-  const material = createSceneMaterial(tokenHex('ink-3'), 0.55)
-  const bar = new THREE.Mesh(geometry, material)
-  bar.position.set(x, -2 + volumeHeight / 2, -0.8)
-
-  // 添加上升動畫
-  bar.scale.y = 0
-  setTimeout(() => {
-    registerAnimation(() => {
-      bar.scale.y += (1 - bar.scale.y) * 0.08
-      if (Math.abs(1 - bar.scale.y) <= 0.01) return false
-    })
-  }, index * 100)
-
-  return bar
-}
-
-// 創建粒子背景
-const createParticleBackground = (): THREE.Points => {
-  const { count, bounds } = ANIMATION_CONFIG.particles
-
-  const positions = new Float32Array(count * 3)
-  const colors = new Float32Array(count * 3)
-
-  const baseColor = tokenColor('ink-3')
-
-  for (let i = 0; i < count; i++) {
-    const i3 = i * 3
-    positions[i3] = (Math.random() - 0.5) * bounds.x
-    positions[i3 + 1] = (Math.random() - 0.5) * bounds.y
-    positions[i3 + 2] = (Math.random() - 0.5) * bounds.z
-
-    // 墨灰明度微調，不做色相偏移
-    const shade = 1 + (Math.random() - 0.5) * 0.2
-    colors[i3] = baseColor.r * shade
-    colors[i3 + 1] = baseColor.g * shade
-    colors[i3 + 2] = baseColor.b * shade
-  }
-
-  const geometry = new THREE.BufferGeometry()
-  geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3))
-  geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3))
-
-  const material = new THREE.PointsMaterial({
-    size: 0.03,
-    vertexColors: true,
-    transparent: true,
-    opacity: 0.4,
-  })
-
-  const particles = new THREE.Points(geometry, material)
-
-  // 粒子漂浮動畫
-  registerAnimation(() => {
-    const positions = particles.geometry.attributes.position.array as Float32Array
-    for (let i = 0; i < count; i++) {
-      const i3 = i * 3
-      positions[i3 + 1] +=
-        Math.sin(Date.now() * 0.001 + i * 0.1) * ANIMATION_CONFIG.particles.floatSpeed
-    }
-    particles.geometry.attributes.position.needsUpdate = true
-    particles.rotation.y += 0.003
-  })
-
-  return particles
-}
-
-// 創建運勢能量球
-const createFortuneOrb = (): THREE.Mesh => {
-  const { radius, position, rotationSpeed } = ANIMATION_CONFIG.fortuneOrb
-
-  const geometry = new THREE.SphereGeometry(radius, 24, 24)
-  const score = fortuneScore.value
-  // 運勢球是場景唯一的朱印紅重點，分數越低越淡
-  const material = createSceneMaterial(
-    tokenHex('seal'),
-    score >= 60 ? 0.95 : score >= 40 ? 0.75 : 0.55
-  )
-  const orb = new THREE.Mesh(geometry, material)
-  orb.position.set(position.x, position.y, position.z)
-
-  // 旋轉動畫
-  registerAnimation(() => {
-    orb.rotation.x += rotationSpeed
-    orb.rotation.y += rotationSpeed
-  })
-
-  return orb
-}
-
-// 創建 3D 價格線 - 重構後更清晰
-const createPriceLine = () => {
-  if (!scene || etfData.value.length === 0) return
-
-  // 清除舊的價格線、動畫與 GPU 資源，避免每次重建都累積記憶體
-  if (priceLineGroup) {
-    scene.removeAndDispose(priceLineGroup)
-  }
-  cleanupAnimations()
-
-  priceLineGroup = new THREE.Group()
-
-  // 計算價格範圍
-  const prices = etfData.value.map((d: ETFData) => d.close)
-  const minPrice = Math.min(...prices)
-  const maxPrice = Math.max(...prices)
-  const priceRange = maxPrice - minPrice
-
-  // 創建價格點和連線
-  const points: THREE.Vector3[] = []
-
-  etfData.value.forEach((data: ETFData, index: number) => {
-    const x =
-      (index / (etfData.value.length - 1)) * ANIMATION_CONFIG.priceRange.width -
-      ANIMATION_CONFIG.priceRange.width / 2
-    const y =
-      ((data.close - minPrice) / priceRange) * ANIMATION_CONFIG.priceRange.height -
-      ANIMATION_CONFIG.priceRange.height / 2
-    const z = 0
-
-    points.push(new THREE.Vector3(x, y, z))
-
-    // 創建價格點球體
-    const sphere = createPriceSphere(x, y, z, data.close, index)
-
-    // 統一的脈動動畫
-    registerAnimation(() => {
-      const time = Date.now() * ANIMATION_CONFIG.priceSphere.pulseSpeed + index * 0.3
-      const scale = 1 + Math.sin(time) * ANIMATION_CONFIG.priceSphere.pulseScale
-      sphere.scale.setScalar(scale)
-    })
-    priceLineGroup!.add(sphere)
-
-    // 添加成交量柱狀圖
-    const volumeBar = createVolumeBar(x, data, index)
-    priceLineGroup!.add(volumeBar)
-  })
-
-  // 創建增強的價格線 - 管道效果
-  if (points.length > 1) {
-    const curve = new THREE.CatmullRomCurve3(points)
-    const tubeGeometry = new THREE.TubeGeometry(curve, 100, 0.02, 8, false)
-    // 主序列以墨色呈現，漲跌由價格點的紅綠表達
-    const lineColor = tokenHex('ink-2')
-    const tubeMaterial = createSceneMaterial(lineColor, 0.9)
-    const tube = new THREE.Mesh(tubeGeometry, tubeMaterial)
-    priceLineGroup!.add(tube)
-
-    // 添加細線軌跡
-    const lineGeometry = new THREE.BufferGeometry().setFromPoints(points)
-    const lineMaterial = new THREE.LineBasicMaterial({
-      color: lineColor,
-      transparent: true,
-      opacity: 0.5,
-      linewidth: 1,
-    })
-    const line = new THREE.Line(lineGeometry, lineMaterial)
-    priceLineGroup!.add(line)
-  }
-
-  // 添加粒子背景效果
-  const particles = createParticleBackground()
-  priceLineGroup!.add(particles)
-
-  scene.addToScene(priceLineGroup)
-}
-
-// 主要創建函數
-const createVisualization = () => {
-  if (!scene) return
-
-  createPriceLine()
-
-  // 重新創建運勢球
-  if (fortuneOrb) {
-    scene.removeAndDispose(fortuneOrb)
-  }
-  fortuneOrb = createFortuneOrb()
-  scene.addToScene(fortuneOrb)
-}
-
-// 初始化場景
-const initScene = () => {
-  if (!threeContainer.value || scene) return
-
-  scene = new ThreeJSScene(threeContainer.value, {
-    alpha: true,
-    antialias: true,
-    isDark: isDark.value,
-  })
-
-  // 設置相機位置
-  const camera = scene.getCamera()
-  camera.position.set(0, 1, 8)
-  camera.lookAt(0, 0, 0)
-
-  createVisualization()
-}
-
-// 清理資源
-const cleanup = () => {
-  cleanupAnimations()
-  scene?.destroy()
-  scene = null
-  priceLineGroup = null
-  fortuneOrb = null
-}
-
-// ── 監聽器 ──
-// etfData 是 computed，每次重新計算都會回傳全新陣列參照，淺層 watch 即可偵測變化，
-// 不需要 deep（深層追蹤大型陣列每個元素反而增加不必要的效能負擔）
-watch(etfData, () => {
-  if (scene) {
-    createVisualization()
-  }
-})
-
-watch(fortuneScore, () => {
-  if (scene) {
-    createVisualization()
-  }
-})
-
-watch(isDark, newIsDark => {
-  if (scene) {
-    scene.updateTheme(newIsDark)
-    nextTick(() => {
-      createVisualization()
-    })
-  }
-})
-
-// ── 生命週期 ──
-// 只在元件捲動進入可視範圍時才初始化 WebGL 場景，避免同頁多個 3D 卡片一次全部搶佔資源
-const { isVisible } = useVisibleOnce(threeContainer)
-watch(
-  isVisible,
-  visible => {
-    if (visible) {
-      nextTick(() => initScene())
-    }
-  },
-  { immediate: true }
+const allDays = computed(() => analyticsStore.getAdjustedEtfData(dashboardStore.etfData))
+const days = computed(() => allDays.value.slice(-VISIBLE_DAYS))
+const movingAverages = computed(() =>
+  movingAverage(
+    allDays.value.map(d => d.close),
+    MA_PERIOD
+  ).slice(-VISIBLE_DAYS)
 )
 
-onUnmounted(() => {
-  cleanup()
+const latest = computed(() => days.value.at(-1) ?? null)
+const change = computed(() => {
+  const all = allDays.value
+  if (all.length < 2) return { value: 0, percent: 0 }
+  const previous = all[all.length - 2].close
+  const value = all[all.length - 1].close - previous
+  return { value, percent: previous ? (value / previous) * 100 : 0 }
+})
+
+const TONE_CLASS: Readonly<Record<SceneTone, string>> = {
+  rise: 'text-rise',
+  fall: 'text-fall',
+  flat: 'text-ink-2',
+}
+const changeTone = computed(() => TONE_CLASS[toneOf(change.value.value)])
+const signed = (value: number, digits = 2) => `${value > 0 ? '+' : ''}${value.toFixed(digits)}`
+const shortDate = (date: string) => date.slice(5).replace('-', '/')
+
+const toneColor = (palette: ScenePalette, tone: SceneTone) =>
+  tone === 'flat' ? palette['ink-3'] : palette[tone]
+
+const threeContainer = ref<HTMLElement>()
+
+const { unsupported, hover } = useSceneStage(threeContainer, {
+  view: [0, 0.55, 2.4],
+  sources: [days],
+  build: (stage, root, palette) => {
+    const data = days.value
+    if (data.length === 0) return
+
+    const { width, height, lift, volumeHeight, depth } = CHART
+    const layout = candleLayout(data, { width, height, volumeHeight })
+    const barWidth = Math.min(depth, layout.slot * 0.68)
+
+    root.add(createBase(palette, { width: width + 0.8, depth: 1.4 }))
+
+    // 價格格線：畫在 K 棒後方的淡線，對應左側價格刻度
+    const gridPoints: THREE.Vector3[] = []
+    for (const tick of layout.ticks) {
+      const y = lift + layout.priceToY(tick)
+      gridPoints.push(new THREE.Vector3(-width / 2, y, -0.4), new THREE.Vector3(width / 2, y, -0.4))
+      stage.addLabel(tick.toFixed(tick % 1 === 0 ? 0 : 1), [-width / 2 - 0.15, y, 0], {
+        variant: 'value',
+        align: 'right',
+      })
+    }
+    root.add(
+      new THREE.LineSegments(
+        new THREE.BufferGeometry().setFromPoints(gridPoints),
+        lineMaterial(palette.line)
+      )
+    )
+
+    // K 棒實體、影線、成交量各一個 InstancedMesh，每根 K 棒以實例顏色區分漲跌
+    const bodies = createColumns(data.length, matteMaterial(0xffffff))
+    const wicks = createColumns(data.length, matteMaterial(0xffffff))
+    const volumes = createColumns(data.length, matteMaterial(0xffffff, { opacity: 0.55 }))
+    const finals = layout.bars.map((bar, i) => {
+      const color = toneColor(palette, bar.tone)
+      bodies.setColorAt(i, color)
+      wicks.setColorAt(i, color)
+      volumes.setColorAt(i, color)
+      const place = (scale: number) => {
+        placeColumn(
+          bodies,
+          i,
+          [bar.x, lift + bar.bodyBottom * scale, 0],
+          [barWidth, bar.bodyHeight * scale, barWidth]
+        )
+        placeColumn(
+          wicks,
+          i,
+          [bar.x, lift + bar.wickBottom * scale, 0],
+          [0.035, bar.wickHeight * scale, 0.035]
+        )
+        placeColumn(volumes, i, [bar.x, 0, 0], [barWidth, bar.volume * scale, barWidth])
+      }
+      place(1)
+      return place
+    })
+    root.add(bodies, wicks, volumes)
+
+    // 20 日均線
+    const maPoints = movingAverages.value.flatMap((value, i) =>
+      value === null ? [] : [new THREE.Vector3(layout.bars[i].x, lift + layout.priceToY(value), 0)]
+    )
+    if (maPoints.length > 1) {
+      root.add(
+        new THREE.Line(
+          new THREE.BufferGeometry().setFromPoints(maPoints),
+          lineMaterial(palette['ink-2'], 0.9)
+        )
+      )
+      const last = maPoints[maPoints.length - 1]
+      stage.addLabel(`MA${MA_PERIOD}`, [last.x + 0.1, last.y, 0], { align: 'left', tone: 'ink-2' })
+    }
+
+    // 日期軸
+    for (const i of evenIndices(data.length, 4)) {
+      stage.addLabel(shortDate(data[i].date), [layout.bars[i].x, -0.12, 0.7], {
+        variant: 'value',
+        anchor: 'below',
+      })
+    }
+    stage.addLabel('成交量', [-width / 2 - 0.12, volumeHeight / 2, 0], { align: 'right' })
+
+    // 透明的整欄點選區：K 棒很細，用整個交易日的欄位當滑鼠目標
+    const hitMaterial = new THREE.MeshBasicMaterial({ visible: false })
+    const hits = createColumns(data.length, hitMaterial)
+    layout.bars.forEach((bar, i) =>
+      placeColumn(hits, i, [bar.x, 0, 0], [layout.slot, lift + height, 0.8])
+    )
+    root.add(hits)
+
+    stage.animate(900, progress => {
+      finals.forEach((place, i) => {
+        const delay = (i / finals.length) * 0.45
+        place(easeOutCubic(Math.min(1, Math.max(0, (progress - delay) / 0.55))))
+      })
+    })
+    return [hits]
+  },
+})
+
+const tooltip = computed<SceneTooltip | null>(() => {
+  const hit = hover.value
+  if (!hit || hit.instanceId === undefined) return null
+  const index = hit.instanceId
+  const day = days.value[index]
+  if (!day) return null
+  const offset = allDays.value.length - days.value.length
+  const previous = allDays.value[offset + index - 1]
+  const diff = previous ? day.close - previous.close : 0
+  return {
+    x: hit.x,
+    y: hit.y,
+    title: day.date,
+    lines: [
+      { label: '開盤', value: day.open.toFixed(2) },
+      { label: '最高', value: day.high.toFixed(2) },
+      { label: '最低', value: day.low.toFixed(2) },
+      { label: '收盤', value: day.close.toFixed(2), tone: TONE_CLASS[toneOf(diff)] },
+      {
+        label: '漲跌',
+        value: previous ? `${signed(diff)}（${signed((diff / previous.close) * 100)}%）` : '—',
+        tone: TONE_CLASS[toneOf(diff)],
+      },
+      { label: '成交量', value: `${Math.round(day.volume / 1000).toLocaleString('zh-TW')} 張` },
+    ],
+  }
 })
 </script>
 
 <template>
-  <div
-    class="relative h-full w-full overflow-hidden rounded-card border border-line bg-surface"
-    @mousemove="handleMouseMove"
+  <SceneCard
+    :title="title"
+    :subtitle="`0050 近 ${days.length} 個交易日 K 線與成交量`"
+    :unsupported="unsupported"
+    :empty="days.length === 0 ? '尚無股價資料' : ''"
+    :tooltip="tooltip"
   >
+    <template #stats>
+      <div>
+        <dt class="text-ink-3">
+          收盤
+        </dt>
+        <dd :class="['font-mono text-base', changeTone]">
+          {{ latest ? latest.close.toFixed(2) : '—' }}
+        </dd>
+      </div>
+      <div>
+        <dt class="text-ink-3">
+          漲跌
+        </dt>
+        <dd :class="['font-mono text-base', changeTone]">
+          {{ signed(change.value) }}（{{ signed(change.percent) }}%）
+        </dd>
+      </div>
+    </template>
+
     <div
       ref="threeContainer"
-      class="h-full w-full"
+      class="absolute inset-0"
     />
 
-    <!-- 動態懸停說明 -->
-    <div
-      v-if="hoveredElement"
-      :style="{ left: mousePosition.x + 10 + 'px', top: mousePosition.y - 10 + 'px' }"
-      class="pointer-events-none absolute z-10 max-w-xs rounded-[10px] border border-line bg-surface/95 p-3 shadow-card"
-    >
-      <div class="mb-1 text-sm font-medium text-ink">
-        {{ hoveredElement }}
-      </div>
-      <div class="text-xs text-ink-2">
-        {{ (hoveredElement && elementDescriptions[hoveredElement as ElementType]) || '未知元素' }}
-      </div>
-    </div>
+    <template #legend>
+      <span class="inline-flex items-center gap-1.5"><i class="h-2.5 w-2.5 rounded-sm bg-rise" />收高於開</span>
+      <span class="inline-flex items-center gap-1.5"><i class="h-2.5 w-2.5 rounded-sm bg-fall" />收低於開</span>
+      <span class="inline-flex items-center gap-1.5"><i class="h-0.5 w-4 bg-ink-2" />{{ MA_PERIOD }} 日均線</span>
+      <span class="inline-flex items-center gap-1.5"><i class="h-2.5 w-2.5 rounded-sm bg-ink-3/50" />下方為成交量</span>
+    </template>
 
-    <!-- 圖例面板 -->
-    <div
-      v-if="showLegend"
-      class="absolute right-4 top-4 w-48 rounded-[10px] border border-line bg-surface/95 p-3 shadow-card"
-    >
-      <div class="mb-2 flex items-center justify-between">
-        <h4 class="font-serif text-sm font-bold text-ink">
-          元素說明
-        </h4>
-        <button
-          type="button"
-          aria-label="關閉"
-          class="rounded text-ink-3 transition-colors hover:text-ink"
-          @click="showLegend = false"
-        >
-          <XMarkIcon class="h-4 w-4" />
-        </button>
-      </div>
-      <div class="space-y-2 text-xs">
-        <div
-          class="flex cursor-pointer items-center space-x-2 rounded p-1 transition-colors hover:bg-raised"
-          @mouseenter="handleElementHover('priceSphere')"
-          @mouseleave="handleElementLeave"
-        >
-          <div class="flex space-x-0.5">
-            <div class="h-3 w-1.5 rounded-l-full bg-rise" />
-            <div class="h-3 w-1.5 rounded-r-full bg-fall" />
-          </div>
-          <span class="text-ink-2">價格點（漲 / 跌）</span>
-        </div>
-        <div
-          class="flex cursor-pointer items-center space-x-2 rounded p-1 transition-colors hover:bg-raised"
-          @mouseenter="handleElementHover('volumeBar')"
-          @mouseleave="handleElementLeave"
-        >
-          <div class="h-2 w-3 bg-ink-3" />
-          <span class="text-ink-2">成交量</span>
-        </div>
-        <div
-          class="flex cursor-pointer items-center space-x-2 rounded p-1 transition-colors hover:bg-raised"
-          @mouseenter="handleElementHover('priceLine')"
-          @mouseleave="handleElementLeave"
-        >
-          <div class="h-0.5 w-6 bg-ink-2" />
-          <span class="text-ink-2">趨勢線</span>
-        </div>
-        <div
-          class="flex cursor-pointer items-center space-x-2 rounded p-1 transition-colors hover:bg-raised"
-          @mouseenter="handleElementHover('fortuneOrb')"
-          @mouseleave="handleElementLeave"
-        >
-          <div class="h-3 w-3 rounded-full bg-seal" />
-          <span class="text-ink-2">運勢球</span>
-        </div>
-        <div
-          class="flex cursor-pointer items-center space-x-2 rounded p-1 transition-colors hover:bg-raised"
-          @mouseenter="handleElementHover('particles')"
-          @mouseleave="handleElementLeave"
-        >
-          <div class="flex space-x-1">
-            <div class="h-1 w-1 rounded-full bg-ink-3" />
-            <div class="h-1 w-1 rounded-full bg-ink-3" />
-            <div class="h-1 w-1 rounded-full bg-ink-3" />
-          </div>
-          <span class="text-ink-2">市場粒子</span>
-        </div>
-      </div>
-    </div>
-
-    <!-- 圖例開關按鈕 -->
-    <button
-      v-if="!showLegend"
-      type="button"
-      class="absolute right-4 top-4 flex items-center gap-1 rounded-[10px] border border-line bg-surface/95 px-2 py-1.5 text-xs text-ink-2 shadow-card transition-colors hover:text-ink"
-      @click="showLegend = true"
-    >
-      <ChartBarIcon class="h-4 w-4 text-ink-3" />
-      圖例
-    </button>
-
-    <div class="absolute left-4 top-4">
-      <h3 class="mb-2 font-serif text-base font-bold text-ink">
-        {{ title }}
-      </h3>
-      <div class="space-y-1 text-sm text-ink-2">
-        <div>
-          最新價格:
-          <span
-            :class="priceChangeColor"
-            class="font-mono"
-          >{{ latestPrice?.toFixed(2) }}</span>
-        </div>
-        <div>
-          漲跌:
-          <span
-            :class="priceChangeColor"
-            class="font-mono"
-          >{{ priceChange >= 0 ? '+' : '' }}{{ priceChange?.toFixed(2) }}</span>
-        </div>
-        <div>
-          漲跌幅:
-          <span
-            :class="priceChangeColor"
-            class="font-mono"
-          >{{ priceChange >= 0 ? '+' : '' }}{{ priceChangePercent?.toFixed(2) }}%</span>
-        </div>
-      </div>
-    </div>
-    <div class="absolute bottom-4 right-4 text-xs text-ink-3">
-      <div>運勢影響: {{ fortuneEffect }}</div>
-    </div>
-  </div>
+    <template #fallback>
+      <dl
+        v-if="latest"
+        class="grid grid-cols-2 gap-x-6 gap-y-1"
+      >
+        <dt>日期</dt>
+        <dd class="font-mono">
+          {{ latest.date }}
+        </dd>
+        <dt>收盤</dt>
+        <dd :class="['font-mono', changeTone]">
+          {{ latest.close.toFixed(2) }}
+        </dd>
+        <dt>漲跌</dt>
+        <dd :class="['font-mono', changeTone]">
+          {{ signed(change.value) }}（{{ signed(change.percent) }}%）
+        </dd>
+        <dt>區間最高／最低</dt>
+        <dd class="font-mono">
+          {{ Math.max(...days.map(d => d.high)).toFixed(2) }}／{{
+            Math.min(...days.map(d => d.low)).toFixed(2)
+          }}
+        </dd>
+      </dl>
+    </template>
+  </SceneCard>
 </template>
