@@ -39,6 +39,14 @@ export default {
         bad: channel('fall'),
         warn: channel('warn'),
         danger: channel('danger'),
+        // 五行
+        el: {
+          wood: channel('el-wood'),
+          fire: channel('el-fire'),
+          earth: channel('el-earth'),
+          metal: channel('el-metal'),
+          water: channel('el-water'),
+        },
       },
       fontFamily: {
         sans: [

@@ -46,6 +46,22 @@ const elementLabels: Record<string, string> = {
   earth: '土',
 }
 
+// 五行配色：Tailwind 需要完整類名才會產生樣式，不可動態拼接
+const elementBarClass: Record<string, string> = {
+  metal: 'bg-el-metal',
+  wood: 'bg-el-wood',
+  water: 'bg-el-water',
+  fire: 'bg-el-fire',
+  earth: 'bg-el-earth',
+}
+const elementTextClass: Record<string, string> = {
+  metal: 'text-el-metal',
+  wood: 'text-el-wood',
+  water: 'text-el-water',
+  fire: 'text-el-fire',
+  earth: 'text-el-earth',
+}
+
 // 引擎以短名稱標示，不用 emoji
 const engineLabels: Record<string, string> = {
   classic: '經典',
@@ -600,10 +616,14 @@ const recLabel = (rec: FortuneRecord['recommendation']): string =>
               class="flex flex-col items-center gap-1"
             >
               <div
-                class="w-6 rounded-full bg-ink-3/40"
+                class="w-6 rounded-full"
+                :class="elementBarClass[key] ?? 'bg-ink-3/40'"
                 :style="{ height: `${Math.max(6, value * 0.28)}px` }"
               />
-              <span class="text-[10px] leading-none text-ink-3">{{ elementLabels[key] }}</span>
+              <span
+                class="text-[10px] font-medium leading-none"
+                :class="elementTextClass[key] ?? 'text-ink-3'"
+              >{{ elementLabels[key] }}</span>
             </div>
           </div>
           <!-- 引擎分數 -->
@@ -673,10 +693,14 @@ const recLabel = (rec: FortuneRecord['recommendation']): string =>
                   class="flex flex-col items-center gap-1"
                 >
                   <div
-                    class="w-7 rounded-full bg-ink-3/40"
+                    class="w-7 rounded-full"
+                    :class="elementBarClass[key] ?? 'bg-ink-3/40'"
                     :style="{ height: `${Math.max(6, value * 0.3)}px` }"
                   />
-                  <span class="text-[11px] leading-none text-ink-3">{{ elementLabels[key] }}</span>
+                  <span
+                    class="text-[11px] font-medium leading-none"
+                    :class="elementTextClass[key] ?? 'text-ink-3'"
+                  >{{ elementLabels[key] }}</span>
                 </div>
               </div>
               <p
