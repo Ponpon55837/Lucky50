@@ -23,6 +23,12 @@
   --c-fall: 22 120 84;
   --c-warn: 150 98 10;
   --c-danger: 190 70 20;
+  /* 五行：木青、火赤、土黃、金白（以銀灰呈現）、水黑（以深藍呈現） */
+  --c-el-wood: 46 139 87;
+  --c-el-fire: 214 69 54;
+  --c-el-earth: 176 128 52;
+  --c-el-metal: 138 148 160;
+  --c-el-water: 46 104 178;
   --shadow-card: 0 1px 2px rgb(0 0 0 / 0.04), 0 12px 32px rgb(0 0 0 / 0.05);
   --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
 }
@@ -42,6 +48,11 @@
   --c-fall: 76 195 138;
   --c-warn: 236 186 80;
   --c-danger: 245 140 80;
+  --c-el-wood: 92 196 128;
+  --c-el-fire: 245 112 96;
+  --c-el-earth: 222 172 92;
+  --c-el-metal: 184 192 204;
+  --c-el-water: 98 156 236;
   --shadow-card: 0 16px 48px rgb(0 0 0 / 0.35);
 }
 
