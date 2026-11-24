@@ -12,6 +12,7 @@ interface ImportMetaEnv {
   readonly VITE_APP_TITLE: string
   readonly VITE_FINMIND_API_URL: string
   readonly VITE_LUNAR_API_URL: string
+  readonly VITE_ZIWEI_PATTERNS?: string
 }
 
 interface ImportMeta {
