@@ -316,6 +316,7 @@ onUnmounted(() => {
       />
       <ZiWeiCard
         :profile="userProfileCompat"
+        :missing-birth-time="Boolean(userStore.profile.birthDate && !userStore.profile.birthTime)"
         :date="dashboardStore.currentDate"
       />
       <FengShuiCard
