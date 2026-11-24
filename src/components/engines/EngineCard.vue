@@ -30,7 +30,9 @@ defineProps<{
       v-else-if="empty"
       class="text-ink-3"
     >
-      請先設定出生資料
+      <slot name="empty">
+        請先設定出生資料
+      </slot>
     </p>
     <div
       v-else
