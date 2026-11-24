@@ -1,0 +1,54 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`與指定版本 ziwei-doushu 比對 > 重現各組盤例的相容及差異欄位 1`] = `
+[
+  {
+    "counts": {
+      "brightness": 156,
+      "placements": 24,
+    },
+    "differencesSha256": "afcdab54f6e7e96925817f7e6c45ef994fd46f851be6ee1b4a848751d1472166",
+    "group": "general",
+    "movedStars": [
+      "天鉞",
+      "天魁",
+    ],
+    "total": 156,
+  },
+  {
+    "counts": {
+      "brightness": 30,
+      "placements": 3,
+    },
+    "differencesSha256": "f0e4609217526c3a144ec87d51f134b004db8297d30f0088e6770eb52f801ea5",
+    "group": "yearBoundary",
+    "movedStars": [
+      "天鉞",
+      "天魁",
+    ],
+    "total": 30,
+  },
+  {
+    "counts": {
+      "brightness": 24,
+      "placements": 4,
+    },
+    "differencesSha256": "3fe05a3db14dc58e2f04036cd8adbbde9b3b58a165f7dc32b77929f78b073cb3",
+    "group": "leapMonth",
+    "movedStars": [
+      "天鉞",
+      "天魁",
+    ],
+    "total": 24,
+  },
+  {
+    "counts": {
+      "brightness": 18,
+    },
+    "differencesSha256": "2ba58886a5c5e096eb8d352d120ca0c8d8cbab6a89c4366d23f93e288986d63e",
+    "group": "lateZi",
+    "movedStars": [],
+    "total": 18,
+  },
+]
+`;
