@@ -22,6 +22,11 @@ export interface ZiWeiPalaceSnapshot {
   borrowed: { fromBranch: Branch; stars: MainStar[] } | null
 }
 
+export interface ZiWeiStemTransformations {
+  sourceStem: Stem
+  entries: { type: Transformation; star: Star; palaceBranch: Branch }[]
+}
+
 export interface ZiWeiChartSnapshot {
   schemaVersion: 1
   conventionId: 'lucky50-natal-v1'
@@ -29,8 +34,5 @@ export interface ZiWeiChartSnapshot {
   bodyBranch: Branch
   bureau: ZiWeiChart['bureau']
   palaces: Record<Branch, ZiWeiPalaceSnapshot>
-  natalTransformations: {
-    sourceStem: Stem
-    entries: { type: Transformation; star: Star; palaceBranch: Branch }[]
-  }
+  natalTransformations: ZiWeiStemTransformations
 }
