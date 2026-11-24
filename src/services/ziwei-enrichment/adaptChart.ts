@@ -1,6 +1,20 @@
 import { branchAt, branchIndex, type Stem } from '@/utils/ganzhi'
 import { brightnessOf, mainStarsOf, transformationsOf, type ZiWeiChart } from '@/utils/ziwei'
-import type { ZiWeiChartSnapshot, ZiWeiPalaceSnapshot } from './types'
+import type { ZiWeiChartSnapshot, ZiWeiPalaceSnapshot, ZiWeiStemTransformations } from './types'
+
+export function adaptZiWeiTransformations(
+  chart: ZiWeiChart,
+  sourceStem: Stem
+): ZiWeiStemTransformations {
+  return {
+    sourceStem,
+    entries: transformationsOf(chart, sourceStem).map(({ type, star, palaceIndex }) => ({
+      type,
+      star,
+      palaceBranch: chart.palaces[palaceIndex].branch,
+    })),
+  }
+}
 
 export function adaptZiWeiChart(chart: ZiWeiChart, yearStem: Stem): ZiWeiChartSnapshot {
   const entries = chart.palaces.map((palace, index) => {
@@ -25,13 +39,6 @@ export function adaptZiWeiChart(chart: ZiWeiChart, yearStem: Stem): ZiWeiChartSn
     bodyBranch: chart.bodyBranch,
     bureau: { ...chart.bureau },
     palaces: Object.fromEntries(entries) as ZiWeiChartSnapshot['palaces'],
-    natalTransformations: {
-      sourceStem: yearStem,
-      entries: transformationsOf(chart, yearStem).map(({ type, star, palaceIndex }) => ({
-        type,
-        star,
-        palaceBranch: chart.palaces[palaceIndex].branch,
-      })),
-    },
+    natalTransformations: adaptZiWeiTransformations(chart, yearStem),
   }
 }
