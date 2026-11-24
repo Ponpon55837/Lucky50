@@ -1,0 +1,109 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`紫微斗數命盤快照 > 固定盤例保留本命資料、亮度、空宮借星及四化落宮 1`] = `
+{
+  "bodyBranch": "丑",
+  "borrowedPalaces": [
+    {
+      "borrowed": {
+        "fromBranch": "戌",
+        "stars": [
+          "天機",
+          "天梁",
+        ],
+      },
+      "branch": "辰",
+    },
+    {
+      "borrowed": {
+        "fromBranch": "申",
+        "stars": [
+          "太陽",
+          "巨門",
+        ],
+      },
+      "branch": "寅",
+    },
+    {
+      "borrowed": {
+        "fromBranch": "未",
+        "stars": [
+          "武曲",
+          "貪狼",
+        ],
+      },
+      "branch": "丑",
+    },
+    {
+      "borrowed": {
+        "fromBranch": "午",
+        "stars": [
+          "天同",
+          "太陰",
+        ],
+      },
+      "branch": "子",
+    },
+  ],
+  "bureau": {
+    "element": "water",
+    "number": 2,
+  },
+  "conventionId": "lucky50-natal-v1",
+  "lifeBranch": "酉",
+  "lifePalace": {
+    "borrowed": null,
+    "branch": "酉",
+    "name": "命宮",
+    "stars": [
+      {
+        "brightness": "陷",
+        "name": "天相",
+      },
+      {
+        "brightness": "陷",
+        "name": "擎羊",
+      },
+      {
+        "brightness": "得",
+        "name": "火星",
+      },
+      {
+        "brightness": null,
+        "name": "紅鸞",
+      },
+      {
+        "brightness": null,
+        "name": "恩光",
+      },
+    ],
+    "stem": "乙",
+  },
+  "natalTransformations": {
+    "entries": [
+      {
+        "palaceBranch": "申",
+        "star": "太陽",
+        "type": "化祿",
+      },
+      {
+        "palaceBranch": "未",
+        "star": "武曲",
+        "type": "化權",
+      },
+      {
+        "palaceBranch": "午",
+        "star": "太陰",
+        "type": "化科",
+      },
+      {
+        "palaceBranch": "午",
+        "star": "天同",
+        "type": "化忌",
+      },
+    ],
+    "sourceStem": "庚",
+  },
+  "schemaVersion": 1,
+}
+`;
