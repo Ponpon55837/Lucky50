@@ -1,4 +1,6 @@
-import { expect, test, type Page } from '@playwright/test'
+import { createServer } from 'node:http'
+import { once } from 'node:events'
+import { expect, test } from '@playwright/test'
 import AxeBuilder from '@axe-core/playwright'
 
 const today = new Date('2026-03-14T04:00:00Z')
@@ -25,39 +27,64 @@ const companyActions = {
   ],
 }
 
-async function mockMarket(page: Page, isAvailable = () => true) {
-  await page.route('https://api.finmindtrade.com/api/v4/data?*', async route => {
-    if (!isAvailable()) {
-      await route.abort('internetdisconnected')
-      return
-    }
+// 使用獨立的 HTTP origin，讓 Chromium 實際執行 CORS。FinMind 的 OPTIONS 回應為 400。
+let marketAvailable = true
+let preflights = 0
+const market = createServer((request, response) => {
+  if (request.method === 'OPTIONS') {
+    preflights++
+    response.writeHead(400).end()
+    return
+  }
+  response.setHeader('Access-Control-Allow-Origin', '*')
+  const url = new URL(request.url ?? '/', 'http://localhost')
+  if (request.method !== 'GET' || url.pathname !== '/api/v4/data') {
+    response.writeHead(404).end()
+    return
+  }
+  if (!marketAvailable) {
+    response.writeHead(503).end()
+    return
+  }
 
-    const params = new URL(route.request().url()).searchParams
-    const dataset = params.get('dataset')
-    const start = params.get('start_date') ?? ''
-    const end = params.get('end_date') ?? '2026-03-14'
-    if (dataset === 'TaiwanStockPrice') {
-      const data = marketBars.filter(({ date }) => date >= start && date <= end)
-      await route.fulfill({ json: { status: 200, data } })
-      return
-    }
+  const dataset = url.searchParams.get('dataset')
+  const start = url.searchParams.get('start_date') ?? ''
+  const end = url.searchParams.get('end_date') ?? '2026-03-14'
+  let data
+  if (dataset === 'TaiwanStockPrice') {
+    data = marketBars.filter(({ date }) => date >= start && date <= end)
+  } else if (dataset === 'TaiwanStockSplitPrice' || dataset === 'TaiwanStockDividendResult') {
+    data = companyActions[dataset]
+  } else {
+    response.writeHead(400).end()
+    return
+  }
+  response
+    .writeHead(200, { 'Content-Type': 'application/json' })
+    .end(JSON.stringify({ status: 200, data }))
+})
 
-    if (dataset === 'TaiwanStockSplitPrice' || dataset === 'TaiwanStockDividendResult') {
-      await route.fulfill({ json: { status: 200, data: companyActions[dataset] } })
-      return
-    }
-
-    throw new Error(`非預期的測試資料集 ${dataset}`)
-  })
-}
-
+test.beforeAll(async () => {
+  const api = new URL(test.info().config.metadata.marketApiURL)
+  market.listen(Number(api.port), api.hostname)
+  await once(market, 'listening')
+})
+test.afterAll(async () => {
+  if (market.listening)
+    await new Promise<void>((resolve, reject) =>
+      market.close(error => (error ? reject(error) : resolve()))
+    )
+})
 test.beforeEach(async ({ page }) => {
+  marketAvailable = true
+  preflights = 0
   await page.clock.setFixedTime(today)
-  await page.route('https://fonts.googleapis.com/**', route => route.abort())
+})
+test.afterEach(() => {
+  expect(preflights, 'FinMind 行情與公司行動應直接使用 GET').toBe(0)
 })
 
 test('分析圖表在深色和淺色模式中提供具名圖表與鍵盤可查的正確資料', async ({ page }) => {
-  await mockMarket(page)
   await page.addInitScript(() => {
     localStorage.setItem('lucky50-theme', 'dark')
     localStorage.setItem(
@@ -79,7 +106,7 @@ test('分析圖表在深色和淺色模式中提供具名圖表與鍵盤可查�
       })
     )
   })
-  await page.goto('/analytics')
+  await page.goto('/analytics', { waitUntil: 'domcontentloaded' })
 
   const priceImage = page.getByRole('img', { name: '0050 收盤價走勢圖（1個月）' })
   const volumeImage = page.getByRole('img', { name: '0050 成交量走勢圖（1個月）' })
@@ -144,9 +171,8 @@ test('分析圖表在深色和淺色模式中提供具名圖表與鍵盤可查�
 
 test('手機版的空態可以重試，離線時保留已驗證的快取成交量', async ({ page, context }) => {
   await page.setViewportSize({ width: 390, height: 844 })
-  let marketAvailable = false
-  await mockMarket(page, () => marketAvailable)
-  await page.goto('/analytics')
+  marketAvailable = false
+  await page.goto('/analytics', { waitUntil: 'domcontentloaded' })
 
   await expect(page.getByText('缺少所選期間的真實行情，無法計算策略績效。')).toBeVisible()
   await expect(page.getByRole('img', { name: /0050 收盤價走勢圖/ })).toHaveCount(0)
