@@ -35,9 +35,8 @@ const finmindAPI = axios.create({
   timeout: 10000,
   adapter: 'fetch',
   fetchOptions: { cache: 'no-store' },
-  headers: {
-    'Content-Type': 'application/json',
-  },
+  // FinMind 接受跨來源 GET，但會拒絕瀏覽器預檢。讓瀏覽器自行提供 User-Agent。
+  headers: { 'User-Agent': false },
 })
 
 // 添加請求攔截器來處理 API Token
