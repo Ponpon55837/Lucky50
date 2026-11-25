@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, useId } from 'vue'
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -8,10 +8,12 @@ import {
   Title,
   Tooltip,
   Legend,
+  type Scale,
   type TooltipItem,
 } from 'chart.js'
 import { Bar } from 'vue-chartjs'
 import type { ETFData } from '@/types'
+import ChartDataDisclosure from './ChartDataDisclosure.vue'
 
 // 註冊 Chart.js 組件
 ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend)
@@ -19,10 +21,12 @@ ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend)
 interface Props {
   etfData: ETFData[]
   isDark?: boolean
+  period?: string
 }
 
 const props = withDefaults(defineProps<Props>(), {
   isDark: true,
+  period: '',
 })
 
 // Chart.js 需要實際色值：渲染時從 CSS tokens（"r g b"）讀取，深淺主題自動跟著切換
@@ -31,7 +35,7 @@ const FALLBACK_TOKENS: Record<string, string> = {
   'ink-2': '85 82 76',
   'ink-3': '111 107 100',
   surface: '255 255 255',
-  seal: '192 40 45',
+  'seal-ink': '176 34 39',
 }
 const token = (name: string, alpha = 1): string => {
   const raw =
@@ -41,41 +45,38 @@ const token = (name: string, alpha = 1): string => {
   return `rgb(${raw || FALLBACK_TOKENS[name] || '128 128 128'} / ${alpha})`
 }
 
-// 計算圖表數據
+const summaryId = useId()
+const periodLabel = computed(() => (props.period ? `（${props.period}）` : ''))
+const quotes = computed(() => [...props.etfData].sort((a, b) => a.date.localeCompare(b.date)))
+const volumeFormatter = new Intl.NumberFormat('zh-TW')
+const rows = computed(() =>
+  quotes.value.map(({ date, volume }) => ({
+    key: date,
+    label: date,
+    values: [volumeFormatter.format(volume)],
+  }))
+)
+const latestQuote = computed(() => quotes.value.at(-1))
+
 const chartData = computed(() => {
-  if (!props.etfData || props.etfData.length === 0) {
-    return null
-  }
-
-  // 使用所有傳入的數據，不再限制為20天
-  const sortedData = [...props.etfData].sort(
-    (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
-  )
-
-  const labels = sortedData.map(item => {
-    const date = new Date(item.date)
-    return `${date.getMonth() + 1}/${date.getDate()}`
-  })
-
-  const volumes = sortedData.map(item => {
-    const volume = item.volume / 1000000 // 轉換為百萬
-    return isNaN(volume) ? 0 : volume
-  })
+  if (!quotes.value.length) return null
 
   // 成交量為中性資訊：墨色長條，最新一日以朱紅標示
   void props.isDark
-  const bars = volumes.map((_, i) =>
-    i === volumes.length - 1 ? token('seal', 0.85) : token('ink', 0.22)
+  const highlight = token('seal-ink')
+  const neutral = token('ink', 0.66)
+  const bars = quotes.value.map((_, index) =>
+    index === quotes.value.length - 1 ? highlight : neutral
   )
 
   return {
-    labels,
+    labels: quotes.value.map(item => item.date),
     datasets: [
       {
-        label: '成交量 (百萬)',
-        data: volumes,
+        label: '成交量（百萬股）',
+        data: quotes.value.map(item => item.volume / 1_000_000),
         backgroundColor: bars,
-        hoverBackgroundColor: token('ink', 0.45),
+        hoverBackgroundColor: token('ink'),
         borderWidth: 0,
         borderRadius: 3,
         borderSkipped: false,
@@ -108,7 +109,8 @@ const chartOptions = computed(() => {
         displayColors: false,
         callbacks: {
           label: function (context: TooltipItem<'bar'>) {
-            return `成交量: ${(context.parsed.y ?? 0).toFixed(1)}M`
+            const quote = quotes.value[context.dataIndex]
+            return quote ? `成交量：${volumeFormatter.format(quote.volume)} 股` : ''
           },
         },
       },
@@ -121,6 +123,9 @@ const chartOptions = computed(() => {
         border: { color: gridColor },
         ticks: {
           color: textColor,
+          callback(this: Scale, value: string | number) {
+            return this.getLabelForValue(Number(value)).slice(5).replace('-', '/')
+          },
           font: {
             size: 12,
           },
@@ -148,25 +153,35 @@ const chartOptions = computed(() => {
 </script>
 
 <template>
-  <div class="h-64 w-full">
-    <Bar
-      v-if="chartData && chartOptions && props.etfData.length > 0"
-      :data="chartData"
-      :options="chartOptions"
-      class="w-full h-full"
-    />
-    <div
-      v-else
-      class="flex h-full items-center justify-center rounded-[10px] bg-raised"
-    >
-      <div class="text-center">
-        <p class="text-ink-3 mb-2">
-          {{ props.etfData.length === 0 ? '無成交量數據' : '載入圖表中...' }}
-        </p>
-        <p class="text-ink-3 text-sm">
-          數據筆數: {{ props.etfData.length }}
-        </p>
+  <div class="flex min-w-0 flex-col gap-3">
+    <template v-if="chartData && latestQuote">
+      <div class="relative h-64 w-full">
+        <Bar
+          :data="chartData"
+          :options="chartOptions"
+          :aria-label="`0050 成交量走勢圖${periodLabel}`"
+          :aria-describedby="summaryId"
+          class="w-full h-full"
+        />
       </div>
-    </div>
+      <p
+        :id="summaryId"
+        class="chart-data-summary text-sm text-ink-2"
+      >
+        共 {{ rows.length }} 個交易日。最近交易日 {{ latestQuote.date }} 的成交量為
+        {{ volumeFormatter.format(latestQuote.volume) }} 股。
+      </p>
+      <ChartDataDisclosure
+        :caption="`0050 成交量${periodLabel}`"
+        :columns="['交易日期', '成交量（股）']"
+        :rows="rows"
+      />
+    </template>
+    <p
+      v-else
+      class="flex h-64 items-center justify-center rounded-[10px] bg-raised text-sm text-ink-3"
+    >
+      無成交量數據
+    </p>
   </div>
 </template>

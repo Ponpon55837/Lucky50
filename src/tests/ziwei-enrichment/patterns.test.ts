@@ -1,13 +1,16 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { IntegratedFortuneService } from '@/services/integratedFortune'
 import { loadZiWeiPatterns } from '@/services/ziwei-enrichment/loadPatterns'
 import { evaluateZiWeiPatterns } from '@/services/ziwei-enrichment/patterns/evaluate'
 import type { ZiWeiPatternResult } from '@/services/ziwei-enrichment/patterns/types'
 import type { ZiWeiChartSnapshot } from '@/services/ziwei-enrichment/types'
-import { natalSnapshot } from './fixtures'
+import { JIA_WU_DAY, PIG_PROFILE } from '../helpers/engineInput'
+import { natalSnapshot, referenceSamples, ziFuCases } from './fixtures'
 
 const FU_XIANG = 'fu-xiang-chao-yuan'
 const YANG_LIANG = 'yang-liang-chang-lu'
 const WU_TAN = 'wu-tan'
+const ZI_FU = 'zi-fu-life-palace'
 
 function snapshot(birthDate: string, birthTime: string) {
   return natalSnapshot({ birthDate, birthTime })
@@ -170,6 +173,47 @@ describe('武貪格', () => {
   })
 })
 
+describe('紫微、天府同坐命宮', () => {
+  it.each(ziFuCases)(
+    '保留 $birthDate $birthTime 的實際坐守位置與借星證據',
+    ({ birthDate, birthTime, matched, lifeBranch, stars, borrowedZiWei }) => {
+      const chart = snapshot(birthDate, birthTime)
+      const result = pattern(chart, ZI_FU)
+
+      expect(result.status).toBe(matched ? 'qualified' : 'not-qualified')
+      expect(result.required).toMatchObject([
+        {
+          matched,
+          branches: [lifeBranch],
+          stars: stars.map(([name, , branch]) => ({ name, branch })),
+        },
+      ])
+      expect(result.borrowedLifeStars).toMatchObject(
+        borrowedZiWei ? [{ name: '紫微', branch: '酉' }] : []
+      )
+    }
+  )
+
+  it('228 組盤例有三組同坐命宮、29 組同坐別宮、196 組分居兩宮', () => {
+    const counts = { life: 0, other: 0, split: 0 }
+    for (const input of Object.values(referenceSamples).flat()) {
+      const chart = natalSnapshot(input)
+      const palaces = Object.values(chart.palaces)
+      const ziWei = palaces.find(palace => palace.stars.some(star => star.name === '紫微'))
+      const tianFu = palaces.find(palace => palace.stars.some(star => star.name === '天府'))
+      if (!ziWei || !tianFu) throw new Error('測試盤缺少紫微或天府')
+
+      const placement =
+        ziWei !== tianFu ? 'split' : ziWei.branch === chart.lifeBranch ? 'life' : 'other'
+      counts[placement]++
+      expect(pattern(chart, ZI_FU).status).toBe(
+        placement === 'life' ? 'qualified' : 'not-qualified'
+      )
+    }
+    expect(counts).toEqual({ life: 3, other: 29, split: 196 })
+  })
+})
+
 describe('紫微格局載入', () => {
   afterEach(() => vi.unstubAllEnvs())
 
@@ -187,7 +231,7 @@ describe('紫微格局載入', () => {
     const original = structuredClone(chart)
     const results = await loadZiWeiPatterns(chart)
     expect(results).toEqual(evaluateZiWeiPatterns(chart))
-    expect(results).toHaveLength(3)
+    expect(results).toHaveLength(4)
     for (const result of results ?? []) {
       expect(result.ruleVersion).toBe(1)
       expect(result.conventionId).toBe(chart.conventionId)
@@ -197,5 +241,17 @@ describe('紫微格局載入', () => {
       }
     }
     expect(chart).toEqual(original)
+  })
+
+  it('啟用並判讀紫府坐命後，整合運勢及投資分數與停用時完全一致', async () => {
+    const { birthDate, birthTime } = ziFuCases[0]
+    const profile = { ...PIG_PROFILE, birthDate, birthTime }
+    vi.stubEnv('VITE_ZIWEI_PATTERNS', 'false')
+    const baseline = IntegratedFortuneService.computeFortune(profile, JIA_WU_DAY)
+
+    vi.stubEnv('VITE_ZIWEI_PATTERNS', 'true')
+    const results = await loadZiWeiPatterns(natalSnapshot(profile))
+    expect(results).toContainEqual(expect.objectContaining({ id: ZI_FU, status: 'qualified' }))
+    expect(IntegratedFortuneService.computeFortune(profile, JIA_WU_DAY)).toEqual(baseline)
   })
 })

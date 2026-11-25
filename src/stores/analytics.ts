@@ -1,12 +1,29 @@
 import { defineStore } from 'pinia'
 import { computed, ref, shallowRef } from 'vue'
 import { useQueryCache } from '@pinia/colada'
-import type { ETFData, BacktestResults } from '@/types'
-import { dateRangeFromToday, priceAdjustmentsQuery, technicalBarsQuery } from '@/queries'
+import type { ETFData, BacktestCosts, BacktestResults } from '@/types'
+import { dateRangeFromToday, loadMarketRange, priceAdjustmentsQuery } from '@/queries'
+import {
+  formatMarketFetchTime,
+  type MarketProvenance,
+  type MarketStatus,
+} from '@/services/marketHistory'
 import { isSortedByDate } from '@/utils/indicators'
-import { adjustBars, KNOWN_SPLITS, type PriceAdjustment } from '@/utils/priceAdjust'
+import {
+  adjustBars,
+  hasPriceAdjustmentMismatch,
+  KNOWN_SPLITS,
+  reconcilePriceAdjustments,
+  type PriceAdjustment,
+} from '@/utils/priceAdjust'
 import { buildTechnicalSnapshot } from '@/utils/technical'
-import { fortuneCorrelation, runBacktest, type BandStats, type FortuneBand } from '@/utils/backtest'
+import {
+  DEFAULT_BACKTEST_COSTS,
+  fortuneCorrelation,
+  runBacktest,
+  type BandStats,
+  type FortuneBand,
+} from '@/utils/backtest'
 import { mapInSlices } from '@/utils/scheduling'
 
 /**
@@ -35,9 +52,9 @@ export const useAnalyticsStore = defineStore('analytics', () => {
   // 調整後 ETF 數據緩存：Analytics 頁面會有多個元件（4 個 3D 視覺化 + 圖表）
   // 針對同一份 etfData 各自呼叫 getAdjustedEtfData，沒有緩存會造成重複排序/映射
   let adjustedEtfDataCache: {
-    hash: string
-    adjustments: readonly PriceAdjustment[]
+    key: string
     data: ETFData[]
+    checks: ReturnType<typeof reconcilePriceAdjustments>
   } | null = null
 
   // 根據時間段獲取天數
@@ -53,53 +70,54 @@ export const useAnalyticsStore = defineStore('analytics', () => {
     return periodMap[period] || 30
   }
 
-  // 生成數據哈希值（用於緩存鍵）
-  const generateDataHash = (etfData: ETFData[]): string => {
-    if (etfData.length === 0) return 'empty'
-
-    // 使用數據長度、第一條和最後一條數據的關鍵資訊來生成hash
-    const first = etfData[0]
-    const last = etfData[etfData.length - 1]
-    const hashSource = `${etfData.length}-${first.date}-${first.close}-${last.date}-${last.close}`
-
-    // 簡單的hash函數
-    let hash = 0
-    for (let i = 0; i < hashSource.length; i++) {
-      const char = hashSource.charCodeAt(i)
-      hash = (hash << 5) - hash + char
-      hash = hash & hash // Convert to 32-bit integer
-    }
-    return hash.toString()
-  }
-
   // ── 還原股價 ──
 
   /** 分割與除息的還原係數；載入前（或載入失敗）只有已知的分割 */
   const adjustments = shallowRef<readonly PriceAdjustment[]>(KNOWN_SPLITS)
   /** ready：已含除息還原；failed：除權息資料抓不到，只還原了分割 */
-  const adjustmentState = ref<LoadState>('idle')
-  const dividendAdjusted = computed(() => adjustmentState.value === 'ready')
+  const adjustmentState = ref<LoadState | 'cached'>('idle')
+  const adjustmentFetchedAt = ref('')
+  const dividendAdjusted = computed(() => Boolean(adjustmentFetchedAt.value))
+  const adjustmentLabel = computed(() => {
+    if (adjustmentState.value === 'cached') {
+      return `沿用 ${formatMarketFetchTime(adjustmentFetchedAt.value)} 擷取的分割與除息資料，更新失敗`
+    }
+    return dividendAdjusted.value ? '價格已還原分割與除息' : '價格僅還原已知分割，未還原除息'
+  })
 
   const queryCache = useQueryCache()
 
-  /** staleTime 內直接回傳快取；查詢失敗時丟出錯誤 */
-  const runQuery = async <T>(options: Parameters<typeof queryCache.ensure<T>>[0]): Promise<T> => {
-    const state = await queryCache.refresh(queryCache.ensure(options))
-    if (state.status === 'error') throw state.error
-    return state.data as T
-  }
-
-  const loadPriceAdjustments = async () => {
-    if (adjustmentState.value === 'ready' || adjustmentState.value === 'loading') return
-    adjustmentState.value = 'loading'
-    try {
-      adjustments.value = await runQuery(priceAdjustmentsQuery)
-      adjustmentState.value = 'ready'
-    } catch (error) {
-      console.error('除權息資料載入失敗，價格僅還原分割:', error)
-      adjustments.value = KNOWN_SPLITS
-      adjustmentState.value = 'failed'
+  let adjustmentRequest: { force: boolean; promise: Promise<void> } | null = null
+  const loadPriceAdjustments = (force = false): Promise<void> => {
+    if (adjustmentRequest) {
+      const pending = adjustmentRequest.promise
+      return force && !adjustmentRequest.force
+        ? pending.then(() => loadPriceAdjustments(true))
+        : pending
     }
+
+    const hasLoaded = dividendAdjusted.value
+    if (!hasLoaded) adjustmentState.value = 'loading'
+    const promise = (async () => {
+      try {
+        const entry = queryCache.ensure(priceAdjustmentsQuery)
+        const state = force ? await queryCache.fetch(entry) : await queryCache.refresh(entry)
+        if (state.status === 'error') throw state.error
+        if (state.status === 'success') {
+          adjustments.value = state.data
+          adjustmentFetchedAt.value = new Date(entry.when).toISOString()
+          adjustmentState.value = 'ready'
+        }
+      } catch (error) {
+        // 保留上一次成功取得的係數，避免無法重新核對時隱藏已知的不一致。
+        console.error('除權息資料載入失敗，沿用目前的還原因子:', error)
+        adjustmentState.value = hasLoaded ? 'cached' : 'failed'
+      }
+    })().finally(() => {
+      adjustmentRequest = null
+    })
+    adjustmentRequest = { force, promise }
+    return promise
   }
 
   const sortedByDate = (etfData: ETFData[]) =>
@@ -109,48 +127,73 @@ export const useAnalyticsStore = defineStore('analytics', () => {
       ? etfData
       : [...etfData].sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0))
 
-  /** 還原分割與除息後的 ETF 資料（依日期遞增） */
-  const getAdjustedEtfData = (etfData: ETFData[]) => {
-    if (!etfData.length) return []
-
-    // 同一份 etfData 常被多個元件（3D 視覺化 + 圖表 + 回測）重複呼叫，命中緩存可省去重複的排序與映射
+  const adjustedEtfAnalysis = (etfData: ETFData[]) => {
+    // 供應商可能修訂區間中間的 K 棒或除權息係數，筆數與首尾資料不變時也需重算。
     const applied = adjustments.value
-    const hash = generateDataHash(etfData)
-    if (adjustedEtfDataCache?.hash === hash && adjustedEtfDataCache.adjustments === applied) {
-      return adjustedEtfDataCache.data
-    }
+    const key = JSON.stringify([applied, etfData])
+    if (adjustedEtfDataCache?.key === key) return adjustedEtfDataCache
 
-    const result = adjustBars(sortedByDate(etfData), applied)
-    adjustedEtfDataCache = { hash, adjustments: applied, data: result }
-    return result
+    const sorted = sortedByDate(etfData)
+    const checks = reconcilePriceAdjustments(sorted, applied)
+    const data = hasPriceAdjustmentMismatch(checks) ? [] : adjustBars(sorted, applied)
+    adjustedEtfDataCache = { key, data, checks }
+    return adjustedEtfDataCache
   }
+
+  /** 還原分割與除息後的 ETF 資料（依日期遞增）；企業行動資料不一致時暫停計算。 */
+  const getAdjustedEtfData = (etfData: ETFData[]) => adjustedEtfAnalysis(etfData).data
+  const getPriceAdjustmentChecks = (etfData: ETFData[]) => adjustedEtfAnalysis(etfData).checks
 
   // ── 技術指標 ──
 
   const technicalBars = shallowRef<ETFData[]>([])
-  const technicalState = ref<LoadState>('idle')
+  const technicalStatus = ref<MarketStatus>('idle')
+  const technicalProvenance = shallowRef<MarketProvenance | null>(null)
+  const technicalLoading = ref(false)
+  let technicalRequest = 0
+  const technicalState = computed<LoadState>(() => {
+    if (technicalLoading.value) return 'loading'
+    if (technicalStatus.value === 'current') return 'ready'
+    return technicalStatus.value === 'idle' ? 'idle' : 'failed'
+  })
 
-  /** 最新交易日的技術面快照；行情尚未載入時各值為 null */
-  const technicalSnapshot = computed(() =>
-    buildTechnicalSnapshot(adjustBars(sortedByDate(technicalBars.value), adjustments.value))
+  const sortedTechnicalBars = computed(() => sortedByDate(technicalBars.value))
+  const technicalAdjustmentChecks = computed(() =>
+    reconcilePriceAdjustments(sortedTechnicalBars.value, adjustments.value)
   )
 
-  /** 載入技術指標用的日 K；只收真實行情，失敗時保留上一次成功的資料並標記 failed */
-  const loadTechnicalBars = async () => {
-    if (technicalState.value === 'loading') return
-    technicalState.value = 'loading'
+  /** 最新交易日的技術面快照；行情缺少或事件前收不一致時，各值為 null。 */
+  const technicalSnapshot = computed(() =>
+    buildTechnicalSnapshot(
+      hasPriceAdjustmentMismatch(technicalAdjustmentChecks.value)
+        ? []
+        : adjustBars(sortedTechnicalBars.value, adjustments.value)
+    )
+  )
+
+  /** 載入技術指標用的日 K；離線時只使用相同期間的已驗證快取。 */
+  const loadTechnicalBars = async (force = false) => {
+    const seq = ++technicalRequest
+    technicalLoading.value = true
     const range = dateRangeFromToday(TECHNICAL_LOOKBACK_DAYS)
     try {
-      technicalBars.value = await runQuery(technicalBarsQuery(range))
-      technicalState.value = 'ready'
-    } catch (error) {
-      console.error('技術指標行情載入失敗:', error)
-      technicalState.value = 'failed'
+      const { data, status } = await loadMarketRange(
+        queryCache,
+        range,
+        force,
+        TECHNICAL_LOOKBACK_DAYS
+      )
+      if (seq !== technicalRequest) return
+      technicalBars.value = data?.bars ?? []
+      technicalProvenance.value = data?.provenance ?? null
+      technicalStatus.value = status
+    } finally {
+      if (seq === technicalRequest) technicalLoading.value = false
     }
   }
 
   /**
-   * 以實際收盤價回測三種策略，並統計各分數區間當日的漲跌。
+   * 以實際開盤價執行策略、收盤價估值，並統計各分數區間的收盤漲跌。
    * scoreOf 回傳某日的投資分數；scoreKey 代表評分依據（個人資料與引擎設定），用來辨識快取是否仍適用。
    * 逐日評分是這裡最花時間的部分（五年約上千天），所以分段執行不卡畫面，
    * 而且同一份資料與評分依據只算一次。評分失敗時不留快取，下次會重算。
@@ -158,17 +201,22 @@ export const useAnalyticsStore = defineStore('analytics', () => {
   const analyzeStrategies = (
     etfData: ETFData[],
     scoreOf: (date: string) => number,
-    scoreKey: string
+    scoreKey: string,
+    overrides: Partial<BacktestCosts> = {}
   ): Promise<StrategyAnalysis> => {
-    // 還原係數換了（除息資料載入完成），收盤價跟著變，回測要重算
-    const key = `${generateDataHash(etfData)}|${adjustments.value.length}|${scoreKey}`
+    // 分段評分開始前先取一份價格快照，避免中途更新行情時混用不同版本。
+    const prices = getAdjustedEtfData(etfData).map(({ date, open, close }) => ({
+      date,
+      open,
+      close,
+    }))
+    const costs = { ...DEFAULT_BACKTEST_COSTS, ...overrides }
+    const key = JSON.stringify([prices, scoreKey, costs])
     if (strategyCache?.key === key) return strategyCache.analysis
 
-    const analysis = mapInSlices(getAdjustedEtfData(etfData), item => ({
-      date: item.date,
-      close: item.close,
-      score: scoreOf(item.date),
-    })).then(days => ({ backtest: runBacktest(days), correlation: fortuneCorrelation(days) }))
+    const analysis = mapInSlices(prices, item => ({ ...item, score: scoreOf(item.date) })).then(
+      days => ({ backtest: runBacktest(days, costs), correlation: fortuneCorrelation(days) })
+    )
     strategyCache = { key, analysis }
     analysis.catch(() => {
       if (strategyCache?.analysis === analysis) strategyCache = null
@@ -191,12 +239,18 @@ export const useAnalyticsStore = defineStore('analytics', () => {
     periods,
     adjustments,
     dividendAdjusted,
+    adjustmentLabel,
+    adjustmentState,
     technicalState,
+    technicalStatus,
+    technicalProvenance,
+    technicalAdjustmentChecks,
     technicalSnapshot,
 
     // 方法
     getPeriodDays,
     getAdjustedEtfData,
+    getPriceAdjustmentChecks,
     loadPriceAdjustments,
     loadTechnicalBars,
     analyzeStrategies,

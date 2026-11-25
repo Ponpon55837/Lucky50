@@ -18,19 +18,6 @@ export default defineConfig({
       registerType: 'autoUpdate',
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg}'],
-        runtimeCaching: [
-          {
-            urlPattern: /^https:\/\/api\.finmindtrade\.com\/.*/i,
-            handler: 'CacheFirst',
-            options: {
-              cacheName: 'finmind-api',
-              expiration: {
-                maxEntries: 100,
-                maxAgeSeconds: 60 * 60 * 24 * 7, // 7 days
-              },
-            },
-          },
-        ],
       },
       manifest: {
         name: '農民曆智慧投資',

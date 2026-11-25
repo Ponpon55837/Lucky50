@@ -4,7 +4,7 @@ import ZiWeiReadingPanel from '@/components/ZiWeiReadingPanel.vue'
 import * as patterns from '@/services/ziwei-enrichment/loadPatterns'
 import type { ZiWeiPatternResult } from '@/services/ziwei-enrichment/patterns/types'
 import { evaluateZiWeiPatterns } from '@/services/ziwei-enrichment/patterns/evaluate'
-import { natalSnapshot } from './fixtures'
+import { natalSnapshot, ziFuCases } from './fixtures'
 
 const birth = { birthDate: '1950-01-24', birthTime: '22:00' }
 const date = new Date(2024, 1, 9)
@@ -60,14 +60,39 @@ describe('紫微解讀面板', () => {
     vi.stubEnv('VITE_ZIWEI_PATTERNS', 'true')
     const wrapper = mount(ZiWeiReadingPanel, { props: { ...birth, date } })
     await flushPromises()
-    expect(wrapper.get('summary').text()).toContain('府相朝垣見破格因素')
-    expect(wrapper.text()).toContain('天府與天相分坐財帛、官祿宮')
-    expect(wrapper.text()).toContain('火星（命宮・寅・廟）')
-    expect(wrapper.findAll('a').map(link => link.attributes('href'))).toEqual([
+    const details = wrapper.get('details')
+    expect(details.get('summary').text()).toContain('府相朝垣見破格因素')
+    expect(details.text()).toContain('天府與天相分坐財帛、官祿宮')
+    expect(details.text()).toContain('火星（命宮・寅・廟）')
+    expect(details.findAll('a').map(link => link.attributes('href'))).toEqual([
       expect.stringContaining('patterns-dinggui.ts'),
       expect.stringContaining('patterns.ts#L181-L187'),
     ])
   })
+
+  it.each(ziFuCases)(
+    '顯示 $birthDate $birthTime 紫微與天府的判定、坐守宮位及規則版本',
+    async ({ birthDate, birthTime, matched, lifeBranch, stars, borrowedZiWei }) => {
+      vi.stubEnv('VITE_ZIWEI_PATTERNS', 'true')
+      const wrapper = mount(ZiWeiReadingPanel, { props: { birthDate, birthTime, date } })
+      await flushPromises()
+      const title = '紫微、天府同坐命宮'
+      const details = wrapper
+        .findAll('details')
+        .find(panel => panel.get('summary').text().includes(title))
+      if (!details) throw new Error('找不到紫微、天府同坐命宮的判定')
+
+      expect(details.get('summary').text()).toBe(`${title}${matched ? '成立' : '未成立'}`)
+      expect(details.text()).toContain(`兩星須實際坐守命宮（${lifeBranch}）`)
+      for (const [name, palace, branch] of stars) {
+        expect(details.text()).toContain(`${name}（${palace}・${branch}`)
+      }
+      expect(details.text()).toContain('規則版本 1')
+      expect(details.get('a').attributes('href')).toContain('patterns.ts#L142-L151')
+      expect(details.text().includes('命宮借星')).toBe(borrowedZiWei)
+      if (borrowedZiWei) expect(details.text()).toMatch(/命宮借星\s*紫微（遷移宮・酉・旺）/)
+    }
+  )
 
   it('更換出生資料時忽略較早的格局結果', async () => {
     vi.stubEnv('VITE_ZIWEI_PATTERNS', 'true')

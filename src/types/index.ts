@@ -75,36 +75,55 @@ export interface ElementsEnergy {
 
 // 回測結果型別
 export interface StrategyResult {
-  /** 期間累積報酬（%） */
+  /** 扣除交易成本後的期間累積報酬（%） */
   totalReturn: number
+  /** 未扣除交易成本的期間累積報酬（%） */
+  grossTotalReturn: number
   /** 年化報酬（%） */
   annualReturn: number
   /** 最大回撤（%，正值） */
   maxDrawdown: number
   sharpeRatio: number
-  /** 持有日中收紅的比例（%） */
+  /** 有持倉曝險的交易日中，策略淨報酬為正的比例（%） */
   winRate: number
-  /** 持有的交易日數 */
+  /** 有持倉曝險的交易日數，含開盤賣出前仍持有的日子 */
   trades: number
+  /** 買入與賣出的合計次數 */
+  orders: number
+}
+
+export interface BacktestCosts {
+  /** 各邊券商手續費，以基點表示（1 基點 = 0.01%） */
+  commissionBps: number
+  /** 賣出時的 ETF 證交稅，以基點表示 */
+  sellTaxBps: number
+  /** 各邊向不利方向的開盤成交價滑價，以基點表示 */
+  slippageBps: number
 }
 
 export interface BacktestResults {
   lunar: StrategyResult
   buyHold: StrategyResult
   dca: StrategyResult
+  costs: BacktestCosts
+  /** 開盤或收盤價缺漏而無法執行交易的資料列數 */
+  unexecutableDays: number
+  firstDate: string
+  lastDate: string
 }
 
 // FinMind API 相關型別
 export interface FinMindDataItem {
   date: string
-  open: string
-  max?: string
-  high?: string
-  min?: string
-  low?: string
-  close: string
-  Trading_Volume?: string
-  volume?: string
+  stock_id?: string
+  open: string | number
+  max?: string | number
+  high?: string | number
+  min?: string | number
+  low?: string | number
+  close: string | number
+  Trading_Volume?: string | number
+  volume?: string | number
   /** 對前一交易日收盤的漲跌 */
   spread?: string | number
 }
@@ -112,6 +131,7 @@ export interface FinMindDataItem {
 /** FinMind TaiwanStockSplitPrice：分割前收盤價與分割後參考價 */
 export interface FinMindSplitItem {
   date: string
+  stock_id?: string
   before_price: number
   after_price: number
 }
@@ -119,6 +139,7 @@ export interface FinMindSplitItem {
 /** FinMind TaiwanStockDividendResult：除權息前收盤價與除權息參考價 */
 export interface FinMindDividendResultItem {
   date: string
+  stock_id?: string
   before_price: number
   reference_price: number
 }

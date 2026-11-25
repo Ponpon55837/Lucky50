@@ -4,6 +4,7 @@ import * as THREE from 'three'
 import SceneCard, { type SceneTooltip } from '@/components/three/SceneCard.vue'
 import { useSceneStage } from '@/composables/useSceneStage'
 import { useAnalyticsStore } from '@/stores/analytics'
+import { hasPriceAdjustmentMismatch } from '@/utils/priceAdjust'
 import { BOLLINGER_ZONE_TEXT, macdRatio, oscillatorState } from '@/utils/sceneLayout'
 import {
   KD_LIMITS,
@@ -110,13 +111,18 @@ const readouts = computed<{ text: string; tone: Tone }[]>(() => {
 const hasData = computed(() => indicators.value !== null)
 const emptyText = computed(() => {
   if (hasData.value) return ''
-  if (analyticsStore.technicalState === 'failed') return '無法取得行情，技術指標暫不提供'
-  if (analyticsStore.technicalState === 'ready') return '行情資料不足，無法計算技術指標'
+  if (hasPriceAdjustmentMismatch(analyticsStore.technicalAdjustmentChecks))
+    return '分割或除息前收待查，技術指標暫不提供'
+  if (analyticsStore.technicalStatus === 'unavailable') return '無法取得行情，技術指標暫不提供'
+  if (analyticsStore.technicalProvenance) return '行情資料不足，無法計算技術指標'
   return '行情載入中…'
 })
-const subtitle = computed(() =>
-  snapshot.value.date ? `資料日期 ${snapshot.value.date}，價格已還原` : '依還原後的日 K 計算'
-)
+const subtitle = computed(() => {
+  const provenance = analyticsStore.technicalProvenance
+  if (!provenance) return '依還原後的日 K 計算'
+  const label = analyticsStore.technicalStatus === 'cached' ? '行情快取' : '資料日期'
+  return `${label} ${provenance.asOf}`
+})
 const threeContainer = ref<HTMLElement>()
 
 const { unsupported, hover } = useSceneStage(threeContainer, {

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, shallowRef, computed, watch, onMounted, defineAsyncComponent } from 'vue'
+import { ref, shallowRef, computed, watch, onMounted, onUnmounted, defineAsyncComponent } from 'vue'
 import { useDashboardStore } from '@/stores/dashboard'
 import { useAnalyticsStore, type StrategyAnalysis } from '@/stores/analytics'
 import { useUserStore } from '@/stores/user'
@@ -8,10 +8,12 @@ import { dateRangeFromToday, engineSettingsFingerprint } from '@/queries'
 import { ENGINE_LIST, metaphysicsRegistry } from '@/services/engines'
 import { IntegratedFortuneService } from '@/services/integratedFortune'
 import { lunarService } from '@/services/lunar'
+import { formatMarketFetchTime, isMarketOffline } from '@/services/marketHistory'
 import { BUY_THRESHOLD, HOLD_THRESHOLD, OBSERVE_THRESHOLD } from '@/utils/almanac'
 import { fromLocalDateString } from '@/utils/date'
 import { profileHash } from '@/utils/hash'
 import type { FortuneBand } from '@/utils/backtest'
+import { formatPriceAdjustmentCheck, hasPriceAdjustmentMismatch } from '@/utils/priceAdjust'
 import Loading from '@/components/ui/Loading.vue'
 import TechnicalPanel from '@/components/analytics/TechnicalPanel.vue'
 
@@ -52,9 +54,10 @@ const userStore = useUserStore()
 const { isDark } = useTheme()
 
 // ── 響應式狀態 ──
-const loading = ref(true)
-const error = ref<string | null>(null)
-
+const loading = computed(() => dashboardStore.etfLoading || dashboardStore.etfStatus === 'idle')
+const hasVerifiedRange = computed(
+  () => !loading.value && ['current', 'cached'].includes(dashboardStore.etfStatus)
+)
 // ── 計算屬性 ──
 const selectedPeriod = computed({
   get: () => analyticsStore.selectedPeriod,
@@ -62,8 +65,16 @@ const selectedPeriod = computed({
 })
 const periods = analyticsStore.periods
 
+const adjustmentChecks = computed(() =>
+  hasVerifiedRange.value ? analyticsStore.getPriceAdjustmentChecks(dashboardStore.etfData) : []
+)
+const adjustmentWarnings = computed(() =>
+  adjustmentChecks.value.filter(check => check.status !== 'matched')
+)
+const adjustmentMismatch = computed(() => hasPriceAdjustmentMismatch(adjustmentChecks.value))
+
 const filteredEtfData = computed(() => {
-  return analyticsStore.getAdjustedEtfData(dashboardStore.etfData)
+  return hasVerifiedRange.value ? analyticsStore.getAdjustedEtfData(dashboardStore.etfData) : []
 })
 
 /** 逐日評分依據：有生辰用個人命盤，否則只看日子本身 */
@@ -83,10 +94,15 @@ const analysisState = ref<AnalysisState>('computing')
  */
 watch(
   // 還原係數載入後收盤價會改變，回測要跟著重算
-  [() => dashboardStore.etfData, scoreKey, () => analyticsStore.adjustments],
-  async ([etfData, key], _previous, onCleanup) => {
+  [() => dashboardStore.etfData, scoreKey, hasVerifiedRange, adjustmentMismatch, () => analyticsStore.adjustments],
+  async ([etfData, key, verified, mismatch], _previous, onCleanup) => {
     let stale = false
     onCleanup(() => (stale = true))
+    strategyAnalysis.value = null
+    if (!verified || mismatch || !etfData.length) {
+      analysisState.value = 'ready'
+      return
+    }
     analysisState.value = 'computing'
 
     const profile = scoringProfile.value
@@ -115,6 +131,9 @@ watch(
 const backtestResults = computed(() => strategyAnalysis.value?.backtest ?? null)
 const correlation = computed(() => strategyAnalysis.value?.correlation ?? null)
 const backtestNotice = computed(() => {
+  if (loading.value) return '正在取得所選期間的 0050 行情…'
+  if (!hasVerifiedRange.value) return '缺少所選期間的真實行情，無法計算策略績效。'
+  if (adjustmentMismatch.value) return '公司行動資料與行情前收不符，暫停計算此區間的績效。'
   if (analysisState.value === 'computing') return '回測計算中…'
   if (analysisState.value === 'failed') return '回測計算失敗，請確認個人設定的出生日期與時間是否正確。'
   return '行情資料不足兩個交易日，無法回測。'
@@ -127,8 +146,8 @@ const STRATEGIES = [
     note: `只在投資分數 ${HOLD_THRESHOLD} 以上的日子持有`,
     accent: true,
   },
-  { key: 'buyHold', name: '買入持有', note: '全程持有', accent: false },
-  { key: 'dca', name: '定期定額', note: '每個交易日投入等額資金', accent: false },
+  { key: 'buyHold', name: '買入持有', note: '首個可成交日開盤買入，持有至區間末收盤', accent: false },
+  { key: 'dca', name: '定期定額', note: '每個可成交日開盤投入等額資金，以期末市值對累計投入計算報酬', accent: false },
 ] as const
 
 const BANDS: ReadonlyArray<{ key: FortuneBand; label: string; tone: string }> = [
@@ -167,47 +186,35 @@ const engineWeightedScore = computed(
 )
 const hasEngineData = computed(() => engineResults.value.length > 0)
 
-// ── 方法與函式 ──
-const loadAnalyticsData = async () => {
-  loading.value = true
-
-  try {
-    const { startDate, endDate } = dateRangeFromToday(
-      analyticsStore.getPeriodDays(selectedPeriod.value)
-    )
-
-    // 三者互不相依，並行載入；皆經 Pinia Colada 快取，從 Dashboard 切換過來時直接命中
-    const today = new Date()
-    await Promise.allSettled([
-      dashboardStore.loadETFRange(startDate, endDate),
-      dashboardStore.loadLunarData(today),
-      userStore.isProfileComplete
-        ? dashboardStore.loadIntegratedFortune(userStore.profile, today)
-        : Promise.resolve(),
-    ])
-  } catch (err) {
-    console.error('Analytics 數據載入失敗:', err)
-    error.value = '數據載入失敗'
-  } finally {
-    loading.value = false
-  }
+const loadSelectedRange = (force = false) => {
+  const days = analyticsStore.getPeriodDays(selectedPeriod.value)
+  const { startDate, endDate } = dateRangeFromToday(days)
+  return dashboardStore.loadETFRange(startDate, endDate, force, days)
 }
 
-// ── 監聽器 ──
-watch(
-  () => selectedPeriod.value,
-  async () => {
-    await loadAnalyticsData()
-  },
-  { immediate: false }
-)
+const refreshMarket = () => {
+  void loadSelectedRange(true)
+  if (!isMarketOffline()) void analyticsStore.loadPriceAdjustments(true)
+  void analyticsStore.loadTechnicalBars(true)
+}
 
-// ── 生命週期 ──
+watch(selectedPeriod, () => void loadSelectedRange(), { immediate: true })
+
 onMounted(() => {
-  loadAnalyticsData()
-  // 技術指標固定用較長的日 K，與上方的分析區間無關，所以只在進頁面時載入一次
-  analyticsStore.loadPriceAdjustments()
-  analyticsStore.loadTechnicalBars()
+  const today = new Date()
+  void Promise.allSettled([
+    dashboardStore.loadLunarData(today),
+    userStore.isProfileComplete && dashboardStore.loadIntegratedFortune(userStore.profile, today),
+    analyticsStore.loadPriceAdjustments(),
+    analyticsStore.loadTechnicalBars(),
+  ])
+  window.addEventListener('online', refreshMarket)
+  window.addEventListener('offline', refreshMarket)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('online', refreshMarket)
+  window.removeEventListener('offline', refreshMarket)
 })
 </script>
 
@@ -252,13 +259,42 @@ onMounted(() => {
     </header>
 
     <!-- 當前分析區間說明 -->
-    <p class="border-l-2 border-line-strong pl-3 text-sm text-ink-3">
-      當前分析基於
-      <span class="font-medium text-ink">{{ selectedPeriod }}</span>
-      的歷史數據，所有圖表與回測結果均使用此時間區間
-    </p>
+    <div class="border-l-2 border-line-strong pl-3 text-sm text-ink-2">
+      <p role="status">
+        <template v-if="loading">
+          正在取得 {{ selectedPeriod }} 行情…
+        </template>
+        <template v-else-if="dashboardStore.etfProvenance && hasVerifiedRange">
+          {{ selectedPeriod }} · FinMind {{ dashboardStore.etfStatus === 'cached' ? '快取行情' : '行情' }}
+          可用交易日 {{ dashboardStore.etfData[0]?.date }} 至 {{ dashboardStore.etfProvenance.asOf }}。
+          擷取於 {{ formatMarketFetchTime(dashboardStore.etfProvenance.fetchedAt) }}。
+        </template>
+        <template v-else>
+          {{ dashboardStore.etfError || '尚無所選期間的真實行情。' }}
+        </template>
+      </p>
+      <ul
+        v-if="adjustmentWarnings.length"
+        class="mt-1 list-disc pl-5"
+      >
+        <li
+          v-for="check in adjustmentWarnings"
+          :key="check.date + check.kind"
+        >
+          {{ formatPriceAdjustmentCheck(check) }}
+        </li>
+      </ul>
+      <button
+        v-if="!loading && (dashboardStore.etfStatus !== 'current' || adjustmentMismatch || analyticsStore.adjustmentState === 'failed' || analyticsStore.adjustmentState === 'cached')"
+        type="button"
+        class="mt-1 text-seal underline"
+        @click="refreshMarket"
+      >
+        重新取得行情
+      </button>
+    </div>
 
-    <!-- 策略績效總覽：以實際收盤價逐日回測 -->
+    <!-- 策略績效總覽 -->
     <section
       v-if="backtestResults"
       class="card"
@@ -273,8 +309,13 @@ onMounted(() => {
         </span>
       </div>
       <p class="card-meta">
-        只在當天投資分數 {{ HOLD_THRESHOLD }} 以上時持有 0050，其餘日子空手；未計手續費與交易稅。
-        這是歷史模擬，不代表未來績效。
+        {{ backtestResults.firstDate }} 至 {{ backtestResults.lastDate }}，投資分數達 {{ HOLD_THRESHOLD }} 分時按開盤價持有 0050，低於門檻時按開盤價賣出。隔夜漲跌歸前一晚的持倉，期末按收盤價估值。
+        績效已計入買賣各 {{ backtestResults.costs.commissionBps / 100 }}% 手續費及賣出 {{ backtestResults.costs.sellTaxBps / 100 }}% 交易稅，
+        單邊滑價假設為 {{ backtestResults.costs.slippageBps / 100 }}%。
+        {{ analyticsStore.adjustmentLabel }}。
+        <template v-if="backtestResults.unexecutableDays">
+          區間中有 {{ backtestResults.unexecutableDays }} 天缺少有效開盤或收盤價，當天未成交。
+        </template>
       </p>
       <dl class="grid grid-cols-2 gap-6 md:grid-cols-4">
         <div>
@@ -321,7 +362,7 @@ onMounted(() => {
             {{ backtestResults.lunar.winRate }}%
           </dd>
           <dd class="mt-1.5 text-xs text-ink-3">
-            共持有 {{ backtestResults.lunar.trades }} 個交易日
+            {{ backtestResults.lunar.trades }} 天承擔持倉漲跌，買賣合計 {{ backtestResults.lunar.orders }} 筆
           </dd>
         </div>
       </dl>
@@ -366,13 +407,21 @@ onMounted(() => {
         <dl class="flex flex-col gap-2 text-sm">
           <div class="flex justify-between">
             <dt class="text-ink-3">
-              累積報酬
+              扣費後累積報酬
             </dt>
             <dd
               class="font-mono font-medium"
               :class="returnClass(backtestResults[strategy.key].totalReturn)"
             >
               {{ signedPercent(backtestResults[strategy.key].totalReturn) }}
+            </dd>
+          </div>
+          <div class="flex justify-between">
+            <dt class="text-ink-3">
+              費用與滑價扣除前
+            </dt>
+            <dd class="font-mono text-ink-2">
+              {{ signedPercent(backtestResults[strategy.key].grossTotalReturn) }}
             </dd>
           </div>
           <div class="flex justify-between">
@@ -507,11 +556,11 @@ onMounted(() => {
         <p class="card-meta mt-1">
           基於 <span class="font-medium text-ink-2">{{ selectedPeriod }}</span>
           歷史數據的價格與成交量分析；{{
-            analyticsStore.dividendAdjusted ? '價格已還原分割與除息' : '價格僅還原分割，未還原除息'
+            analyticsStore.adjustmentLabel
           }}
         </p>
       </div>
-      <div class="relative h-64 overflow-hidden sm:h-96">
+      <div class="relative">
         <div
           v-if="loading"
           class="absolute inset-0 z-10 flex items-center justify-center bg-surface/80"
@@ -525,6 +574,7 @@ onMounted(() => {
         </div>
         <PriceChart
           :etf-data="filteredEtfData"
+          :period="selectedPeriod"
           :is-dark="isDark"
         />
       </div>
@@ -541,7 +591,7 @@ onMounted(() => {
           期間的成交量變化趨勢
         </p>
       </div>
-      <div class="relative h-64 overflow-hidden">
+      <div class="relative">
         <div
           v-if="loading"
           class="absolute inset-0 z-10 flex items-center justify-center bg-surface/80"
@@ -556,6 +606,7 @@ onMounted(() => {
         <VolumeChart
           v-if="!loading && filteredEtfData.length > 0"
           :etf-data="filteredEtfData"
+          :period="selectedPeriod"
           :is-dark="isDark"
         />
         <div
@@ -587,7 +638,7 @@ onMounted(() => {
         </h2>
         <p class="card-meta mt-1">
           <span class="font-medium text-ink-2">{{ selectedPeriod }}</span>
-          內每個交易日依投資分數分成三組，統計當天 0050 的實際表現
+          內依當日投資分數分組，統計前一收盤至當日收盤的市場漲跌。此表包含隔夜價格變動。
         </p>
       </div>
       <div class="overflow-x-auto">

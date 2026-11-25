@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useAnalyticsStore } from '@/stores/analytics'
+import { formatMarketFetchTime } from '@/services/marketHistory'
+import { formatPriceAdjustmentCheck, hasPriceAdjustmentMismatch } from '@/utils/priceAdjust'
 import {
   MISSING,
   SIGNAL_MIN_VOTES,
@@ -52,18 +54,21 @@ const averages = computed(() => {
 })
 
 const notice = computed(() => {
-  if (analyticsStore.technicalState === 'failed') {
-    return snapshot.value.date
-      ? '行情更新失敗，以下為上一次成功取得的資料。'
-      : '無法取得行情，技術指標暫不提供；請稍後重新整理。'
-  }
-  if (analyticsStore.technicalState !== 'ready') return '行情載入中…'
+  if (analyticsStore.technicalState === 'loading') return '行情載入中…'
+  if (analyticsStore.technicalStatus === 'unavailable') return '無法取得行情，技術指標暫不提供。'
   return ''
 })
 
-const adjustmentNote = computed(() =>
-  analyticsStore.dividendAdjusted ? '價格已還原分割與除息' : '價格僅還原分割，未還原除息'
+const adjustmentMismatch = computed(() =>
+  hasPriceAdjustmentMismatch(analyticsStore.technicalAdjustmentChecks)
 )
+const adjustmentIssues = computed(() =>
+  analyticsStore.technicalAdjustmentChecks.filter(check => check.status !== 'matched')
+)
+const adjustmentNote = computed(() => {
+  if (adjustmentMismatch.value) return '價格還原待查'
+  return analyticsStore.adjustmentLabel
+})
 </script>
 
 <template>
@@ -79,19 +84,49 @@ const adjustmentNote = computed(() =>
         >
           技術指標
         </h2>
-        <span class="rounded-full bg-raised px-3 py-1 text-xs text-ink-2">
-          資料日期 <span class="font-mono text-ink">{{ snapshot.date ?? MISSING }}</span>
-        </span>
         <span
           class="rounded-full px-3 py-1 text-xs"
-          :class="analyticsStore.dividendAdjusted ? 'bg-raised text-ink-2' : 'bg-gold/20 text-ink'"
+          :class="
+            analyticsStore.dividendAdjusted && !adjustmentMismatch
+              ? 'bg-raised text-ink-2'
+              : 'bg-gold/20 text-ink'
+          "
         >
           {{ adjustmentNote }}
         </span>
       </div>
-      <p class="card-meta mt-1.5">
+      <p
+        v-if="analyticsStore.technicalProvenance"
+        class="card-meta mt-1.5"
+      >
+        {{ analyticsStore.technicalStatus === 'cached' ? '行情快取' : '日 K' }} ·
+        {{ analyticsStore.technicalProvenance.source }} ·
+        截至 {{ analyticsStore.technicalProvenance.asOf }} ·
+        擷取於 {{ formatMarketFetchTime(analyticsStore.technicalProvenance.fetchedAt) }}
+      </p>
+      <p
+        v-if="!adjustmentMismatch"
+        class="card-meta mt-1.5"
+      >
         以最近 {{ snapshot.bars }} 根日 K 計算，參數採台灣券商軟體慣例；不隨上方的分析時間區間改變。
       </p>
+      <div
+        v-if="adjustmentIssues.length"
+        class="mt-2 border-l-2 border-line-strong pl-3 text-sm text-ink-2"
+        role="status"
+      >
+        <p v-if="adjustmentMismatch">
+          事件記載與日 K 前收不一致，暫停顯示技術指標。
+        </p>
+        <ul>
+          <li
+            v-for="check in adjustmentIssues"
+            :key="`${check.date}-${check.kind}`"
+          >
+            {{ formatPriceAdjustmentCheck(check) }}
+          </li>
+        </ul>
+      </div>
       <p
         v-if="notice"
         class="mt-2 border-l-2 border-line-strong pl-3 text-sm text-ink-2"

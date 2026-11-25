@@ -16,7 +16,7 @@ export interface ZiWeiPatternCondition {
 }
 
 export interface ZiWeiPatternResult {
-  id: 'fu-xiang-chao-yuan' | 'yang-liang-chang-lu' | 'wu-tan'
+  id: 'fu-xiang-chao-yuan' | 'yang-liang-chang-lu' | 'wu-tan' | 'zi-fu-life-palace'
   name: string
   status: 'qualified' | 'weakened' | 'not-qualified'
   ruleVersion: 1
@@ -25,4 +25,5 @@ export interface ZiWeiPatternResult {
   required: readonly ZiWeiPatternCondition[]
   supporting: readonly ZiWeiPatternCondition[]
   breaking: readonly ZiWeiPatternCondition[]
+  borrowedLifeStars?: readonly ZiWeiPatternStar[]
 }
