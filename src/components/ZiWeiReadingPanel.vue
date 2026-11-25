@@ -27,6 +27,12 @@ const LAYERS = {
   day: '流日',
 } satisfies Record<ZiWeiLayer, string>
 
+const PATTERN_STATUS = {
+  qualified: '成立',
+  weakened: '見破格因素',
+  'not-qualified': '未成立',
+} satisfies Record<ZiWeiPatternResult['status'], string>
+
 const layerId = useId()
 const dateId = useId()
 const dashboardDate = computed(() => toLocalDateString(props.date))
@@ -88,13 +94,19 @@ const dateLabel = computed(() => {
   return `${currentMonth}，按 ${effectiveYear}${flow.effectiveMonth} 月起算`
 })
 
-const matchedPatterns = computed(
-  () => patterns.value?.filter(result => result.status !== 'not-qualified') ?? []
+const visiblePatterns = computed(
+  () =>
+    patterns.value?.filter(
+      result => result.id === 'zi-fu-life-palace' || result.status !== 'not-qualified'
+    ) ?? []
 )
 
 function evidenceGroups(result: ZiWeiPatternResult) {
   return [
-    { label: '成立依據', entries: result.required },
+    {
+      label: result.status === 'not-qualified' ? '判定依據' : '成立依據',
+      entries: result.required,
+    },
     { label: '強化因素', entries: result.supporting },
     { label: '破格因素', entries: result.breaking },
   ].filter(group => group.entries.length > 0)
@@ -228,7 +240,7 @@ watch(
           本命格局
         </h4>
         <p
-          v-if="patternError || !patterns || matchedPatterns.length === 0"
+          v-if="patternError || !patterns || visiblePatterns.length === 0"
           role="status"
           class="text-xs text-ink-2"
         >
@@ -241,7 +253,7 @@ watch(
           }}
         </p>
         <details
-          v-for="pattern in matchedPatterns"
+          v-for="pattern in visiblePatterns"
           :key="pattern.id"
           class="rounded border border-line p-2"
         >
@@ -250,7 +262,7 @@ watch(
           >
             {{ pattern.name
             }}<span class="ml-2 text-xs font-normal text-ink-2">{{
-              pattern.status === 'weakened' ? '見破格因素' : '成立'
+              PATTERN_STATUS[pattern.status]
             }}</span>
           </summary>
           <div class="mt-2 space-y-3 text-xs">
@@ -275,6 +287,14 @@ watch(
                   }}</span>
                 </li>
               </ul>
+            </div>
+            <div v-if="pattern.borrowedLifeStars?.length">
+              <p class="font-semibold">
+                命宮借星
+              </p>
+              <p class="pt-1 text-ink-2">
+                {{ pattern.borrowedLifeStars.map(formatEvidenceStar).join('、') }}
+              </p>
             </div>
             <div class="space-y-1 border-t border-line pt-2">
               <p class="text-ink-2">

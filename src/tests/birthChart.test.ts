@@ -40,6 +40,30 @@ describe('buildBirthChart', () => {
     expect(chart.element).toBe('fire')
   })
 
+  // 香港天文台 2024 年曆：立春 2/4 16:27（UTC+8），正月初一 2/10。
+  // https://www.hko.gov.hk/tc/gts/astron2024/files/HKO_almanac_2024.pdf
+  // 2/4、2/9、2/10 的 JDN 為 2460345、2460350、2460351。
+  // 以 (JDN + 49) % 60（甲子起算 0）核對日柱，月干與時干查天文台表四及表五。
+  // https://www.hko.gov.hk/tc/gts/time/stemsandbranches.htm
+  // Lucky50 沿用流派 2：晚子時日柱取當日，時柱取次日子時的干支。
+  // https://6tail.cn/calendar/lunar.bazi.html
+  it.each([
+    ['2024-02-04', '16:26', '癸卯 乙丑 戊戌 庚申', { stem: '癸', branch: '卯' }, 12, 25],
+    ['2024-02-04', '16:28', '甲辰 丙寅 戊戌 庚申', { stem: '癸', branch: '卯' }, 12, 25],
+    ['2024-02-09', '22:59', '甲辰 丙寅 癸卯 癸亥', { stem: '癸', branch: '卯' }, 12, 30],
+    ['2024-02-09', '23:00', '甲辰 丙寅 癸卯 甲子', { stem: '癸', branch: '卯' }, 12, 30],
+    ['2024-02-10', '00:00', '甲辰 丙寅 甲辰 甲子', { stem: '甲', branch: '辰' }, 1, 1],
+  ])(
+    '立春或晚子時邊界 %s %s 的四柱為 %s',
+    (birthDate, birthTime, expectedPillars, lunarYear, lunarMonth, lunarDay) => {
+      const chart = buildBirthChart({ birthDate, birthTime })
+      const { yearGanZhi, monthGanZhi, dayGanZhi, hourGanZhi } = toPersonalBaZi(chart)
+
+      expect([yearGanZhi, monthGanZhi, dayGanZhi, hourGanZhi].join(' ')).toBe(expectedPillars)
+      expect(chart).toMatchObject({ lunarYear, lunarMonth, lunarDay })
+    }
+  )
+
   it('閏月前半歸本月、後半歸次月', () => {
     // 2025 年閏六月：8/1 為閏六月初八，8/15 為閏六月廿二
     expect(buildBirthChart({ birthDate: '2025-08-01', birthTime: '12:00' }).lunarMonth).toBe(6)

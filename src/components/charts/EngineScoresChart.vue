@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, useId } from 'vue'
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -11,6 +11,7 @@ import {
 } from 'chart.js'
 import { Bar } from 'vue-chartjs'
 import type { MetaphysicsResult } from '@/services/engines/types'
+import ChartDataDisclosure from './ChartDataDisclosure.vue'
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, Tooltip, Legend)
 
@@ -31,7 +32,7 @@ const FALLBACK_TOKENS: Record<string, string> = {
   'ink-2': '85 82 76',
   'ink-3': '111 107 100',
   surface: '255 255 255',
-  seal: '192 40 45',
+  'seal-ink': '176 34 39',
 }
 const token = (name: string, alpha = 1): string => {
   const raw =
@@ -41,19 +42,44 @@ const token = (name: string, alpha = 1): string => {
   return `rgb(${raw || FALLBACK_TOKENS[name] || '128 128 128'} / ${alpha})`
 }
 
+const summaryId = useId()
+const caption = '命理引擎分數'
+const engineScores = computed(() =>
+  props.results.map(({ engineId, engineName, score }) => ({
+    engineId,
+    engineName,
+    score,
+    weight: props.weights[engineId] ?? 0,
+  }))
+)
+const rows = computed(() =>
+  engineScores.value.map(({ engineId, engineName, score, weight }) => ({
+    key: engineId,
+    label: engineName,
+    values: [String(score), `${weight}%`],
+  }))
+)
+const topScore = computed(() => Math.max(...engineScores.value.map(item => item.score)))
+const topEngines = computed(() =>
+  engineScores.value
+    .filter(item => item.score === topScore.value)
+    .map(item => item.engineName)
+    .join('、')
+)
+
 const chartData = computed(() => {
-  if (!props.results.length) return null
+  if (!engineScores.value.length) return null
 
   void props.isDark
-  const labels = props.results.map(r => r.engineName)
-  const scores = props.results.map(r => r.score)
+  const scores = engineScores.value.map(item => item.score)
 
   // 所有引擎同為墨色，只有最高分的引擎以朱紅標示
-  const top = Math.max(...scores)
-  const bgColors = scores.map(score => (score === top ? token('seal', 0.85) : token('ink', 0.18)))
+  const bgColors = scores.map(score =>
+    score === topScore.value ? token('seal-ink') : token('ink', 0.66)
+  )
 
   return {
-    labels,
+    labels: engineScores.value.map(item => item.engineName),
     datasets: [
       {
         label: '引擎分數',
@@ -88,9 +114,8 @@ const chartOptions = computed(() => {
         padding: 12,
         callbacks: {
           label: (ctx: TooltipItem<'bar'>) => {
-            const result = props.results[ctx.dataIndex]
-            const weight = props.weights[result.engineId] ?? 0
-            return `分數: ${ctx.parsed.x}  權重: ${weight}%`
+            const result = engineScores.value[ctx.dataIndex]
+            return result ? `分數：${result.score}，權重：${result.weight}%` : ''
           },
         },
       },
@@ -119,20 +144,34 @@ const chartOptions = computed(() => {
 </script>
 
 <template>
-  <div class="h-64 w-full">
-    <Bar
-      v-if="chartData"
-      :data="chartData"
-      :options="chartOptions"
-      class="w-full h-full"
-    />
-    <div
-      v-else
-      class="flex h-full items-center justify-center rounded-[10px] bg-raised"
-    >
-      <p class="text-ink-3">
-        無引擎數據
+  <div class="flex min-w-0 flex-col gap-3">
+    <template v-if="chartData">
+      <div class="relative h-64 w-full">
+        <Bar
+          :data="chartData"
+          :options="chartOptions"
+          :aria-label="`${caption}圖`"
+          :aria-describedby="summaryId"
+          class="w-full h-full"
+        />
+      </div>
+      <p
+        :id="summaryId"
+        class="chart-data-summary text-sm text-ink-2"
+      >
+        最高分為 {{ topScore }} 分（滿分 100 分），由 {{ topEngines }} 取得。
       </p>
-    </div>
+      <ChartDataDisclosure
+        :caption="caption"
+        :columns="['命理引擎', '分數', '權重']"
+        :rows="rows"
+      />
+    </template>
+    <p
+      v-else
+      class="flex h-64 items-center justify-center rounded-[10px] bg-raised text-sm text-ink-3"
+    >
+      無引擎數據
+    </p>
   </div>
 </template>

@@ -2,10 +2,15 @@ import { defineStore } from 'pinia'
 import { ref, computed, shallowRef } from 'vue'
 import type { LunarData, InvestmentAdvice } from '@/services/lunar'
 import type { IntegratedFortuneData, UserProfileCompat } from '@/services/integratedFortune'
-import type { ETFData } from '@/types'
+import {
+  isMarketOffline,
+  type MarketRange,
+  type MarketSnapshot,
+  type MarketStatus,
+} from '@/services/marketHistory'
 import { useQueryCache } from '@pinia/colada'
 import {
-  etfRangeQuery,
+  loadMarketRange,
   lunarDayQuery,
   integratedFortuneQuery,
   dateRangeFromToday,
@@ -61,7 +66,11 @@ export const useDashboardStore = defineStore('dashboard', () => {
   const integratedFortune = shallowRef<IntegratedFortuneData | null>(null)
 
   // ETF資料狀態
-  const etfData = shallowRef<ETFData[]>([])
+  const etfSnapshot = shallowRef<MarketSnapshot | null>(null)
+  const etfData = computed(() => etfSnapshot.value?.bars ?? [])
+  const etfProvenance = computed(() => etfSnapshot.value?.provenance ?? null)
+  const etfStatus = ref<MarketStatus>('idle')
+  let selectedMarketRange: (MarketRange & { lookbackDays?: number }) | undefined
 
   // 日期狀態
   const currentDate = ref(new Date())
@@ -197,73 +206,49 @@ export const useDashboardStore = defineStore('dashboard', () => {
     }
   }
 
-  // 開發/離線時的最後備援資料
-  const FALLBACK_ETF_DATA: ETFData[] = [
-    {
-      date: '2024-01-15',
-      open: 132.0,
-      high: 134.0,
-      low: 131.0,
-      close: 133.5,
-      volume: 25000000,
-      change: 1.5,
-      changePercent: 1.13,
-    },
-    {
-      date: '2024-01-16',
-      open: 133.5,
-      high: 135.0,
-      low: 132.8,
-      close: 134.2,
-      volume: 28000000,
-      change: 0.7,
-      changePercent: 0.52,
-    },
-    {
-      date: '2024-01-17',
-      open: 134.2,
-      high: 134.8,
-      low: 133.0,
-      close: 133.8,
-      volume: 22000000,
-      change: -0.4,
-      changePercent: -0.3,
-    },
-  ]
-
-  /**
-   * 載入指定日期範圍的 ETF 資料（Analytics 依期間切換時使用）
-   * FinMindService 內部已在 API 失敗時回退模擬資料，這裡不再額外打 checkAPIStatus 探測請求
-   */
-  const loadETFRange = async (startDate: string, endDate: string, force = false) => {
+  /** 載入選取範圍的 0050 日 K，範圍切換時立即移除舊資料。 */
+  const loadETFRange = async (
+    startDate: string,
+    endDate: string,
+    force = false,
+    lookbackDays?: number
+  ) => {
     const seq = ++requestSeq.etf
-    try {
-      etfLoading.value = true
+    const changedRange =
+      selectedMarketRange?.startDate !== startDate || selectedMarketRange.endDate !== endDate
+    selectedMarketRange = { startDate, endDate, lookbackDays }
+    if (changedRange) {
+      etfSnapshot.value = null
+      etfStatus.value = 'idle'
       etfError.value = null
+    }
+    etfLoading.value = true
 
-      let data: ETFData[] = []
-      try {
-        data = await runQuery(etfRangeQuery({ startDate, endDate }), force)
-      } catch (apiError) {
-        console.error('ETF 數據載入失敗:', apiError)
-      }
+    try {
+      const { data, status } = await loadMarketRange(
+        queryCache,
+        { startDate, endDate },
+        force,
+        lookbackDays
+      )
       if (seq !== requestSeq.etf) return
-
-      if (data.length > 0) {
-        etfData.value = data
-      } else {
-        etfError.value = '無法載入ETF資料，使用測試數據'
-        etfData.value = FALLBACK_ETF_DATA
-      }
+      etfSnapshot.value = data
+      etfStatus.value = status
+      etfError.value =
+        status === 'unavailable'
+          ? isMarketOffline()
+            ? '目前離線，這段期間尚無 0050 行情快取。'
+            : '目前無法取得這段期間的 0050 行情。'
+          : null
     } finally {
       if (seq === requestSeq.etf) etfLoading.value = false
     }
   }
 
-  // 載入ETF資料（儀表板預設 30 天）
+  // 載入 ETF 資料（儀表板預設 30 天）
   const loadETFData = (force = false) => {
     const { startDate, endDate } = dateRangeFromToday(DASHBOARD_ETF_DAYS)
-    return loadETFRange(startDate, endDate, force)
+    return loadETFRange(startDate, endDate, force, DASHBOARD_ETF_DAYS)
   }
 
   // 載入所有資料
@@ -316,17 +301,16 @@ export const useDashboardStore = defineStore('dashboard', () => {
     return loadAllData(userProfile, date)
   }
 
-  // 設置ETF資料 (兼容舊的investment store)
-  const setETFData = (data: ETFData[]) => {
-    etfData.value = data
-  }
-
   // 清除所有資料
   const clearAllData = () => {
     lunarData.value = null
     integratedFortune.value = null
     investmentAdvice.value = null
-    etfData.value = []
+    requestSeq.etf++
+    etfSnapshot.value = null
+    etfStatus.value = 'idle'
+    etfLoading.value = false
+    selectedMarketRange = undefined
     clearAllErrors()
   }
 
@@ -344,9 +328,13 @@ export const useDashboardStore = defineStore('dashboard', () => {
       : Promise.reject('無用戶資料')
   }
 
-  // 重試載入ETF資料
+  // 重試目前選取的行情期間；相對期間重新以臺灣今日日期為終點。
   const retryETFData = () => {
-    return loadETFData(true)
+    if (!selectedMarketRange) return loadETFData(true)
+    const { lookbackDays } = selectedMarketRange
+    const { startDate, endDate } =
+      lookbackDays === undefined ? selectedMarketRange : dateRangeFromToday(lookbackDays)
+    return loadETFRange(startDate, endDate, true, lookbackDays)
   }
 
   return {
@@ -355,6 +343,8 @@ export const useDashboardStore = defineStore('dashboard', () => {
     integratedFortune,
     investmentAdvice,
     etfData,
+    etfStatus,
+    etfProvenance,
     currentDate,
     loading,
     lunarLoading,
@@ -381,7 +371,6 @@ export const useDashboardStore = defineStore('dashboard', () => {
     invalidateFortune,
     refreshData,
     setDateAndReload,
-    setETFData,
     clearAllData,
     clearAllErrors,
     retryIntegratedFortune,

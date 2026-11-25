@@ -63,3 +63,50 @@ export const referenceSamples = {
     ['22:59', '23:00', '23:59', '00:00', '00:59', '01:00']
   ),
 }
+
+export const ziFuCases = [
+  {
+    birthDate: '1988-09-01',
+    birthTime: '00:00',
+    lifeBranch: '申',
+    matched: true,
+    stars: [
+      ['紫微', '命宮', '申'],
+      ['天府', '命宮', '申'],
+    ],
+    borrowedZiWei: false,
+  },
+  {
+    birthDate: '1980-01-01',
+    birthTime: '00:00',
+    lifeBranch: '子',
+    matched: false,
+    stars: [
+      ['紫微', '財帛宮', '申'],
+      ['天府', '財帛宮', '申'],
+    ],
+    borrowedZiWei: false,
+  },
+  {
+    birthDate: '1980-01-01',
+    birthTime: '06:00',
+    lifeBranch: '酉',
+    matched: false,
+    stars: [
+      ['紫微', '夫妻宮', '未'],
+      ['天府', '命宮', '酉'],
+    ],
+    borrowedZiWei: false,
+  },
+  {
+    birthDate: '1984-05-01',
+    birthTime: '04:00',
+    lifeBranch: '卯',
+    matched: false,
+    stars: [
+      ['紫微', '遷移宮', '酉'],
+      ['天府', '官祿宮', '未'],
+    ],
+    borrowedZiWei: true,
+  },
+] as const

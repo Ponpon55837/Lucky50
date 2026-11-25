@@ -45,5 +45,10 @@ jobs:
       - name: 建置
         run: pnpm build
 
+      - name: 瀏覽器測試（Chromium）
+        run: |
+          pnpm exec playwright install --with-deps chromium
+          pnpm test:e2e
+
       - name: 相依套件稽核（high 以上）
         run: pnpm audit --audit-level high

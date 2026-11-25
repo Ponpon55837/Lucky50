@@ -1,12 +1,3 @@
-/**
- * 運勢歷史 IndexedDB 儲存服務
- * 參考 HackMD 日誌檢視器的雙層儲存架構
- *
- * 架構：
- * - MemoryCache：短期記憶體快取（最近 100 筆）
- * - IndexedDB：持久化儲存
- */
-
 import type {
   FortuneRecord,
   HistoryQueryOptions,
@@ -18,7 +9,8 @@ const DB_NAME = 'lucky50_fortune_history'
 const DB_VERSION = 1
 const STORE_NAME = 'fortunes'
 const METADATA_STORE = 'metadata'
-const MAX_MEMORY_CACHE = 100
+
+type OnRequestSuccess = <T>(request: IDBRequest<T>, handleResult: (result: T) => void) => void
 
 /**
  * IndexedDB 初始化
@@ -51,105 +43,72 @@ const openDB = (): Promise<IDBDatabase> => {
  * 運勢歷史 IndexedDB 儲存服務
  */
 export class FortuneHistoryStore {
-  private db: IDBDatabase | null = null
-  private memoryCache: FortuneRecord[] = []
-  private totalCount = 0
-  private initialized = false
+  private database: Promise<IDBDatabase> | null = null
 
   /**
    * 初始化儲存服務
    */
   async init(): Promise<void> {
-    if (this.initialized) return
-
-    this.db = await openDB()
-
-    // 從 metadata 載入 totalCount
-    this.totalCount = ((await this.getMetadata('totalCount')) as number) ?? 0
-
-    // 從 IndexedDB 載入最近的記錄到記憶體快取
-    const recentRecords = await this.getRecentFromIDB(MAX_MEMORY_CACHE)
-    this.memoryCache = recentRecords
-
-    this.initialized = true
+    await this.getDatabase()
   }
 
   /**
    * 新增運勢記錄（同一天同一用戶只保留最新一筆）
    */
   async append(record: FortuneRecord): Promise<void> {
-    await this.ensureInitialized()
-
-    // 先查記憶體快取，再回查 IndexedDB，避免快取逐出後重複新增。
-    const existing = await this.findExistingRecord(record)
-
-    if (existing) {
-      // 更新既有記錄
-      await this.writeToIDB({ ...record, id: existing.id })
-      // 更新記憶體快取
-      const idx = this.memoryCache.findIndex(r => r.id === existing.id)
-      if (idx !== -1) this.memoryCache[idx] = { ...record, id: existing.id }
-    } else {
-      // 新增記錄
-      await this.writeToIDB(record)
-      this.memoryCache.push(record)
-      if (this.memoryCache.length > MAX_MEMORY_CACHE) {
-        this.memoryCache.shift()
+    await this.writeHistory((tx, onSuccess, syncCount) => {
+      const store = tx.objectStore(STORE_NAME)
+      const save = (id: number) => {
+        store.put({ ...record, id })
+        syncCount()
       }
-      this.totalCount++
-      await this.setMetadata('totalCount', this.totalCount)
-    }
+
+      // 不同日期或用戶可能在同一毫秒產生相同的 ID。
+      const saveAtAvailableId = (id: number) => {
+        onSuccess(store.getKey(id), key => {
+          if (key === undefined) {
+            save(id)
+          } else {
+            const nextId = Number.isSafeInteger(id) && id < Number.MAX_SAFE_INTEGER ? id + 1 : 0
+            saveAtAvailableId(nextId)
+          }
+        })
+      }
+
+      onSuccess<FortuneRecord[]>(store.index('date').getAll(record.date), sameDate => {
+        const existing = sameDate.find(
+          current => current.userProfileHash === record.userProfileHash
+        )
+        if (existing) {
+          save(existing.id)
+        } else {
+          saveAtAvailableId(record.id)
+        }
+      })
+    })
   }
 
   /**
    * 批次新增運勢記錄
    */
   async appendBatch(records: FortuneRecord[]): Promise<void> {
-    await this.ensureInitialized()
-
     if (records.length === 0) return
 
-    // 以目前 IndexedDB 資料建立 ID 索引，確保批次內的重複 ID
-    // 遵循「最後一筆更新既有記錄」的規則。批次寫入維持原有語意，
-    // 不以日期＋使用者條件互相去重。
-    const persistedRecords = await this.getAllFromIDB()
-    const recordsById = new Map(persistedRecords.map(record => [record.id, record]))
-    const pendingRecords = new Map<number, FortuneRecord>()
-
-    for (const record of records) {
-      const existingById = recordsById.get(record.id)
-      const id = existingById?.id ?? record.id
-      const normalizedRecord = { ...record, id }
-
-      recordsById.set(id, normalizedRecord)
-      pendingRecords.set(id, normalizedRecord)
-    }
-
-    const tx = this.db!.transaction(STORE_NAME, 'readwrite')
-    const store = tx.objectStore(STORE_NAME)
-
-    for (const record of pendingRecords.values()) {
-      store.put(record)
-    }
-
-    await new Promise<void>((resolve, reject) => {
-      tx.oncomplete = () => resolve()
-      tx.onerror = () => reject(tx.error)
+    // 批次匯入以 ID 為準，重複 ID 採用最後一筆。
+    const recordsById = new Map(records.map(record => [record.id, record]))
+    await this.writeHistory((tx, _onSuccess, syncCount) => {
+      const store = tx.objectStore(STORE_NAME)
+      for (const [id, record] of recordsById) {
+        store.put({ ...record, id })
+      }
+      syncCount()
     })
-
-    // 以 IndexedDB 實際資料同步快取與總筆數，避免批次重複資料造成計數偏差。
-    const updatedRecords = await this.getAllFromIDB()
-    this.memoryCache = updatedRecords.slice(-MAX_MEMORY_CACHE)
-    this.totalCount = updatedRecords.length
-    await this.setMetadata('totalCount', this.totalCount)
   }
 
   /**
    * 查詢運勢記錄（支援分頁、篩選、排序）
    */
   async query(options: HistoryQueryOptions): Promise<HistoryQueryResult> {
-    await this.ensureInitialized()
-
     let records = await this.getAllFromIDB()
 
     // 篩選：日期範圍
@@ -228,8 +187,6 @@ export class FortuneHistoryStore {
    * 取得統計資訊
    */
   async getStats(): Promise<HistoryStats> {
-    await this.ensureInitialized()
-
     const records = await this.getAllFromIDB()
 
     if (records.length === 0) {
@@ -263,108 +220,76 @@ export class FortuneHistoryStore {
    * 清除所有記錄
    */
   async clear(): Promise<void> {
-    await this.ensureInitialized()
-
-    const tx = this.db!.transaction([STORE_NAME, METADATA_STORE], 'readwrite')
-    tx.objectStore(STORE_NAME).clear()
-    tx.objectStore(METADATA_STORE).clear()
-
-    await new Promise<void>((resolve, reject) => {
-      tx.oncomplete = () => resolve()
-      tx.onerror = () => reject(tx.error)
+    await this.writeHistory(tx => {
+      tx.objectStore(STORE_NAME).clear()
+      tx.objectStore(METADATA_STORE).clear()
     })
-
-    this.memoryCache = []
-    this.totalCount = 0
   }
 
   /**
    * 取得總筆數
    */
   async getTotalCount(): Promise<number> {
-    await this.ensureInitialized()
-    return this.totalCount
+    // 直接讀取目前的筆數，避免使用舊版資料庫留下的計數。
+    const db = await this.getDatabase()
+    return new Promise((resolve, reject) => {
+      const request = db.transaction(STORE_NAME).objectStore(STORE_NAME).count()
+      request.onsuccess = () => resolve(request.result)
+      request.onerror = () => reject(request.error)
+    })
   }
 
   // ===== 私有方法 =====
 
-  private async ensureInitialized(): Promise<void> {
-    if (!this.initialized) {
-      await this.init()
-    }
+  private getDatabase(): Promise<IDBDatabase> {
+    this.database ??= openDB().catch(error => {
+      this.database = null
+      throw error
+    })
+    return this.database
   }
 
-  private getRecordIdentity(record: FortuneRecord): string {
-    return `${record.date}:${record.userProfileHash}`
-  }
-
-  private async findExistingRecord(record: FortuneRecord): Promise<FortuneRecord | undefined> {
-    const cached = this.memoryCache.find(
-      current =>
-        current.id === record.id ||
-        this.getRecordIdentity(current) === this.getRecordIdentity(record)
-    )
-    if (cached) return cached
-
-    const persistedRecords = await this.getAllFromIDB()
-    return persistedRecords.find(
-      current =>
-        current.id === record.id ||
-        this.getRecordIdentity(current) === this.getRecordIdentity(record)
-    )
-  }
-
-  private async writeToIDB(record: FortuneRecord): Promise<void> {
+  private async writeHistory(
+    write: (tx: IDBTransaction, onSuccess: OnRequestSuccess, syncCount: () => void) => void
+  ): Promise<void> {
+    const db = await this.getDatabase()
     return new Promise((resolve, reject) => {
-      const tx = this.db!.transaction(STORE_NAME, 'readwrite')
-      const store = tx.objectStore(STORE_NAME)
-      store.put(record)
+      const tx = db.transaction([STORE_NAME, METADATA_STORE], 'readwrite')
+      let writeError: unknown
       tx.oncomplete = () => resolve()
-      tx.onerror = () => reject(tx.error)
+      tx.onabort = () => {
+        reject(writeError ?? tx.error ?? new DOMException('History write aborted', 'AbortError'))
+      }
+
+      const run = (operation: () => void) => {
+        try {
+          operation()
+        } catch (error) {
+          writeError = error
+          tx.abort()
+        }
+      }
+
+      // 在請求事件內繼續排程，讓查詢、寫入與計數留在同一交易。
+      const onSuccess: OnRequestSuccess = (request, handleResult) => {
+        request.onsuccess = () => run(() => handleResult(request.result))
+      }
+      const syncCount = () => {
+        onSuccess(tx.objectStore(STORE_NAME).count(), value => {
+          tx.objectStore(METADATA_STORE).put({ key: 'totalCount', value })
+        })
+      }
+
+      run(() => write(tx, onSuccess, syncCount))
     })
   }
 
   private async getAllFromIDB(): Promise<FortuneRecord[]> {
+    const db = await this.getDatabase()
     return new Promise((resolve, reject) => {
-      const tx = this.db!.transaction(STORE_NAME, 'readonly')
-      const store = tx.objectStore(STORE_NAME)
-      const request = store.getAll()
+      const request = db.transaction(STORE_NAME).objectStore(STORE_NAME).getAll()
       request.onsuccess = () => resolve(request.result as FortuneRecord[])
       request.onerror = () => reject(request.error)
-    })
-  }
-
-  private async getRecentFromIDB(limit: number): Promise<FortuneRecord[]> {
-    return new Promise((resolve, reject) => {
-      const tx = this.db!.transaction(STORE_NAME, 'readonly')
-      const store = tx.objectStore(STORE_NAME)
-      const request = store.getAll()
-      request.onsuccess = () => {
-        const all = request.result as FortuneRecord[]
-        // 取最近的 N 筆
-        resolve(all.slice(-limit))
-      }
-      request.onerror = () => reject(request.error)
-    })
-  }
-
-  private async getMetadata(key: string): Promise<unknown> {
-    return new Promise((resolve, reject) => {
-      const tx = this.db!.transaction(METADATA_STORE, 'readonly')
-      const store = tx.objectStore(METADATA_STORE)
-      const request = store.get(key)
-      request.onsuccess = () => resolve(request.result?.value)
-      request.onerror = () => reject(request.error)
-    })
-  }
-
-  private async setMetadata(key: string, value: unknown): Promise<void> {
-    return new Promise((resolve, reject) => {
-      const tx = this.db!.transaction(METADATA_STORE, 'readwrite')
-      const store = tx.objectStore(METADATA_STORE)
-      store.put({ key, value })
-      tx.oncomplete = () => resolve()
-      tx.onerror = () => reject(tx.error)
     })
   }
 }

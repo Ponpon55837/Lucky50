@@ -1,19 +1,26 @@
 /**
  * 策略回測與運勢相關性（純函式）
  *
- * 以實際收盤價逐日模擬，不套用任何假設的加成。每個函式都是單趟 O(n)。
- * 農民曆當天的分數在開盤前就已確定，所以「當天分數達標就持有當天」沒有偷看未來的問題。
+ * 農民曆分數在開盤前已確定；訊號只能在當天開盤改變持倉，隔夜報酬屬於前一日的部位。
  */
 import { HOLD_THRESHOLD, recommendationFromScore } from './almanac'
-import type { BacktestResults, StrategyResult } from '@/types'
+import type { BacktestCosts, BacktestResults, StrategyResult } from '@/types'
 
-/** 回測的一個交易日：收盤價與當天的投資分數 */
+/** 回測的一個交易日：開盤價、收盤價與當天開盤前可得的投資分數 */
 export interface BacktestDay {
   date: string
+  open: number
   close: number
   score: number
 }
 
+export const DEFAULT_BACKTEST_COSTS: Readonly<BacktestCosts> = {
+  commissionBps: 14.25,
+  sellTaxBps: 10,
+  slippageBps: 0,
+}
+
+const BPS_PER_UNIT = 10_000
 const TRADING_DAYS_PER_YEAR = 252
 /** 夏普比率採用的無風險年利率（%） */
 const RISK_FREE_RATE = 2
@@ -31,12 +38,14 @@ function annualize(totalReturn: number, calendarDays: number): number {
 
 /**
  * 由逐日報酬率彙整績效。
- * inMarket[i] 為該日是否持有；勝率只計持有的日子。
+ * inMarket[i] 為該日是否曾有持倉曝險；省略時表示每天都持有。
  */
 function summarize(
   returns: readonly number[],
-  inMarket: readonly boolean[],
-  calendarDays: number
+  calendarDays: number,
+  grossEquity: number,
+  orders: number,
+  inMarket?: readonly boolean[]
 ): StrategyResult {
   let equity = 1
   let peak = 1
@@ -53,7 +62,7 @@ function summarize(
     else maxDrawdown = Math.max(maxDrawdown, (peak - equity) / peak)
     sum += r
     sumSquares += r * r
-    if (inMarket[i]) {
+    if (inMarket?.[i] ?? true) {
       held++
       if (r > 0) wins++
     }
@@ -68,66 +77,121 @@ function summarize(
 
   return {
     totalReturn: round(totalReturn * 100, 1),
+    grossTotalReturn: round((grossEquity - 1) * 100, 1),
     annualReturn: round(annualReturn, 1),
     maxDrawdown: round(maxDrawdown * 100, 1),
-    sharpeRatio: volatility > 0 ? round((annualReturn - RISK_FREE_RATE) / volatility, 2) : 0,
+    sharpeRatio:
+      volatility > 0
+        ? round((mean * TRADING_DAYS_PER_YEAR * 100 - RISK_FREE_RATE) / volatility, 2)
+        : 0,
     winRate: held > 0 ? Math.round((wins / held) * 100) : 0,
     trades: held,
+    orders,
   }
 }
 
-/** 收盤價必須是正數才能算報酬率；停牌或缺漏的資料列略過 */
-function tradable(days: readonly BacktestDay[]): readonly BacktestDay[] {
-  const valid = (day: BacktestDay) => Number.isFinite(day.close) && day.close > 0
-  return days.every(valid) ? days : days.filter(valid)
-}
+const validPrice = (price: number) => Number.isFinite(price) && price > 0
 
 function calendarDaysBetween(first: string, last: string): number {
   return Math.round((Date.parse(last) - Date.parse(first)) / MS_PER_DAY)
 }
 
 /**
- * 比較三種策略：
- * - 農民曆策略：只在當天投資分數達續抱門檻時持有，其餘空手
- * - 買入持有：全程持有
- * - 定期定額：每個交易日投入等額資金，以「市值 ÷ 累計投入」的變化計算績效
- * 資料不足兩天時回傳 null。
+ * 日 K 需依日期遞增。三種策略從第一個可交易日的開盤開始，到最後一筆有效收盤估值。
+ * 定期定額每次開盤投入等額新資金，以「市值 ÷ 累計投入」的變化計算績效。
+ * 缺開盤時不執行委託，有效收盤仍可估值；缺收盤時略過該日。可交易日不足兩天時回傳 null。
  */
-export function runBacktest(input: readonly BacktestDay[]): BacktestResults | null {
-  const days = tradable(input)
-  if (days.length < 2) return null
+export function runBacktest(
+  input: readonly BacktestDay[],
+  overrides: Partial<BacktestCosts> = {}
+): BacktestResults | null {
+  const costs = { ...DEFAULT_BACKTEST_COSTS, ...overrides }
+  const commission = costs.commissionBps / BPS_PER_UNIT
+  const sellTax = costs.sellTaxBps / BPS_PER_UNIT
+  const slippage = costs.slippageBps / BPS_PER_UNIT
+  if (
+    ![commission, sellTax, slippage].every(rate => Number.isFinite(rate) && rate >= 0) ||
+    commission + sellTax >= 1 ||
+    slippage >= 1
+  ) {
+    throw new RangeError('Invalid backtest trading costs')
+  }
+  const buyFactor = 1 / ((1 + slippage) * (1 + commission))
+  const sellFactor = (1 - slippage) * (1 - commission - sellTax)
 
   const marketReturns: number[] = []
   const lunarReturns: number[] = []
-  const lunarHeld: boolean[] = []
+  const lunarExposure: boolean[] = []
   const dcaReturns: number[] = []
-  const always: boolean[] = []
+  let firstDay: BacktestDay | undefined
+  let lastDate = ''
+  let previousClose = 0
+  let unexecutableDays = 0
+  let lunarHeld: boolean = false
+  let lunarOrders = 0
+  let lunarGrossEquity = 1
+  let grossUnits = 0
+  let contributions = 0
+  let dcaGrossEquity = 1
+  let previousDcaEquity = 1
 
-  let units = 1 / days[0].close
-  let invested = 1
-  let previousRatio = 1
+  for (const day of input) {
+    const { date, open, close, score } = day
+    const hasOpen = validPrice(open)
+    const hasClose = validPrice(close)
+    if (!hasOpen || !hasClose) unexecutableDays++
+    if (!hasClose || (!firstDay && !hasOpen)) continue
 
-  for (let i = 1; i < days.length; i++) {
-    const r = days[i].close / days[i - 1].close - 1
-    const held = days[i].score >= HOLD_THRESHOLD
-    marketReturns.push(r)
-    lunarReturns.push(held ? r : 0)
-    lunarHeld.push(held)
-    always.push(true)
+    const first = firstDay === undefined
+    if (first) {
+      firstDay = day
+      previousClose = open
+    }
+    const marketFactor = close / previousClose
+    marketReturns.push(marketFactor * (first ? buyFactor : 1) - 1)
 
-    // 定期定額：今天再投入一筆，以今日收盤評價全部部位
-    units += 1 / days[i].close
-    invested += 1
-    const ratio = (units * days[i].close) / invested
-    dcaReturns.push(ratio / previousRatio - 1)
-    previousRatio = ratio
+    const heldOvernight: boolean = lunarHeld
+    // 缺開盤價時，當天沿用既有部位。持倉變動的報酬以實際開盤價切割。
+    if (hasOpen) lunarHeld = score >= HOLD_THRESHOLD
+    let grossFactor = lunarHeld ? marketFactor : 1
+    let feeFactor = 1
+    if (lunarHeld !== heldOvernight) {
+      lunarOrders++
+      if (lunarHeld) {
+        grossFactor = close / open
+        feeFactor = buyFactor
+      } else {
+        grossFactor = open / previousClose
+        feeFactor = sellFactor
+      }
+    }
+    lunarGrossEquity *= grossFactor
+    lunarReturns.push(grossFactor * feeFactor - 1)
+    lunarExposure.push(heldOvernight || lunarHeld)
+
+    if (hasOpen) {
+      grossUnits += 1 / open
+      contributions++
+    }
+    dcaGrossEquity = (grossUnits * close) / contributions
+    const dcaEquity = dcaGrossEquity * buyFactor
+    dcaReturns.push(dcaEquity / previousDcaEquity - 1)
+    previousDcaEquity = dcaEquity
+
+    previousClose = close
+    lastDate = date
   }
 
-  const calendarDays = calendarDaysBetween(days[0].date, days[days.length - 1].date)
+  if (!firstDay || contributions < 2) return null
+  const calendarDays = calendarDaysBetween(firstDay.date, lastDate)
   return {
-    lunar: summarize(lunarReturns, lunarHeld, calendarDays),
-    buyHold: summarize(marketReturns, always, calendarDays),
-    dca: summarize(dcaReturns, always, calendarDays),
+    lunar: summarize(lunarReturns, calendarDays, lunarGrossEquity, lunarOrders, lunarExposure),
+    buyHold: summarize(marketReturns, calendarDays, previousClose / firstDay.open, 1),
+    dca: summarize(dcaReturns, calendarDays, dcaGrossEquity, contributions),
+    costs,
+    unexecutableDays,
+    firstDate: firstDay.date,
+    lastDate,
   }
 }
 
@@ -151,9 +215,11 @@ function bandOf(score: number): FortuneBand {
   return recommendation === 'SELL' ? 'low' : 'medium'
 }
 
-/** 各分數區間的交易日數、當日平均漲跌幅與收紅比例 */
-export function fortuneCorrelation(input: readonly BacktestDay[]): Record<FortuneBand, BandStats> {
-  const days = tradable(input)
+/** 各分數區間的交易日數、收盤對前一日收盤的平均漲跌幅與收紅比例 */
+export function fortuneCorrelation(
+  input: readonly Pick<BacktestDay, 'date' | 'close' | 'score'>[]
+): Record<FortuneBand, BandStats> {
+  const days = input.filter(day => validPrice(day.close))
   const tally: Record<FortuneBand, { days: number; sum: number; up: number }> = {
     high: { days: 0, sum: 0, up: 0 },
     medium: { days: 0, sum: 0, up: 0 },

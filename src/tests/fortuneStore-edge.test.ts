@@ -1,142 +1,7 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest'
+import { IDBFactory, IDBObjectStore } from 'fake-indexeddb'
+import { describe, it, expect, afterEach, beforeEach, vi } from 'vitest'
+import { FortuneHistoryStore } from '@/services/fortuneStore'
 import type { FortuneRecord } from '@/types/history'
-
-// 建立完整的 IndexedDB mock，支援同步觸發 callback（與既有測試同模式）
-function createMockIndexedDB() {
-  const stores = new Map<string, Map<string | number, Record<string, unknown>>>()
-
-  const getOrCreateStore = (name: string) => {
-    if (!stores.has(name)) stores.set(name, new Map())
-    return stores.get(name)!
-  }
-
-  function createRequest<T>(result: T) {
-    let _onsuccess: ((event: Event) => void) | null = null
-    const req = {
-      result,
-      onsuccess: null as unknown,
-      onerror: null as unknown,
-    }
-    Object.defineProperty(req, 'onsuccess', {
-      get() {
-        return _onsuccess
-      },
-      set(fn: ((event: Event) => void) | null) {
-        _onsuccess = fn
-        if (fn) {
-          Promise.resolve().then(() => fn(new Event('success')))
-        }
-      },
-      configurable: true,
-    })
-    return req
-  }
-
-  const mockObjectStore = (name: string) => {
-    const data = getOrCreateStore(name)
-    return {
-      put: vi.fn((record: Record<string, unknown>) => {
-        const key = record.id ?? record.key
-        data.set(key as string | number, record)
-        return createRequest(undefined)
-      }),
-      get: vi.fn((key: string | number) => {
-        return createRequest(data.get(key) ?? undefined)
-      }),
-      getAll: vi.fn(() => {
-        return createRequest(Array.from(data.values()))
-      }),
-      clear: vi.fn(() => {
-        data.clear()
-        return createRequest(undefined)
-      }),
-      createIndex: vi.fn(),
-      index: vi.fn(() => ({
-        getAll: vi.fn(() => createRequest([])),
-      })),
-    }
-  }
-
-  const mockDB = {
-    objectStoreNames: {
-      contains: vi.fn((name: string) => stores.has(name)),
-    },
-    createObjectStore: vi.fn((name: string) => {
-      getOrCreateStore(name)
-      return mockObjectStore(name)
-    }),
-    transaction: vi.fn((_names: string | string[], _mode: string) => {
-      const tx = {
-        objectStore: vi.fn((name: string) => mockObjectStore(name)),
-        oncomplete: null as (() => void) | null,
-        onerror: null as (() => void) | null,
-        error: null,
-      }
-      Promise.resolve().then(() => {
-        if (tx.oncomplete) tx.oncomplete()
-      })
-      return tx
-    }),
-  }
-
-  return {
-    open: vi.fn((_name: string, _version: number) => {
-      let _onupgradeneeded: ((event: Event) => void) | null = null
-      let _onsuccess: ((event: Event) => void) | null = null
-      let _onerror: ((event: Event) => void) | null = null
-
-      const req = {
-        result: mockDB as unknown as IDBDatabase,
-        onsuccess: null as unknown,
-        onerror: null as unknown,
-        onupgradeneeded: null as unknown,
-      }
-
-      Object.defineProperty(req, 'onupgradeneeded', {
-        get() {
-          return _onupgradeneeded
-        },
-        set(fn: ((event: Event) => void) | null) {
-          _onupgradeneeded = fn
-          if (fn) {
-            Promise.resolve().then(() => {
-              const ev = new Event('upgradeneeded')
-              Object.defineProperty(ev, 'target', { value: req, configurable: true })
-              fn(ev)
-            })
-          }
-        },
-        configurable: true,
-      })
-
-      Object.defineProperty(req, 'onsuccess', {
-        get() {
-          return _onsuccess
-        },
-        set(fn: ((event: Event) => void) | null) {
-          _onsuccess = fn
-          if (fn) {
-            Promise.resolve().then(() => Promise.resolve().then(() => fn(new Event('success'))))
-          }
-        },
-        configurable: true,
-      })
-
-      Object.defineProperty(req, 'onerror', {
-        get() {
-          return _onerror
-        },
-        set(fn: ((event: Event) => void) | null) {
-          _onerror = fn
-        },
-        configurable: true,
-      })
-
-      return req
-    }),
-    deleteDatabase: vi.fn(),
-  }
-}
 
 function makeRecord(overrides: Partial<FortuneRecord>): FortuneRecord {
   return {
@@ -152,18 +17,35 @@ function makeRecord(overrides: Partial<FortuneRecord>): FortuneRecord {
   }
 }
 
+function requestResult<T>(request: IDBRequest<T>): Promise<T> {
+  return new Promise((resolve, reject) => {
+    request.onsuccess = () => resolve(request.result)
+    request.onerror = () => reject(request.error)
+  })
+}
+
+async function readStoredCount(): Promise<number | undefined> {
+  const db = await requestResult(indexedDB.open('lucky50_fortune_history'))
+  try {
+    const metadata = db.transaction('metadata').objectStore('metadata')
+    return (await requestResult(metadata.get('totalCount')))?.value
+  } finally {
+    db.close()
+  }
+}
+
 describe('FortuneHistoryStore 邊界與錯誤情境', () => {
-  let store: InstanceType<typeof import('@/services/fortuneStore').FortuneHistoryStore>
+  let store: FortuneHistoryStore
 
   beforeEach(async () => {
-    Object.defineProperty(globalThis, 'indexedDB', {
-      value: createMockIndexedDB(),
-      writable: true,
-      configurable: true,
-    })
-    const { FortuneHistoryStore } = await import('@/services/fortuneStore')
+    vi.stubGlobal('indexedDB', new IDBFactory())
     store = new FortuneHistoryStore()
     await store.init()
+  })
+
+  afterEach(() => {
+    vi.restoreAllMocks()
+    vi.unstubAllGlobals()
   })
 
   describe('正常情境', () => {
@@ -256,7 +138,6 @@ describe('FortuneHistoryStore 邊界與錯誤情境', () => {
       await store.append(makeRecord({ id: 1, date: '2024-01-15' }))
       await store.append(makeRecord({ id: 2, date: '2024-01-16' }))
 
-      const { FortuneHistoryStore } = await import('@/services/fortuneStore')
       const store2 = new FortuneHistoryStore()
       await store2.init()
 
@@ -314,7 +195,7 @@ describe('FortuneHistoryStore 邊界與錯誤情境', () => {
       expect(result.total).toBe(2)
     })
 
-    it('記憶體快取超過 100 筆後查詢仍應正確', async () => {
+    it('資料超過 100 筆時查詢仍應正確', async () => {
       const records = Array.from({ length: 105 }, (_, i) =>
         makeRecord({
           id: i + 1,
@@ -331,8 +212,7 @@ describe('FortuneHistoryStore 邊界與錯誤情境', () => {
   })
 
   describe('錯誤情境 / 潛在缺陷驗證', () => {
-    it('快取被逐出後，同日同 hash 去重仍應成立（spec：同天同用戶只保留最新一筆）', async () => {
-      // 塞入 101 筆不同日期，memoryCache 上限 100，第一筆會被 shift 逐出
+    it('超過 100 筆後，仍依日期和用戶去重', async () => {
       for (let i = 1; i <= 101; i++) {
         await store.append(makeRecord({ id: i, date: `2024-01-${String(i).padStart(2, '0')}` }))
       }
@@ -382,7 +262,6 @@ describe('FortuneHistoryStore 邊界與錯誤情境', () => {
     })
 
     it('查詢未初始化前呼叫 query 應自動初始化而不拋錯', async () => {
-      const { FortuneHistoryStore } = await import('@/services/fortuneStore')
       const uninit = new FortuneHistoryStore()
       const result = await uninit.query({ pageIndex: 0, pageSize: 10 })
       expect(result.total).toBe(0)
@@ -442,6 +321,24 @@ describe('FortuneHistoryStore 邊界與錯誤情境', () => {
       expect(result.total).toBe(2)
     })
 
+    it('單筆更新保留同日同用戶的其他匯入記錄', async () => {
+      await store.appendBatch([
+        makeRecord({ id: 1, investmentScore: 60 }),
+        makeRecord({ id: 2, investmentScore: 70 }),
+        makeRecord({ id: 3, userProfileHash: 'hash2', investmentScore: 80 }),
+      ])
+
+      await store.append(makeRecord({ id: 3, investmentScore: 90 }))
+
+      const result = await store.query({ pageIndex: 0, pageSize: 10 })
+      expect(result.records).toMatchObject([
+        { id: 1, userProfileHash: 'hash1', investmentScore: 90 },
+        { id: 2, userProfileHash: 'hash1', investmentScore: 70 },
+        { id: 3, userProfileHash: 'hash2', investmentScore: 80 },
+      ])
+      expect(await readStoredCount()).toBe(3)
+    })
+
     it('批次不同 id 應累加既有資料且總筆數一致', async () => {
       await store.append(makeRecord({ id: 1, date: '2024-01-15' }))
       await store.appendBatch([
@@ -466,6 +363,111 @@ describe('FortuneHistoryStore 邊界與錯誤情境', () => {
       const result = await store.query({ pageIndex: 0, pageSize: 10 })
       expect(result.total).toBe(1)
       expect(result.records[0].id).toBe(1)
+    })
+  })
+
+  describe('跨分頁交易', () => {
+    it('同時新增同日同用戶的記錄會更新同一筆', async () => {
+      const otherTab = new FortuneHistoryStore()
+      await otherTab.init()
+      await Promise.all([
+        store.append(makeRecord({ id: 1, investmentScore: 70 })),
+        otherTab.append(makeRecord({ id: 2, investmentScore: 90 })),
+      ])
+
+      const result = await store.query({ pageIndex: 0, pageSize: 10 })
+      expect(result.records).toMatchObject([{ id: 1, investmentScore: 90 }])
+      expect(await otherTab.getTotalCount()).toBe(1)
+      expect(await readStoredCount()).toBe(1)
+    })
+
+    it('同時新增不同用戶但 ID 相同的記錄時會保留兩筆', async () => {
+      const otherTab = new FortuneHistoryStore()
+      await otherTab.init()
+      await Promise.all([
+        store.append(makeRecord({ id: 1, userProfileHash: 'hash1' })),
+        otherTab.append(makeRecord({ id: 1, userProfileHash: 'hash2' })),
+      ])
+
+      const result = await otherTab.query({ pageIndex: 0, pageSize: 10 })
+      expect(result.records.map(record => record.userProfileHash)).toEqual(['hash1', 'hash2'])
+      expect(new Set(result.records.map(record => record.id)).size).toBe(2)
+      expect(await store.getTotalCount()).toBe(2)
+      expect(await readStoredCount()).toBe(2)
+    })
+
+    it('另一分頁清空並匯入後，已初始化的分頁應以目前資料寫入', async () => {
+      await store.append(makeRecord({ id: 1, userProfileHash: 'hash1' }))
+      const otherTab = new FortuneHistoryStore()
+      await otherTab.init()
+
+      await Promise.all([
+        store.clear(),
+        otherTab.appendBatch([makeRecord({ id: 1, userProfileHash: 'hash2' })]),
+        store.append(makeRecord({ id: 2, userProfileHash: 'hash1' })),
+      ])
+
+      const result = await otherTab.query({ pageIndex: 0, pageSize: 10 })
+      expect(result.records).toMatchObject([
+        { id: 1, userProfileHash: 'hash2' },
+        { id: 2, userProfileHash: 'hash1' },
+      ])
+      expect(await otherTab.getTotalCount()).toBe(2)
+      expect(await readStoredCount()).toBe(2)
+    })
+
+    it('舊版計數錯誤時讀取實際筆數，並在寫入時更新持久化計數', async () => {
+      const db = await requestResult(indexedDB.open('lucky50_fortune_history'))
+      try {
+        const tx = db.transaction(['fortunes', 'metadata'], 'readwrite')
+        tx.objectStore('fortunes').put(makeRecord({ id: 1 }))
+        await requestResult(tx.objectStore('metadata').put({ key: 'totalCount', value: 99 }))
+      } finally {
+        db.close()
+      }
+
+      expect(await store.getTotalCount()).toBe(1)
+      await store.append(makeRecord({ id: 2, date: '2024-01-02' }))
+      expect(await store.getTotalCount()).toBe(2)
+      expect(await readStoredCount()).toBe(2)
+    })
+
+    it('計數寫入後中止交易時，記錄與計數均會回復', async () => {
+      await store.append(makeRecord({ id: 1 }))
+      const put = IDBObjectStore.prototype.put
+      vi.spyOn(IDBObjectStore.prototype, 'put').mockImplementation(function (
+        this: IDBObjectStore,
+        ...args
+      ) {
+        const request = put.apply(this, args)
+        if (this.name === 'metadata') {
+          request.onsuccess = () => this.transaction.abort()
+        }
+        return request
+      })
+
+      await expect(store.append(makeRecord({ id: 2, date: '2024-01-02' }))).rejects.toMatchObject({
+        name: 'AbortError',
+      })
+
+      const result = await store.query({ pageIndex: 0, pageSize: 10 })
+      expect(result.records).toMatchObject([{ id: 1 }])
+      expect(await store.getTotalCount()).toBe(1)
+      expect(await readStoredCount()).toBe(1)
+    })
+
+    it('批次內有無效 ID 時，先排程的合法寫入也會回復', async () => {
+      await store.append(makeRecord({ id: 1, investmentScore: 70 }))
+      await expect(
+        store.appendBatch([
+          makeRecord({ id: 1, investmentScore: 90 }),
+          makeRecord({ id: Number.NaN }),
+        ])
+      ).rejects.toMatchObject({ name: 'DataError' })
+
+      const result = await store.query({ pageIndex: 0, pageSize: 10 })
+      expect(result.records).toMatchObject([{ id: 1, investmentScore: 70 }])
+      expect(await readStoredCount()).toBe(1)
     })
   })
 })

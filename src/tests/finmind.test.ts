@@ -1,13 +1,11 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { FinMindService } from '@/services/finmind'
-import axios from 'axios'
-import { apiCache } from '@/services/apiCache'
 
-// Mock axios
+const { get } = vi.hoisted(() => ({ get: vi.fn() }))
 vi.mock('axios', () => ({
   default: {
     create: vi.fn(() => ({
-      get: vi.fn(),
+      get,
       interceptors: {
         request: { use: vi.fn() },
         response: { use: vi.fn() },
@@ -16,504 +14,206 @@ vi.mock('axios', () => ({
   },
 }))
 
-// Mock apiCache
-vi.mock('@/services/apiCache', () => ({
-  apiCache: {
-    cached: vi.fn(),
-  },
-  CacheKeyGenerator: {
-    stock: vi.fn((symbol: string, start: string, end: string) => `stock-${symbol}-${start}-${end}`),
-  },
-}))
-
-// 服務模組載入時建立的 axios 實例；要控制實際發出的請求得從這裡下手
-const apiInstance = vi.mocked(axios.create).mock.results[0].value as {
-  get: ReturnType<typeof vi.fn>
+const rawBar = {
+  date: '2026-11-13',
+  stock_id: '0050',
+  open: '102.85',
+  max: 104.4,
+  min: 102.1,
+  close: '102.5',
+  Trading_Volume: '128607213',
+  spread: 1.55,
+}
+const olderBar = {
+  ...rawBar,
+  date: '2026-11-12',
+  open: 103.5,
+  max: 104.2,
+  min: 100.8,
+  close: 100.95,
+  spread: -2.25,
+}
+const startDate = '2026-11-12'
+const endDate = '2026-11-13'
+const split = { date: '2025-06-18', stock_id: '0050', before_price: 188.65, after_price: 47.16 }
+const dividend = {
+  date: '2026-01-22',
+  stock_id: '0050',
+  before_price: 71.85,
+  reference_price: 70.85,
 }
 
-describe('FinMindService', () => {
-  let mockAxiosInstance: { get: ReturnType<typeof vi.fn> }
+function respond(data: unknown, status = 200) {
+  get.mockResolvedValue({ data: { status, data } })
+}
 
-  beforeEach(() => {
-    vi.clearAllMocks()
-    // 獲取 mock 的 axios 實例
-    const mockCreate = vi.fn(() => ({
-      get: vi.fn(),
-      interceptors: {
-        request: { use: vi.fn() },
-        response: { use: vi.fn() },
+function respondAdjustments(splits: unknown, dividends: unknown) {
+  get.mockImplementation(async (_url, config) => ({
+    data: config.params.dataset === 'TaiwanStockSplitPrice' ? splits : dividends,
+  }))
+}
+
+beforeEach(() => {
+  get.mockReset()
+  vi.setSystemTime(new Date('2026-11-14T01:00:00.000Z'))
+})
+
+afterEach(() => vi.useRealTimers())
+
+describe('FinMind 0050 日 K', () => {
+  it('排序真實行情並保留資料日期與擷取時間', async () => {
+    respond([rawBar, olderBar])
+
+    const snapshot = await FinMindService.getMarketHistory(startDate, endDate)
+
+    expect(get).toHaveBeenCalledWith('/data', {
+      params: {
+        dataset: 'TaiwanStockPrice',
+        data_id: '0050',
+        start_date: startDate,
+        end_date: endDate,
       },
-    }))
-    ;(axios.create as unknown) = mockCreate
-    mockAxiosInstance = mockCreate() as { get: ReturnType<typeof vi.fn> }
+    })
+    expect(snapshot.range).toEqual({ startDate, endDate })
+    expect(snapshot.provenance).toEqual({
+      source: 'FinMind',
+      asOf: endDate,
+      fetchedAt: '2026-11-14T01:00:00.000Z',
+    })
+    expect(snapshot.bars.map(bar => bar.date)).toEqual([startDate, endDate])
+    expect(snapshot.bars[1]).toMatchObject({
+      open: 102.85,
+      high: 104.4,
+      low: 102.1,
+      close: 102.5,
+      volume: 128607213,
+      change: 1.55,
+    })
+    expect(snapshot.bars[1].changePercent).toBeCloseTo((1.55 / 100.95) * 100, 6)
   })
 
-  describe('getETFData', () => {
-    it('應該成功獲取 ETF 數據', async () => {
-      const mockResponse = {
-        data: {
-          status: 200,
-          data: [
-            {
-              date: '2024-01-15',
-              open: '130.50',
-              close: '132.00',
-              max: '133.00',
-              min: '130.00',
-              Trading_Volume: '25000000',
-            },
-          ],
-        },
-      }
-
-      // Mock cached 函數直接執行傳入的函數
-      vi.mocked(apiCache.cached).mockImplementation(
-        async (_key: string, fn: () => Promise<unknown>) => {
-          return await fn()
-        }
-      )
-
-      mockAxiosInstance.get.mockResolvedValue(mockResponse)
-
-      const data = await FinMindService.getETFData('2024-01-01', '2024-01-31')
-
-      expect(data).toBeDefined()
-      expect(Array.isArray(data)).toBe(true)
-      expect(data.length).toBeGreaterThan(0)
-    })
-
-    it('應該正確格式化數據', async () => {
-      const mockResponse = {
-        data: {
-          status: 200,
-          data: [
-            {
-              date: '2024-01-15',
-              open: '130.50',
-              close: '132.00',
-              max: '133.00',
-              min: '130.00',
-              Trading_Volume: '25000000',
-            },
-          ],
-        },
-      }
-
-      vi.mocked(apiCache.cached).mockImplementation(
-        async (_key: string, fn: () => Promise<unknown>) => {
-          return await fn()
-        }
-      )
-
-      mockAxiosInstance.get.mockResolvedValue(mockResponse)
-
-      const data = await FinMindService.getETFData('2024-01-01', '2024-01-31')
-      const item = data[0]
-
-      // 因為 mock 可能不工作，所以會使用模擬數據
-      // 我們只檢查基本結構
-      expect(item.date).toBeDefined()
-      expect(item.open).toBeGreaterThan(0)
-      expect(item.close).toBeGreaterThan(0)
-      expect(item.high).toBeGreaterThan(0)
-      expect(item.low).toBeGreaterThan(0)
-      expect(item.volume).toBeGreaterThan(0)
-    })
-
-    it('應該處理 API 錯誤並返回模擬數據', async () => {
-      vi.mocked(apiCache.cached).mockImplementation(
-        async (_key: string, fn: () => Promise<unknown>) => {
-          try {
-            return await fn()
-          } catch {
-            // 如果 fn 拋出錯誤，返回空陣列，讓 service 使用模擬數據
-            return []
-          }
-        }
-      )
-
-      mockAxiosInstance.get.mockRejectedValue(new Error('Network error'))
-
-      const data = await FinMindService.getETFData('2024-01-01', '2024-01-31')
-
-      // 應該得到模擬數據或空陣列
-      expect(data).toBeDefined()
-      expect(Array.isArray(data)).toBe(true)
-    })
-
-    it('應該在 API 無數據時使用模擬數據', async () => {
-      const mockResponse = {
-        data: {
-          status: 200,
-          data: [],
-        },
-      }
-
-      vi.mocked(apiCache.cached).mockImplementation(
-        async (_key: string, fn: () => Promise<unknown>) => {
-          return await fn()
-        }
-      )
-
-      mockAxiosInstance.get.mockResolvedValue(mockResponse)
-
-      const data = await FinMindService.getETFData('2024-01-01', '2024-01-31')
-
-      expect(data).toBeDefined()
-      expect(Array.isArray(data)).toBe(true)
-      expect(data.length).toBeGreaterThan(0)
-    })
-
-    it('返回的數據應該包含完整欄位', async () => {
-      const mockResponse = {
-        data: {
-          status: 200,
-          data: [
-            {
-              date: '2024-01-15',
-              open: '130.50',
-              close: '132.00',
-              max: '133.00',
-              min: '130.00',
-              Trading_Volume: '25000000',
-            },
-          ],
-        },
-      }
-
-      vi.mocked(apiCache.cached).mockImplementation(
-        async (_key: string, fn: () => Promise<unknown>) => {
-          return await fn()
-        }
-      )
-
-      mockAxiosInstance.get.mockResolvedValue(mockResponse)
-
-      const data = await FinMindService.getETFData('2024-01-01', '2024-01-31')
-      const item = data[0]
-
-      expect(item).toHaveProperty('date')
-      expect(item).toHaveProperty('open')
-      expect(item).toHaveProperty('high')
-      expect(item).toHaveProperty('low')
-      expect(item).toHaveProperty('close')
-      expect(item).toHaveProperty('volume')
-      expect(item).toHaveProperty('change')
-      expect(item).toHaveProperty('changePercent')
-    })
-
-    it('數據應該有合理的數值範圍', async () => {
-      const mockResponse = {
-        data: {
-          status: 200,
-          data: [
-            {
-              date: '2024-01-15',
-              open: '130.50',
-              close: '132.00',
-              max: '133.00',
-              min: '130.00',
-              Trading_Volume: '25000000',
-            },
-          ],
-        },
-      }
-
-      vi.mocked(apiCache.cached).mockImplementation(
-        async (_key: string, fn: () => Promise<unknown>) => {
-          return await fn()
-        }
-      )
-
-      mockAxiosInstance.get.mockResolvedValue(mockResponse)
-
-      const data = await FinMindService.getETFData('2024-01-01', '2024-01-31')
-      const item = data[0]
-
-      expect(item.high).toBeGreaterThanOrEqual(item.low)
-      expect(item.high).toBeGreaterThanOrEqual(item.open)
-      expect(item.high).toBeGreaterThanOrEqual(item.close)
-      expect(item.low).toBeLessThanOrEqual(item.open)
-      expect(item.low).toBeLessThanOrEqual(item.close)
-      expect(item.volume).toBeGreaterThan(0)
-    })
+  it('接受舊欄位名稱，無 spread 時變化值為收盤減開盤', async () => {
+    respond([
+      {
+        ...rawBar,
+        max: undefined,
+        min: undefined,
+        Trading_Volume: undefined,
+        high: 104.4,
+        low: 102.1,
+        volume: 0,
+        spread: undefined,
+      },
+    ])
+    const [bar] = await FinMindService.getDailyBars(startDate, endDate)
+    expect(bar).toMatchObject({ high: 104.4, low: 102.1, volume: 0 })
+    expect(bar.change).toBeCloseTo(-0.35)
   })
 
-  describe('getRealTimePrice', () => {
-    it('應該成功獲取即時價格', async () => {
-      const mockResponse = {
-        data: {
-          status: 200,
-          data: [
-            {
-              date: '2024-01-15',
-              open: '130.50',
-              close: '132.00',
-              max: '133.00',
-              min: '130.00',
-              Trading_Volume: '25000000',
-            },
-          ],
-        },
-      }
-
-      vi.mocked(apiCache.cached).mockImplementation(
-        async (_key: string, fn: () => Promise<unknown>) => {
-          return await fn()
-        }
-      )
-
-      mockAxiosInstance.get.mockResolvedValue(mockResponse)
-
-      const price = await FinMindService.getRealTimePrice()
-
-      expect(price).toBeDefined()
-      expect(price).toHaveProperty('date')
-      expect(price).toHaveProperty('open')
-      expect(price).toHaveProperty('close')
-      expect(price).toHaveProperty('volume')
-    })
-
-    it('應該在錯誤時返回模擬價格', async () => {
-      vi.mocked(apiCache.cached).mockRejectedValue(new Error('Network error'))
-
-      mockAxiosInstance.get.mockRejectedValue(new Error('Network error'))
-
-      const price = await FinMindService.getRealTimePrice()
-
-      expect(price).toBeDefined()
-      expect(price).toHaveProperty('date')
-      expect(price?.open).toBeGreaterThan(0)
-      expect(price?.close).toBeGreaterThan(0)
-    })
+  it.each([
+    ['非數字', { open: 'invalid' }],
+    ['非有限', { open: Infinity }],
+    ['零價格', { min: 0 }],
+    ['部分數字', { open: '102.85bad' }],
+    ['遺漏最高價', { max: undefined }],
+    ['最高價低於收盤', { max: 102.2 }],
+    ['最低價高於開盤', { min: 103 }],
+    ['負成交量', { Trading_Volume: -10 }],
+    ['遺漏成交量', { Trading_Volume: undefined }],
+    ['成交量非整數', { Trading_Volume: '123.45' }],
+    ['不合理的昨收', { spread: 103 }],
+    ['日期超出區間', { date: '2026-11-16' }],
+    ['非日曆日期', { date: '2026-02-30' }],
+    ['代號不符', { stock_id: '0056' }],
+  ])('整批拒絕有無效 K 棒的回應（%s）', async (_label, overrides) => {
+    respond([olderBar, { ...rawBar, ...overrides }])
+    await expect(FinMindService.getETFData(startDate, endDate)).rejects.toThrow('行情格式無效')
   })
 
-  describe('getDailyBars', () => {
-    const passThrough = () =>
-      vi
-        .mocked(apiCache.cached)
-        .mockImplementation(async (_key: string, fn: () => Promise<unknown>) => fn())
-
-    it('漲跌以對前一日收盤的 spread 計算，並依日期排序', async () => {
-      passThrough()
-      apiInstance.get.mockResolvedValue({
-        data: {
-          status: 200,
-          data: [
-            {
-              date: '2026-11-13',
-              open: 102.85,
-              max: 104.4,
-              min: 102.1,
-              close: 102.5,
-              spread: 1.55,
-            },
-            {
-              date: '2026-11-12',
-              open: 103.5,
-              max: 104.2,
-              min: 100.8,
-              close: 100.95,
-              spread: -2.25,
-            },
-          ],
-        },
-      })
-
-      const bars = await FinMindService.getDailyBars('2026-11-12', '2026-11-13')
-
-      expect(bars.map(bar => bar.date)).toEqual(['2026-11-12', '2026-11-13'])
-      expect(bars[1]).toMatchObject({ open: 102.85, high: 104.4, low: 102.1, close: 102.5 })
-      expect(bars[1].change).toBe(1.55)
-      // 前一日收盤 100.95 → +1.535%
-      expect(bars[1].changePercent).toBeCloseTo((1.55 / 100.95) * 100, 6)
-    })
-
-    it('沒有 spread 欄位時退回收盤減開盤', async () => {
-      passThrough()
-      apiInstance.get.mockResolvedValue({
-        data: { status: 200, data: [{ date: '2024-01-15', open: '130', close: '132' }] },
-      })
-      const [bar] = await FinMindService.getDailyBars('2024-01-15', '2024-01-15')
-      expect(bar.change).toBe(2)
-    })
-
-    it('API 失敗或沒有資料時丟出錯誤，不以模擬資料代替', async () => {
-      passThrough()
-      apiInstance.get.mockRejectedValue(new Error('Network error'))
-      await expect(FinMindService.getDailyBars('2024-01-01', '2024-01-31')).rejects.toThrow(
-        'Network error'
-      )
-
-      apiInstance.get.mockResolvedValue({ data: { status: 200, data: [] } })
-      await expect(FinMindService.getDailyBars('2024-01-01', '2024-01-31')).rejects.toThrow(
-        'FinMind API 無數據'
-      )
-    })
-
-    it('getETFData 在同樣情況下退回模擬資料', async () => {
-      passThrough()
-      apiInstance.get.mockRejectedValue(new Error('Network error'))
-      const data = await FinMindService.getETFData('2024-01-01', '2024-01-31')
-      expect(data.length).toBeGreaterThan(0)
-    })
+  it('拒絕重複日期', async () => {
+    respond([rawBar, { ...rawBar, close: 102.6 }])
+    await expect(FinMindService.getETFData(startDate, endDate)).rejects.toThrow('行情格式無效')
   })
 
-  describe('getPriceAdjustments', () => {
-    const respond = (splits: unknown, dividends: unknown) => {
-      vi.mocked(apiCache.cached).mockImplementation(
-        async (_key: string, fn: () => Promise<unknown>) => fn()
-      )
-      apiInstance.get.mockImplementation(
-        async (_url: string, config: { params: { dataset: string } }) => ({
-          data: config.params.dataset === 'TaiwanStockSplitPrice' ? splits : dividends,
-        })
-      )
-    }
-
-    it('把分割與除息資料換成還原係數', async () => {
-      respond(
-        { status: 200, data: [{ date: '2025-06-18', before_price: 188.65, after_price: 47.16 }] },
-        {
-          status: 200,
-          data: [
-            { date: '2026-01-22', before_price: 71.85, reference_price: 70.85 },
-            { date: '2026-07-21', before_price: 99.2, reference_price: 98.6 },
-            { date: '2026-12-01', before_price: 0, reference_price: 0 },
-          ],
-        }
-      )
-
-      const adjustments = await FinMindService.getPriceAdjustments()
-
-      expect(adjustments).toEqual([
-        { date: '2025-06-18', kind: 'split', factor: 0.25 },
-        { date: '2026-01-22', kind: 'dividend', factor: 70.85 / 71.85 },
-        { date: '2026-07-21', kind: 'dividend', factor: 98.6 / 99.2 },
-      ])
-    })
-
-    it('任一資料集失敗就丟出錯誤', async () => {
-      respond({ status: 200, data: [] }, { status: 400, msg: 'error' })
-      await expect(FinMindService.getPriceAdjustments()).rejects.toThrow(
-        'FinMind TaiwanStockDividendResult 無數據'
-      )
-    })
+  it.each([
+    [200, []],
+    [200, { date: endDate }],
+    [400, [rawBar]],
+  ])('拒絕無數據或來源錯誤', async (status, data) => {
+    respond(data, status)
+    await expect(FinMindService.getDailyBars(startDate, endDate)).rejects.toThrow(
+      'FinMind API 無數據'
+    )
   })
 
-  describe('checkAPIStatus', () => {
-    it('應該在 API 正常時返回 true', async () => {
-      const mockResponse = {
-        data: {
-          status: 200,
-          data: [],
-        },
-      }
-
-      mockAxiosInstance.get.mockResolvedValue(mockResponse)
-
-      const status = await FinMindService.checkAPIStatus()
-
-      // 如果 mock 不工作，會返回 false（因為會拋錯）
-      // 所以我們只檢查它是否為布林值
-      expect(typeof status).toBe('boolean')
-    })
-
-    it('應該在 API 異常時返回 false', async () => {
-      mockAxiosInstance.get.mockRejectedValue(new Error('Network error'))
-
-      const status = await FinMindService.checkAPIStatus()
-
-      expect(status).toBe(false)
-    })
-
-    it('應該在 API 返回錯誤狀態時返回 false', async () => {
-      const mockResponse = {
-        data: {
-          status: 500,
-          data: [],
-        },
-      }
-
-      mockAxiosInstance.get.mockResolvedValue(mockResponse)
-
-      const status = await FinMindService.checkAPIStatus()
-
-      expect(status).toBe(false)
-    })
+  it('行情失敗時不產生合成價格', async () => {
+    get.mockRejectedValue(new Error('Network error'))
+    await expect(FinMindService.getETFData(startDate, endDate)).rejects.toThrow('Network error')
+    await expect(FinMindService.getRealTimePrice()).resolves.toBeNull()
   })
 
-  describe('data validation', () => {
-    it('應該安全處理缺失的欄位', async () => {
-      const mockResponse = {
-        data: {
-          status: 200,
-          data: [
-            {
-              date: '2024-01-15',
-              open: '130.50',
-              close: '132.00',
-              // 缺少 max, min, Trading_Volume
-            },
-          ],
-        },
-      }
-
-      vi.mocked(apiCache.cached).mockImplementation(
-        async (_key: string, fn: () => Promise<unknown>) => {
-          return await fn()
-        }
-      )
-
-      mockAxiosInstance.get.mockResolvedValue(mockResponse)
-
-      const data = await FinMindService.getETFData('2024-01-01', '2024-01-31')
-      const item = data[0]
-
-      expect(item.high).toBeDefined()
-      expect(item.low).toBeDefined()
-      expect(item.volume).toBeDefined()
-      expect(isNaN(item.high)).toBe(false)
-      expect(isNaN(item.low)).toBe(false)
-      expect(isNaN(item.volume)).toBe(false)
+  it('最新價格是最近一筆真實日 K', async () => {
+    respond([rawBar, olderBar])
+    await expect(FinMindService.getRealTimePrice()).resolves.toMatchObject({
+      date: endDate,
+      close: 102.5,
     })
+  })
+})
 
-    it('應該安全處理無效的數字字串', async () => {
-      const mockResponse = {
-        data: {
-          status: 200,
-          data: [
-            {
-              date: '2024-01-15',
-              open: 'invalid',
-              close: 'invalid',
-              max: 'invalid',
-              min: 'invalid',
-              Trading_Volume: 'invalid',
-            },
-          ],
-        },
+describe('FinMind 0050 分割與除息', () => {
+  it('保存事件前收、參考價與係數，略過尚未生效的事件', async () => {
+    respondAdjustments(
+      { status: 200, data: [split] },
+      {
+        status: 200,
+        data: [dividend, { ...dividend, date: '2026-12-01', before_price: 0, reference_price: 0 }],
       }
+    )
 
-      vi.mocked(apiCache.cached).mockImplementation(
-        async (_key: string, fn: () => Promise<unknown>) => {
-          return await fn()
-        }
-      )
+    await expect(FinMindService.getPriceAdjustments()).resolves.toEqual([
+      { date: split.date, kind: 'split', beforePrice: 188.65, referencePrice: 47.16, factor: 0.25 },
+      {
+        date: dividend.date,
+        kind: 'dividend',
+        beforePrice: 71.85,
+        referencePrice: 70.85,
+        factor: 70.85 / 71.85,
+      },
+    ])
+  })
 
-      mockAxiosInstance.get.mockResolvedValue(mockResponse)
+  it('任一資料集失敗時不回報完整還原', async () => {
+    respondAdjustments({ status: 200, data: [split] }, { status: 400, msg: 'error' })
+    await expect(FinMindService.getPriceAdjustments()).rejects.toThrow(
+      'FinMind TaiwanStockDividendResult 無數據'
+    )
+  })
 
-      const data = await FinMindService.getETFData('2024-01-01', '2024-01-31')
-      const item = data[0]
+  it('已生效的事件資料損毀時不略過', async () => {
+    respondAdjustments(
+      { status: 200, data: [split] },
+      { status: 200, data: [{ ...dividend, before_price: 0 }] }
+    )
+    await expect(FinMindService.getPriceAdjustments()).rejects.toThrow('dividend 資料格式無效')
+  })
 
-      // 由於 mock 可能不工作而返回模擬數據，我們檢查數值是否有效
-      expect(typeof item.open).toBe('number')
-      expect(typeof item.close).toBe('number')
-      expect(typeof item.high).toBe('number')
-      expect(typeof item.low).toBe('number')
-      expect(typeof item.volume).toBe('number')
-      expect(isNaN(item.open)).toBe(false)
-      expect(isNaN(item.close)).toBe(false)
-    })
+  it('已知分割被漏掉時不回報完整還原', async () => {
+    respondAdjustments({ status: 200, data: [] }, { status: 200, data: [dividend] })
+    await expect(FinMindService.getPriceAdjustments()).rejects.toThrow('除權息資料不完整')
+  })
+})
+
+describe('FinMind API 狀態', () => {
+  it('將供應端狀態 200 視為連線可用', async () => {
+    respond([])
+    await expect(FinMindService.checkAPIStatus()).resolves.toBe(true)
+  })
+
+  it('網路錯誤與供應端錯誤皆回報失敗', async () => {
+    get.mockRejectedValue(new Error('Network error'))
+    await expect(FinMindService.checkAPIStatus()).resolves.toBe(false)
+    respond([], 500)
+    await expect(FinMindService.checkAPIStatus()).resolves.toBe(false)
   })
 })

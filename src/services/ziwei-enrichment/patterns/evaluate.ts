@@ -5,7 +5,10 @@ import type { ZiWeiPatternCondition, ZiWeiPatternResult, ZiWeiPatternStar } from
 
 type StarName = ZiWeiSnapshotStar['name']
 type RuleDetails = Pick<ZiWeiPatternResult, 'id' | 'name' | 'sources'>
-type RuleConditions = Pick<ZiWeiPatternResult, 'required' | 'supporting' | 'breaking'>
+type RuleConditions = Pick<
+  ZiWeiPatternResult,
+  'required' | 'supporting' | 'breaking' | 'borrowedLifeStars'
+>
 
 const FOUR_MALEFICS = ['擎羊', '陀羅', '火星', '鈴星'] as const
 const WU_TAN_MALEFICS = ['擎羊', '陀羅', '地空', '地劫'] as const
@@ -52,7 +55,7 @@ function buildContext(chart: ZiWeiChartSnapshot) {
     })
   }
 
-  return { lifeBranch, lifeGroup, wealthAndCareer, stars, findStars, natalStars }
+  return { lifeBranch, lifeGroup, wealthAndCareer, stars, findStars, natalStars, palaces }
 }
 
 type Context = ReturnType<typeof buildContext>
@@ -60,9 +63,9 @@ type Context = ReturnType<typeof buildContext>
 function result(
   chart: ZiWeiChartSnapshot,
   rule: RuleDetails,
-  { required, supporting, breaking }: RuleConditions
+  { supporting, breaking, ...evidence }: RuleConditions
 ): ZiWeiPatternResult {
-  const meetsRequirements = required.every(entry => entry.matched)
+  const meetsRequirements = evidence.required.every(entry => entry.matched)
   const activeBreaking = meetsRequirements ? breaking.filter(entry => entry.matched) : []
   const status = meetsRequirements
     ? activeBreaking.length > 0
@@ -75,7 +78,7 @@ function result(
     status,
     ruleVersion: 1,
     conventionId: chart.conventionId,
-    required,
+    ...evidence,
     supporting: meetsRequirements ? supporting.filter(entry => entry.matched) : [],
     breaking: activeBreaking,
   }
@@ -231,6 +234,33 @@ function wuTanConditions(context: Context): RuleConditions {
   }
 }
 
+function ziFuLifePalaceConditions({ lifeBranch, findStars, palaces }: Context): RuleConditions {
+  const ziFu = findStars(['紫微', '天府'])
+  const bothInLife = ziFu.length === 2 && ziFu.every(star => star.branch === lifeBranch)
+  const borrowed = palaces[lifeBranch].borrowed
+  const borrowedLifeStars = borrowed
+    ? ziFu.filter(
+        star =>
+          star.branch === borrowed.fromBranch && borrowed.stars.some(name => name === star.name)
+      )
+    : []
+
+  return {
+    required: [
+      condition(
+        'zi-fu-seated-in-life',
+        `兩星須實際坐守命宮（${lifeBranch}）`,
+        bothInLife,
+        [lifeBranch],
+        ziFu
+      ),
+    ],
+    supporting: [],
+    breaking: [],
+    borrowedLifeStars,
+  }
+}
+
 const RULES: readonly (RuleDetails & { conditions(context: Context): RuleConditions })[] = [
   {
     id: 'fu-xiang-chao-yuan',
@@ -258,6 +288,17 @@ const RULES: readonly (RuleDetails & { conditions(context: Context): RuleConditi
     name: '武貪格',
     sources: [{ title: 'ziwei-doushu 武貪格', url: `${SOURCE_PATH}/patterns.ts#L267-L298` }],
     conditions: wuTanConditions,
+  },
+  {
+    id: 'zi-fu-life-palace',
+    name: '紫微、天府同坐命宮',
+    sources: [
+      {
+        title: 'ziwei-doushu 紫府同宮的坐守位置',
+        url: `${SOURCE_PATH}/patterns.ts#L142-L151`,
+      },
+    ],
+    conditions: ziFuLifePalaceConditions,
   },
 ]
 

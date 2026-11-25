@@ -22,13 +22,16 @@ export interface BirthInput {
 }
 
 export interface BirthChart {
-  /** 八字四柱：年柱以立春為界、月柱以節氣為界 */
+  /**
+   * 年柱以立春為界，月柱以節氣為界。
+   * 晚子時採流派 2：日柱在午夜換日，時柱從 23:00 起用次日子時的干支。
+   */
   pillars: FourPillars
   /** 農曆年干支（以正月初一為界），生肖、納音與紫微斗數以此為準 */
   lunarYear: GanZhi
   /**
    * 農曆生月 1–12；閏月前半歸本月、後半歸次月。
-   * 夜子時（23 點後）出生者，農曆月日與日柱都算當日（不提前換日），兩套排盤口徑一致。
+   * 晚子時出生者使用當日的農曆月日。
    */
   lunarMonth: number
   lunarDay: number

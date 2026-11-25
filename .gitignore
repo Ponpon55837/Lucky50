@@ -19,6 +19,8 @@ node_modules
 
 # 建置輸出
 coverage/
+playwright-report/
+test-results/
 dist/
 build/
 out/

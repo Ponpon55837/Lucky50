@@ -6,10 +6,17 @@
  * - 同 key 並發請求自動去重，staleTime 內直接回傳快取
  * - 服務層以動態 import 載入，避免將 lunar-javascript / axios / 命理引擎打包進 main chunk
  */
-import { defineQueryOptions } from '@pinia/colada'
-import type { ETFData } from '@/types'
+import { defineQueryOptions, type QueryCache } from '@pinia/colada'
 import type { LunarData, InvestmentAdvice } from '@/services/lunar'
 import type { IntegratedFortuneData, UserProfileCompat } from '@/services/integratedFortune'
+import {
+  getCachedMarketSnapshot,
+  isMarketOffline,
+  marketDateRange,
+  saveMarketSnapshot,
+  type MarketRange,
+  type MarketSnapshot,
+} from '@/services/marketHistory'
 import { ENGINE_SETTINGS_STORAGE_KEY } from '@/services/engines/settings'
 import { toLocalDateString } from '@/utils/date'
 import { fnv1a, profileHash } from '@/utils/hash'
@@ -22,8 +29,6 @@ export const queryKeys = {
   etf: {
     root: ['etf'] as const,
     range: (startDate: string, endDate: string) => ['etf', '0050', startDate, endDate] as const,
-    technical: (startDate: string, endDate: string) =>
-      ['etf', '0050', 'technical', startDate, endDate] as const,
     adjustments: ['etf', '0050', 'adjustments'] as const,
   },
   lunar: {
@@ -47,32 +52,42 @@ export function engineSettingsFingerprint(): string {
 }
 
 /** 0050 ETF 行情（依日期範圍） */
-export const etfRangeQuery = defineQueryOptions(
-  ({ startDate, endDate }: { startDate: string; endDate: string }) => ({
-    key: queryKeys.etf.range(startDate, endDate),
-    query: async (): Promise<ETFData[]> => {
-      const { FinMindService } = await import('@/services/finmind')
-      return FinMindService.getETFData(startDate, endDate)
-    },
-    staleTime: 10 * MINUTE,
-    gcTime: 30 * MINUTE,
-  })
-)
+const etfRangeQuery = defineQueryOptions(({ startDate, endDate }: MarketRange) => ({
+  key: queryKeys.etf.range(startDate, endDate),
+  query: async (): Promise<MarketSnapshot> => {
+    const { FinMindService } = await import('@/services/finmind')
+    return FinMindService.getMarketHistory(startDate, endDate)
+  },
+  staleTime: 10 * MINUTE,
+  gcTime: 30 * MINUTE,
+}))
 
-/**
- * 技術指標用的 0050 日 K：只收真實行情，API 失敗就讓查詢進入錯誤狀態，不以模擬資料代替
- */
-export const technicalBarsQuery = defineQueryOptions(
-  ({ startDate, endDate }: { startDate: string; endDate: string }) => ({
-    key: queryKeys.etf.technical(startDate, endDate),
-    query: async (): Promise<ETFData[]> => {
-      const { FinMindService } = await import('@/services/finmind')
-      return FinMindService.getDailyBars(startDate, endDate)
-    },
-    staleTime: 10 * MINUTE,
-    gcTime: 30 * MINUTE,
-  })
-)
+type MarketLoadResult =
+  { data: MarketSnapshot; status: 'current' | 'cached' } | { data: null; status: 'unavailable' }
+
+/** 本機快取只在離線或查詢失敗時使用，避免把快取記成新的來源回應。 */
+export async function loadMarketRange(
+  queryCache: QueryCache,
+  range: MarketRange,
+  force = false,
+  lookbackDays?: number
+): Promise<MarketLoadResult> {
+  if (!isMarketOffline()) {
+    const entry = queryCache.ensure(etfRangeQuery(range))
+    try {
+      const state = force ? await queryCache.fetch(entry) : await queryCache.refresh(entry)
+      if (state.status === 'success') {
+        saveMarketSnapshot(state.data, lookbackDays)
+        return { data: state.data, status: 'current' }
+      }
+    } catch {
+      // 查詢失敗時只讀取曾成功驗證的行情。
+    }
+  }
+
+  const cached = getCachedMarketSnapshot(range, lookbackDays)
+  return cached ? { data: cached, status: 'cached' } : { data: null, status: 'unavailable' }
+}
 
 /** 0050 的分割與除息還原係數：一年只變動兩次，快取半天 */
 export const priceAdjustmentsQuery = defineQueryOptions({
@@ -121,10 +136,5 @@ export const integratedFortuneQuery = defineQueryOptions(
   })
 )
 
-/** 計算以今天為終點、往前 days 天的日期範圍 */
-export function dateRangeFromToday(days: number, now: Date = new Date()) {
-  return {
-    startDate: toLocalDateString(new Date(now.getTime() - days * 24 * MINUTE * 60)),
-    endDate: toLocalDateString(now),
-  }
-}
+/** 以臺灣當地日期為終點的行情區間。 */
+export const dateRangeFromToday = marketDateRange

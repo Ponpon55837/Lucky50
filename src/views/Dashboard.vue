@@ -6,6 +6,7 @@ import { useDashboardStore } from '@/stores/dashboard'
 import { useDashboardAlmanac } from '@/composables/useDashboardAlmanac'
 import { lunarService } from '@/services/lunar'
 import { TaiwanStockService } from '@/services/taiwanStock'
+import { formatMarketFetchTime } from '@/services/marketHistory'
 import { primaryMarketSlotIndex } from '@/utils/almanac'
 import { ELEMENT_LABEL } from '@/utils/ganzhi'
 import { formatFullDate, formatMonthDayWeekday } from '@/utils/date'
@@ -85,6 +86,7 @@ const chartCaption = computed(
 
 const latestClose = computed(() => dashboardStore.latestPrice?.close.toFixed(2) ?? null)
 const changePercent = computed(() => {
+  if (chartPoints.value.length < 2) return null
   const value = dashboardStore.priceChangePercent
   return `${value >= 0 ? '+' : ''}${value.toFixed(2)}%`
 })
@@ -92,6 +94,7 @@ const changePercent = computed(() => {
 // ── 資料載入 ──
 
 const retryFortune = () => dashboardStore.retryIntegratedFortune(userProfileCompat.value)
+const retryMarket = () => dashboardStore.loadETFData(true)
 
 watch(userProfileCompat, profile => {
   if (profile) dashboardStore.refreshData(profile)
@@ -108,11 +111,15 @@ const onSettingsChanged = () => {
 onMounted(() => {
   dashboardStore.loadAllData(userProfileCompat.value)
   window.addEventListener('engine-settings-changed', onSettingsChanged)
+  window.addEventListener('online', retryMarket)
+  window.addEventListener('offline', retryMarket)
 })
 
 // 離開頁面時移除監聽，避免每次進入 Dashboard 累積一個 listener
 onUnmounted(() => {
   window.removeEventListener('engine-settings-changed', onSettingsChanged)
+  window.removeEventListener('online', retryMarket)
+  window.removeEventListener('offline', retryMarket)
 })
 </script>
 
@@ -209,7 +216,33 @@ onUnmounted(() => {
           <h2 class="card-title">
             0050 走勢
           </h2>
-          <span class="card-meta">{{ chartCaption }}</span>
+          <span
+            v-if="chartPoints.length"
+            class="card-meta"
+          >{{ chartCaption }}</span>
+        </div>
+        <div
+          class="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 text-xs text-ink-2"
+          role="status"
+        >
+          <p v-if="dashboardStore.etfProvenance">
+            {{ dashboardStore.etfStatus === 'cached' ? '行情快取' : '日 K' }} ·
+            {{ dashboardStore.etfProvenance.source }} ·
+            截至 {{ dashboardStore.etfProvenance.asOf }} ·
+            擷取於 {{ formatMarketFetchTime(dashboardStore.etfProvenance.fetchedAt) }}
+          </p>
+          <p v-else-if="dashboardStore.etfError">
+            {{ dashboardStore.etfError }}
+          </p>
+          <button
+            v-if="dashboardStore.etfStatus === 'cached' || dashboardStore.etfStatus === 'unavailable'"
+            class="btn-secondary px-3 py-1 text-xs"
+            type="button"
+            :disabled="dashboardStore.etfLoading"
+            @click="retryMarket"
+          >
+            重試行情
+          </button>
         </div>
         <InkPriceChart
           v-if="chartPoints.length > 1"
@@ -219,7 +252,7 @@ onUnmounted(() => {
           v-else
           class="grid h-[260px] place-items-center text-ink-3"
         >
-          {{ dashboardStore.etfLoading ? '正在載入行情' : '目前沒有行情資料' }}
+          {{ dashboardStore.etfLoading ? '正在載入行情' : latestClose ? '行情不足兩個交易日，暫無走勢圖' : '暫無行情可顯示' }}
         </p>
         <div
           v-if="latestClose"
@@ -229,6 +262,7 @@ onUnmounted(() => {
             最新收盤
             <span class="font-mono text-ink">{{ latestClose }}</span>
             <span
+              v-if="changePercent"
               class="font-mono"
               :class="dashboardStore.priceChangeColor"
             >{{

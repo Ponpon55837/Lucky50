@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, useId } from 'vue'
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -10,10 +10,12 @@ import {
   Tooltip,
   Legend,
   Filler,
+  type Scale,
   type TooltipItem,
 } from 'chart.js'
 import { Line } from 'vue-chartjs'
 import type { ETFData } from '@/types'
+import ChartDataDisclosure from './ChartDataDisclosure.vue'
 
 // 註冊 Chart.js 組件
 ChartJS.register(
@@ -30,10 +32,12 @@ ChartJS.register(
 interface Props {
   etfData: ETFData[]
   isDark?: boolean
+  period?: string
 }
 
 const props = withDefaults(defineProps<Props>(), {
   isDark: true,
+  period: '',
 })
 
 // Chart.js 需要實際色值：渲染時從 CSS tokens（"r g b"）讀取，深淺主題自動跟著切換
@@ -43,6 +47,7 @@ const FALLBACK_TOKENS: Record<string, string> = {
   'ink-3': '111 107 100',
   surface: '255 255 255',
   seal: '192 40 45',
+  'seal-ink': '176 34 39',
 }
 const token = (name: string, alpha = 1): string => {
   const raw =
@@ -52,40 +57,35 @@ const token = (name: string, alpha = 1): string => {
   return `rgb(${raw || FALLBACK_TOKENS[name] || '128 128 128'} / ${alpha})`
 }
 
-// 計算圖表數據
+const summaryId = useId()
+const periodLabel = computed(() => (props.period ? `（${props.period}）` : ''))
+const quotes = computed(() => [...props.etfData].sort((a, b) => a.date.localeCompare(b.date)))
+const formatPrice = (price: number) => price.toFixed(2)
+const rows = computed(() =>
+  quotes.value.map(({ date, close }) => ({ key: date, label: date, values: [formatPrice(close)] }))
+)
+const firstQuote = computed(() => quotes.value[0])
+const latestQuote = computed(() => quotes.value.at(-1))
+
 const chartData = computed(() => {
-  if (!props.etfData || props.etfData.length === 0) {
-    return null
-  }
-
-  // 使用所有傳入的數據，不再限制為30天
-  const sortedData = [...props.etfData].sort(
-    (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
-  )
-
-  const labels = sortedData.map(item => {
-    const date = new Date(item.date)
-    return `${date.getMonth() + 1}/${date.getDate()}`
-  })
-
-  const prices = sortedData.map(item => item.close)
+  if (!quotes.value.length) return null
 
   // isDark 只用來觸發重新計算；實際顏色由 tokens 決定
   void props.isDark
-  const line = token('seal')
+  const line = token('seal-ink')
 
-  const data = {
-    labels,
+  return {
+    labels: quotes.value.map(item => item.date),
     datasets: [
       {
         label: '0050 收盤價',
-        data: prices,
+        data: quotes.value.map(item => item.close),
         borderColor: line,
         backgroundColor: token('seal', 0.08),
         borderWidth: 2,
         fill: true,
         tension: 0.35,
-        pointRadius: 0,
+        pointRadius: quotes.value.length === 1 ? 4 : 0,
         pointHoverRadius: 4,
         pointBackgroundColor: line,
         pointBorderColor: token('surface'),
@@ -93,8 +93,6 @@ const chartData = computed(() => {
       },
     ],
   }
-
-  return data
 })
 
 // 圖表選項
@@ -125,7 +123,7 @@ const chartOptions = computed(() => {
         displayColors: false,
         callbacks: {
           label: function (context: TooltipItem<'line'>) {
-            return `收盤價: $${(context.parsed.y ?? 0).toFixed(2)}`
+            return `收盤價：${formatPrice(context.parsed.y ?? 0)} 元`
           },
         },
       },
@@ -138,6 +136,9 @@ const chartOptions = computed(() => {
         border: { color: gridColor },
         ticks: {
           color: textColor,
+          callback(this: Scale, value: string | number) {
+            return this.getLabelForValue(Number(value)).slice(5).replace('-', '/')
+          },
           font: {
             size: 12,
           },
@@ -162,7 +163,7 @@ const chartOptions = computed(() => {
     },
     elements: {
       point: {
-        hoverBackgroundColor: token('seal'),
+        hoverBackgroundColor: token('seal-ink'),
       },
     },
   }
@@ -170,22 +171,36 @@ const chartOptions = computed(() => {
 </script>
 
 <template>
-  <div class="h-64 w-full">
-    <div
-      v-if="!chartData"
-      class="flex h-full items-center justify-center rounded-[10px] bg-raised text-center"
-    >
-      <p class="text-sm text-ink-3">
-        {{ props.etfData?.length === 0 ? '無數據可顯示' : '載入圖表中...' }}
-        <br>
-        <small class="font-mono text-xs">數據數量: {{ props.etfData?.length || 0 }}</small>
+  <div class="flex min-w-0 flex-col gap-3">
+    <template v-if="chartData && firstQuote && latestQuote">
+      <div class="relative h-64 w-full sm:h-96">
+        <Line
+          :data="chartData"
+          :options="chartOptions"
+          :aria-label="`0050 收盤價走勢圖${periodLabel}`"
+          :aria-describedby="summaryId"
+          class="w-full h-full"
+        />
+      </div>
+      <p
+        :id="summaryId"
+        class="chart-data-summary text-sm text-ink-2"
+      >
+        共 {{ rows.length }} 個交易日。收盤價從 {{ firstQuote.date }} 的
+        {{ formatPrice(firstQuote.close) }} 元到 {{ latestQuote.date }} 的
+        {{ formatPrice(latestQuote.close) }} 元。
       </p>
-    </div>
-    <Line
+      <ChartDataDisclosure
+        :caption="`0050 收盤價${periodLabel}`"
+        :columns="['交易日期', '收盤價（新台幣元）']"
+        :rows="rows"
+      />
+    </template>
+    <p
       v-else
-      :data="chartData"
-      :options="chartOptions"
-      class="w-full h-full"
-    />
+      class="flex h-64 items-center justify-center rounded-[10px] bg-raised text-sm text-ink-3 sm:h-96"
+    >
+      無收盤價數據
+    </p>
   </div>
 </template>

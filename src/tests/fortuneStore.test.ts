@@ -1,158 +1,19 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest'
+import { IDBFactory } from 'fake-indexeddb'
+import { describe, it, expect, afterEach, beforeEach, vi } from 'vitest'
+import { FortuneHistoryStore } from '@/services/fortuneStore'
 import type { FortuneRecord } from '@/types/history'
 
-// 建立完整的 IndexedDB mock，支援同步觸發 callback
-function createMockIndexedDB() {
-  const stores = new Map<string, Map<string | number, Record<string, unknown>>>()
-
-  const getOrCreateStore = (name: string) => {
-    if (!stores.has(name)) stores.set(name, new Map())
-    return stores.get(name)!
-  }
-
-  function createRequest<T>(result: T) {
-    let _onsuccess: ((event: Event) => void) | null = null
-    const req = {
-      result,
-      onsuccess: null as unknown,
-      onerror: null as unknown,
-    }
-    // 使用 Object.defineProperty 以在設定 onsuccess 時立即觸發
-    Object.defineProperty(req, 'onsuccess', {
-      get() {
-        return _onsuccess
-      },
-      set(fn: ((event: Event) => void) | null) {
-        _onsuccess = fn
-        // 同步觸發 callback
-        if (fn) {
-          Promise.resolve().then(() => fn(new Event('success')))
-        }
-      },
-      configurable: true,
-    })
-    return req
-  }
-
-  const mockObjectStore = (name: string) => {
-    const data = getOrCreateStore(name)
-    return {
-      put: vi.fn((record: Record<string, unknown>) => {
-        const key = record.id ?? record.key
-        data.set(key as string | number, record)
-        return createRequest(undefined)
-      }),
-      get: vi.fn((key: string | number) => {
-        return createRequest(data.get(key) ?? undefined)
-      }),
-      getAll: vi.fn(() => {
-        return createRequest(Array.from(data.values()))
-      }),
-      clear: vi.fn(() => {
-        data.clear()
-        return createRequest(undefined)
-      }),
-      createIndex: vi.fn(),
-      index: vi.fn(() => ({
-        getAll: vi.fn(() => createRequest([])),
-      })),
-    }
-  }
-
-  const mockDB = {
-    objectStoreNames: {
-      contains: vi.fn((name: string) => stores.has(name)),
-    },
-    createObjectStore: vi.fn((name: string) => {
-      getOrCreateStore(name)
-      return mockObjectStore(name)
-    }),
-    transaction: vi.fn((_names: string | string[], _mode: string) => {
-      const tx = {
-        objectStore: vi.fn((name: string) => mockObjectStore(name)),
-        oncomplete: null as (() => void) | null,
-        onerror: null as (() => void) | null,
-        error: null,
-      }
-      Promise.resolve().then(() => {
-        if (tx.oncomplete) tx.oncomplete()
-      })
-      return tx
-    }),
-  }
-
-  return {
-    open: vi.fn((_name: string, _version: number) => {
-      let _onupgradeneeded: ((event: Event) => void) | null = null
-      let _onsuccess: ((event: Event) => void) | null = null
-      let _onerror: ((event: Event) => void) | null = null
-
-      const req = {
-        result: mockDB as unknown as IDBDatabase,
-        onsuccess: null as unknown,
-        onerror: null as unknown,
-        onupgradeneeded: null as unknown,
-      }
-
-      Object.defineProperty(req, 'onupgradeneeded', {
-        get() {
-          return _onupgradeneeded
-        },
-        set(fn: ((event: Event) => void) | null) {
-          _onupgradeneeded = fn
-          if (fn) {
-            Promise.resolve().then(() => {
-              const ev = new Event('upgradeneeded')
-              Object.defineProperty(ev, 'target', { value: req, configurable: true })
-              fn(ev)
-            })
-          }
-        },
-        configurable: true,
-      })
-
-      Object.defineProperty(req, 'onsuccess', {
-        get() {
-          return _onsuccess
-        },
-        set(fn: ((event: Event) => void) | null) {
-          _onsuccess = fn
-          if (fn) {
-            // 在 onupgradeneeded 之後觸發 onsuccess
-            Promise.resolve().then(() => Promise.resolve().then(() => fn(new Event('success'))))
-          }
-        },
-        configurable: true,
-      })
-
-      Object.defineProperty(req, 'onerror', {
-        get() {
-          return _onerror
-        },
-        set(fn: ((event: Event) => void) | null) {
-          _onerror = fn
-        },
-        configurable: true,
-      })
-
-      return req
-    }),
-    deleteDatabase: vi.fn(),
-  }
-}
-
 describe('FortuneHistoryStore', () => {
-  let store: InstanceType<typeof import('@/services/fortuneStore').FortuneHistoryStore>
+  let store: FortuneHistoryStore
 
   beforeEach(async () => {
-    Object.defineProperty(globalThis, 'indexedDB', {
-      value: createMockIndexedDB(),
-      writable: true,
-      configurable: true,
-    })
-    const { FortuneHistoryStore } = await import('@/services/fortuneStore')
+    vi.stubGlobal('indexedDB', new IDBFactory())
     store = new FortuneHistoryStore()
     await store.init()
+  })
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
   })
 
   describe('基本功能', () => {

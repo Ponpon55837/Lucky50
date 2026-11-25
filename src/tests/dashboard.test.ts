@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest'
+import { afterEach, describe, it, expect, beforeEach, vi } from 'vitest'
 import { setActivePinia, createPinia } from 'pinia'
 import { useDashboardStore } from '@/stores/dashboard'
 import { FinMindService } from '@/services/finmind'
@@ -53,41 +53,55 @@ vi.mock('@/services/integratedFortune', () => ({
 
 vi.mock('@/services/finmind', () => ({
   FinMindService: {
-    checkAPIStatus: vi.fn(() => Promise.resolve(true)),
-    getETFData: vi.fn(() =>
-      Promise.resolve([
-        {
-          date: '2024-01-15',
-          open: 132,
-          high: 134,
-          low: 131,
-          close: 133.5,
-          volume: 25000000,
-          change: 1.5,
-          changePercent: 1.13,
-        },
-        {
-          date: '2024-01-16',
-          open: 133.5,
-          high: 135,
-          low: 132.8,
-          close: 134.2,
-          volume: 28000000,
-          change: 0.7,
-          changePercent: 0.52,
-        },
-      ])
-    ),
+    checkAPIStatus: vi.fn(),
+    getMarketHistory: vi.fn(),
   },
 }))
+
+const getMarketHistory = vi.mocked(FinMindService.getMarketHistory)
+
+async function mockHistory(startDate: string, endDate: string) {
+  return {
+    range: { startDate, endDate },
+    bars: [
+      {
+        date: startDate,
+        open: 132,
+        high: 134,
+        low: 131,
+        close: 133.5,
+        volume: 25000000,
+        change: 1.5,
+        changePercent: 1.13,
+      },
+      {
+        date: endDate,
+        open: 133.5,
+        high: 135,
+        low: 132.8,
+        close: 134.2,
+        volume: 28000000,
+        change: 0.7,
+        changePercent: 0.52,
+      },
+    ],
+    provenance: { source: 'FinMind' as const, asOf: endDate, fetchedAt: new Date().toISOString() },
+  }
+}
 
 describe('useDashboardStore', () => {
   let store: ReturnType<typeof useDashboardStore>
 
   beforeEach(() => {
     vi.clearAllMocks()
+    getMarketHistory.mockReset().mockImplementation(mockHistory)
     setActivePinia(createPinia())
     store = useDashboardStore()
+  })
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
+    vi.useRealTimers()
   })
 
   describe('initial state', () => {
@@ -236,21 +250,96 @@ describe('useDashboardStore', () => {
     })
   })
 
-  describe('setETFData', () => {
-    it('直接設定 ETF 資料', () => {
-      store.setETFData([
-        {
-          date: '2024-01-15',
-          open: 132,
-          high: 134,
-          low: 131,
-          close: 133,
-          volume: 1000,
-          change: 0,
-          changePercent: 0,
-        },
-      ])
-      expect(store.etfData).toHaveLength(1)
+  describe('行情來源與快取', () => {
+    it('來源失敗且沒有相同範圍的快取時清除行情', async () => {
+      await store.loadETFRange('2024-01-01', '2024-01-31')
+      expect(store.etfStatus).toBe('current')
+      expect(store.etfProvenance?.asOf).toBe('2024-01-31')
+
+      getMarketHistory.mockRejectedValue(new Error('Network error'))
+      await store.loadETFRange('2025-01-01', '2025-06-01')
+      expect(store.etfStatus).toBe('unavailable')
+      expect(store.etfProvenance).toBeNull()
+      expect(store.latestPrice).toBeNull()
+      expect(store.etfData).toEqual([])
+      expect(store.etfError).toMatch(/無法取得/)
+    })
+
+    it('同區間更新失敗時保留原始擷取時間，恢復後更新', async () => {
+      const startDate = '2025-10-01'
+      const endDate = '2025-10-31'
+      vi.setSystemTime(new Date('2025-11-01T05:30:00Z'))
+      await store.loadETFRange(startDate, endDate)
+      const provenance = store.etfProvenance
+
+      vi.setSystemTime(new Date('2025-11-01T06:30:00Z'))
+      getMarketHistory.mockRejectedValueOnce(new Error('Network error'))
+      await store.retryETFData()
+      expect(store.etfStatus).toBe('cached')
+      expect(store.etfProvenance).toEqual(provenance)
+      expect(store.etfData).toHaveLength(2)
+
+      await store.retryETFData()
+      expect(store.etfStatus).toBe('current')
+      expect(store.etfProvenance?.fetchedAt).toBe('2025-11-01T06:30:00.000Z')
+      expect(getMarketHistory).toHaveBeenLastCalledWith(startDate, endDate)
+    })
+
+    it('離線時只使用同一個滾動期間的快取，排除滑出區間的日 K', async () => {
+      const cachedStart = '2026-07-01'
+      const cachedEnd = '2026-07-31'
+      await store.loadETFRange(cachedStart, cachedEnd, false, 30)
+      vi.stubGlobal('navigator', { onLine: false })
+      getMarketHistory.mockClear()
+
+      await store.loadETFRange('2026-07-02', '2026-08-01', false, 30)
+      expect(store.etfStatus).toBe('cached')
+      expect(store.etfProvenance?.asOf).toBe(cachedEnd)
+      expect(store.etfData.map(bar => bar.date)).toEqual([cachedEnd])
+
+      await store.loadETFRange('2026-05-03', '2026-08-01', false, 90)
+      expect(store.etfStatus).toBe('unavailable')
+      expect(store.etfError).toMatch(/離線/)
+      expect(store.etfData).toEqual([])
+      expect(getMarketHistory).not.toHaveBeenCalled()
+    })
+
+    it('能從 localStorage 讀取已驗證快取並拒絕損毀資料', async () => {
+      vi.stubGlobal('navigator', { onLine: false })
+      const startDate = '2025-08-01'
+      const endDate = '2025-08-31'
+      const key = `lucky50-finmind-0050-v1:${startDate}/${endDate}`
+      const saved = await mockHistory(startDate, endDate)
+      localStorage.setItem(key, JSON.stringify(saved))
+      await store.loadETFRange(startDate, endDate)
+      expect(store.etfStatus).toBe('cached')
+      expect(store.etfProvenance).toEqual(saved.provenance)
+
+      saved.bars[0].open = 0
+      localStorage.setItem(key, JSON.stringify(saved))
+      await store.loadETFRange(startDate, endDate)
+      expect(store.etfStatus).toBe('unavailable')
+      expect(store.etfData).toEqual([])
+      localStorage.removeItem(key)
+    })
+
+    it('較早送出的不同區間回應無法覆蓋新區間', async () => {
+      const historical = await mockHistory('2025-04-01', '2025-04-30')
+      let complete!: (value: typeof historical) => void
+      getMarketHistory.mockReturnValueOnce(
+        new Promise(resolve => {
+          complete = resolve
+        })
+      )
+      const initial = store.loadETFRange('2025-04-01', '2025-04-30')
+      await vi.waitFor(() =>
+        expect(getMarketHistory).toHaveBeenCalledWith('2025-04-01', '2025-04-30')
+      )
+      await store.loadETFRange('2025-06-01', '2025-06-30')
+      expect(store.latestPrice?.date).toBe('2025-06-30')
+      complete(historical)
+      await initial
+      expect(store.latestPrice?.date).toBe('2025-06-30')
     })
   })
 
@@ -270,18 +359,18 @@ describe('useDashboardStore', () => {
     it('staleTime 內重複載入 ETF 只打一次 API', async () => {
       await store.loadETFData()
       await store.loadETFData()
-      expect(FinMindService.getETFData).toHaveBeenCalledTimes(1)
+      expect(getMarketHistory).toHaveBeenCalledTimes(1)
     })
 
     it('並發載入同一範圍會去重', async () => {
       await Promise.all([store.loadETFData(), store.loadETFData(), store.loadETFData()])
-      expect(FinMindService.getETFData).toHaveBeenCalledTimes(1)
+      expect(getMarketHistory).toHaveBeenCalledTimes(1)
     })
 
     it('force 重新整理會略過快取', async () => {
       await store.loadETFData()
       await store.retryETFData()
-      expect(FinMindService.getETFData).toHaveBeenCalledTimes(2)
+      expect(getMarketHistory).toHaveBeenCalledTimes(2)
     })
 
     it('不再額外呼叫 checkAPIStatus 探測請求', async () => {
@@ -319,7 +408,7 @@ describe('useDashboardStore', () => {
 
     it('loadETFRange 載入指定範圍', async () => {
       await store.loadETFRange('2024-01-01', '2024-01-31')
-      expect(FinMindService.getETFData).toHaveBeenCalledWith('2024-01-01', '2024-01-31')
+      expect(getMarketHistory).toHaveBeenCalledWith('2024-01-01', '2024-01-31')
       expect(store.etfData).toHaveLength(2)
     })
   })
